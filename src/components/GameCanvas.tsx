@@ -1,0 +1,1663 @@
+import React, { useRef, useEffect, useState } from 'react';
+import { 
+  PlayerRole, 
+  GamePhase, 
+  MatchConfig, 
+  PlayerBall, 
+  NeonBumper, 
+  HazardPatch, 
+  PowerUpOrb, 
+  Particle, 
+  SonarPing, 
+  PowerUpType, 
+  RoundRecord 
+} from '../types';
+import { 
+  Zap, 
+  Target, 
+  Flame, 
+  Eye, 
+  Compass, 
+  VolumeX, 
+  HelpCircle, 
+  Swords, 
+  Trophy, 
+  Grid3X3,
+  Dribbble
+} from 'lucide-react';
+
+interface GameCanvasProps {
+  phase: GamePhase;
+  config: MatchConfig;
+  currentRound: number;
+  isSuddenDeath: boolean;
+  onRoundComplete: (turns: number, suddenDeathWinnerRole?: PlayerRole) => void;
+  onOpenHelp: () => void;
+  onExitGame: () => void;
+}
+
+export function GameCanvas({
+  phase,
+  config,
+  currentRound,
+  isSuddenDeath,
+  onRoundComplete,
+  onOpenHelp,
+  onExitGame,
+}: GameCanvasProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  
+  // Game state parameters
+  const [activeRole, setActiveRole] = useState<PlayerRole>('hider');
+  const [turnsSurvived, setTurnsSurvived] = useState<number>(0);
+  const [activePowerUp, setActivePowerUp] = useState<PowerUpType | null>(null);
+  const [powerUpDuration, setPowerUpDuration] = useState<number>(0); // consumed after 1 shot
+  
+  // Floating status message
+  const [floatMessage, setFloatMessage] = useState<string | null>(null);
+  const [floatTimer, setFloatTimer] = useState<number>(0);
+
+  // Determine who plays which role in the current round
+  // Player 1 is Hider on even-indexed rounds (0, 2, ...), Seeker on odd-indexed rounds
+  const p1IsHider = currentRound % 2 === 0;
+  const hiderName = p1IsHider ? config.p1Name : config.p2Name;
+  const seekerName = p1IsHider ? config.p2Name : config.p1Name;
+
+  // Map limits
+  const mapWidth = isSuddenDeath ? 1200 : 2000;
+  const mapHeight = isSuddenDeath ? 900 : 1500;
+
+  // Core physics references to prevent React re-renders of high-frequency coordinates
+  const hiderBallRef = useRef<PlayerBall>({
+    x: 400,
+    y: 750,
+    vx: 0,
+    vy: 0,
+    radius: 20,
+    role: 'hider',
+    name: hiderName,
+  });
+
+  const seekerBallRef = useRef<PlayerBall>({
+    x: 1600,
+    y: 750,
+    vx: 0,
+    vy: 0,
+    radius: 24, // Seeker is slightly larger and heavier
+    role: 'seeker',
+    name: seekerName,
+  });
+
+  // Entities
+  const bumpersRef = useRef<NeonBumper[]>([]);
+  const hazardsRef = useRef<HazardPatch[]>([]);
+  const orbRef = useRef<PowerUpOrb>({
+    x: 1000,
+    y: 750,
+    radius: 18,
+    type: 'laser',
+    active: true,
+    pulseScale: 1,
+  });
+
+  // FX systems
+  const particlesRef = useRef<Particle[]>([]);
+  const sonarPingsRef = useRef<SonarPing[]>([]);
+  const lastPingTimeRef = useRef<number>(0);
+
+  // Slingshot variables
+  const isDraggingRef = useRef<boolean>(false);
+  const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const dragCurrentRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  
+  // Camera variables with LERP tracking
+  const cameraRef = useRef({
+    x: 1000,
+    y: 750,
+    zoom: 0.8,
+  });
+
+  // Dynamic visual FX and slow-motion tracking refs
+  const hiderTrailRef = useRef<{ x: number; y: number }[]>([]);
+  const seekerTrailRef = useRef<{ x: number; y: number }[]>([]);
+  const shakeAmtRef = useRef<number>(0);
+  const slowMotionRef = useRef<number>(1.0);
+  const activeShockwaveRef = useRef<{ x: number; y: number; r: number; maxR: number; active: boolean } | null>(null);
+  const hiderExplodedRef = useRef<boolean>(false);
+
+  // Controls lock during active flings
+  const [ballsMoving, setBallsMoving] = useState<boolean>(false);
+
+  // Run procedural map generator when a round shifts
+  const generateMap = () => {
+    // Reset player position coordinates cleared of starting boundaries
+    hiderBallRef.current = {
+      x: isSuddenDeath ? 300 : 450,
+      y: isSuddenDeath ? 450 : 750,
+      vx: 0,
+      vy: 0,
+      radius: 20,
+      role: 'hider',
+      name: hiderName,
+    };
+
+    seekerBallRef.current = {
+      x: isSuddenDeath ? 900 : 1550,
+      y: isSuddenDeath ? 450 : 750,
+      vx: 0,
+      vy: 0,
+      radius: 24,
+      role: 'seeker',
+      name: seekerName,
+    };
+
+    // Bumpers
+    const newBumpers: NeonBumper[] = [];
+    const numBumpers = isSuddenDeath ? 8 : 6;
+    const colors = ['#ff0055', '#ff00aa', '#00f0ff', '#e0ffff'];
+
+    let tries = 0;
+    while (newBumpers.length < numBumpers && tries < 100) {
+      tries++;
+      const bx = 150 + Math.random() * (mapWidth - 300);
+      const by = 150 + Math.random() * (mapHeight - 300);
+      
+      // Clear from players spawns
+      const distH = Math.hypot(bx - hiderBallRef.current.x, by - hiderBallRef.current.y);
+      const distS = Math.hypot(bx - seekerBallRef.current.x, by - seekerBallRef.current.y);
+      
+      if (distH < 180 || distS < 180) continue;
+
+      // Avoid bunching together
+      let tooClose = false;
+      for (const b of newBumpers) {
+        if (Math.hypot(bx - b.x, by - b.y) < 140) tooClose = true;
+      }
+      if (tooClose) continue;
+
+      newBumpers.push({
+        id: `bumper-${newBumpers.length}`,
+        x: bx,
+        y: by,
+        radius: 42 + Math.random() * 15,
+        color: colors[newBumpers.length % colors.length],
+        pulseTimer: 0,
+      });
+    }
+
+    bumpersRef.current = newBumpers;
+
+    // Sand and Ice Patches (Zero on sudden death map to intensify bounces)
+    const newHazards: HazardPatch[] = [];
+    if (!isSuddenDeath) {
+      const numSand = 4;
+      const numIce = 4;
+
+      // Add Sand
+      let sandCount = 0;
+      tries = 0;
+      while (sandCount < numSand && tries < 150) {
+        tries++;
+        const sx = 200 + Math.random() * (mapWidth - 400);
+        const sy = 200 + Math.random() * (mapHeight - 400);
+        
+        const distH = Math.hypot(sx - hiderBallRef.current.x, sy - hiderBallRef.current.y);
+        const distS = Math.hypot(sx - seekerBallRef.current.x, sy - seekerBallRef.current.y);
+        if (distH < 220 || distS < 220) continue;
+
+        let overlap = false;
+        for (const b of bumpersRef.current) {
+          if (Math.hypot(sx - b.x, sy - b.y) < b.radius + 100) overlap = true;
+        }
+        for (const h of newHazards) {
+          if (Math.hypot(sx - h.x, sy - h.y) < 200) overlap = true;
+        }
+        if (overlap) continue;
+
+        newHazards.push({
+          id: `sand-${sandCount}`,
+          x: sx,
+          y: sy,
+          radius: 120 + Math.random() * 50,
+          type: 'sand',
+        });
+        sandCount++;
+      }
+
+      // Add Ice
+      let iceCount = 0;
+      tries = 0;
+      while (iceCount < numIce && tries < 150) {
+        tries++;
+        const ix = 200 + Math.random() * (mapWidth - 400);
+        const iy = 200 + Math.random() * (mapHeight - 400);
+
+        const distH = Math.hypot(ix - hiderBallRef.current.x, iy - hiderBallRef.current.y);
+        const distS = Math.hypot(ix - seekerBallRef.current.x, iy - seekerBallRef.current.y);
+        if (distH < 220 || distS < 220) continue;
+
+        let overlap = false;
+        for (const b of bumpersRef.current) {
+          if (Math.hypot(ix - b.x, iy - b.y) < b.radius + 100) overlap = true;
+        }
+        for (const h of newHazards) {
+          if (Math.hypot(ix - h.x, iy - h.y) < 200) overlap = true;
+        }
+        if (overlap) continue;
+
+        newHazards.push({
+          id: `ice-${iceCount}`,
+          x: ix,
+          y: iy,
+          radius: 110 + Math.random() * 45,
+          type: 'ice',
+        });
+        iceCount++;
+      }
+    }
+
+    hazardsRef.current = newHazards;
+
+    // Power-Up Orb location (randomized middle-zone position)
+    if (!isSuddenDeath) {
+      const ox = (mapWidth / 2) - 150 + Math.random() * 300;
+      const oy = (mapHeight / 2) - 150 + Math.random() * 300;
+      
+      const pTypes: PowerUpType[] = ['laser', 'superball', 'iron', 'sonar'];
+      const randomType = pTypes[Math.floor(Math.random() * pTypes.length)];
+
+      orbRef.current = {
+        x: ox,
+        y: oy,
+        radius: 20,
+        type: randomType,
+        active: true,
+        pulseScale: 1,
+      };
+    } else {
+      // Deactivate items on Sudden death
+      orbRef.current.active = false;
+    }
+
+    // Reset systems
+    particlesRef.current = [];
+    sonarPingsRef.current = [];
+    hiderTrailRef.current = [];
+    seekerTrailRef.current = [];
+    shakeAmtRef.current = 0;
+    slowMotionRef.current = 1.0;
+    activeShockwaveRef.current = null;
+    hiderExplodedRef.current = false;
+    setActiveRole('hider');
+    setTurnsSurvived(0);
+    setActivePowerUp(null);
+    setBallsMoving(false);
+  };
+
+  // Build the map on mount & phase variations
+  useEffect(() => {
+    if (phase === 'playing') {
+      generateMap();
+    }
+  }, [currentRound, phase, isSuddenDeath]);
+
+  // Handle float text notification animation
+  useEffect(() => {
+    if (floatMessage) {
+      const tid = setTimeout(() => {
+        setFloatMessage(null);
+      }, 2500);
+      return () => clearTimeout(tid);
+    }
+  }, [floatMessage]);
+
+  // Core Game Loop
+  useEffect(() => {
+    if (phase !== 'playing') return;
+
+    let animFrame: number;
+    let lastTime = performance.now();
+
+    const loop = (time: number) => {
+      const delta = Math.min(25, time - lastTime);
+      lastTime = time;
+
+      // Update positions & physics with substepping
+      physicsStep(time);
+
+      // Render
+      draw();
+
+      animFrame = requestAnimationFrame(loop);
+    };
+
+    // Sub-stepping engine for exact physical calculations (5 steps per frame)
+    const physicsStep = (time: number) => {
+      const hider = hiderBallRef.current;
+      const seeker = seekerBallRef.current;
+      const bumpers = bumpersRef.current;
+      const hazards = hazardsRef.current;
+      const orb = orbRef.current;
+
+      const subStepsCount = 5;
+      const speedScale = slowMotionRef.current;
+
+      for (let s = 0; s < subStepsCount; s++) {
+        // Move players by 1/5th increment scaled by current slow-motion factor
+        hider.x += (hider.vx / subStepsCount) * speedScale;
+        hider.y += (hider.vy / subStepsCount) * speedScale;
+
+        seeker.x += (seeker.vx / subStepsCount) * speedScale;
+        seeker.y += (seeker.vy / subStepsCount) * speedScale;
+
+        // --- Boundary collisions & clamp updates ---
+        // Normal border restitution = 0.60
+        // If Seeker has Superball powerup, Seeker gets 1.0 bounciness off border walls
+        const isExploding = slowMotionRef.current < 1.0;
+        const hiderRest = isExploding ? 0.93 : 0.65;
+        const seekerRest = isExploding ? 0.93 : ((activePowerUp === 'superball') ? 1.0 : 0.65);
+
+        // Hider Borders
+        if (hider.x - hider.radius < 0) {
+          hider.x = hider.radius;
+          hider.vx = -hider.vx * hiderRest;
+        } else if (hider.x + hider.radius > mapWidth) {
+          hider.x = mapWidth - hider.radius;
+          hider.vx = -hider.vx * hiderRest;
+        }
+
+        if (hider.y - hider.radius < 0) {
+          hider.y = hider.radius;
+          hider.vy = -hider.vy * hiderRest;
+        } else if (hider.y + hider.radius > mapHeight) {
+          hider.y = mapHeight - hider.radius;
+          hider.vy = -hider.vy * hiderRest;
+        }
+
+        // Seeker Borders
+        if (seeker.x - seeker.radius < 0) {
+          seeker.x = seeker.radius;
+          seeker.vx = -seeker.vx * seekerRest;
+        } else if (seeker.x + seeker.radius > mapWidth) {
+          seeker.x = mapWidth - seeker.radius;
+          seeker.vx = -seeker.vx * seekerRest;
+        }
+
+        if (seeker.y - seeker.radius < 0) {
+          seeker.y = seeker.radius;
+          seeker.vy = -seeker.vy * seekerRest;
+        } else if (seeker.y + seeker.radius > mapHeight) {
+          seeker.y = mapHeight - seeker.radius;
+          seeker.vy = -seeker.vy * seekerRest;
+        }
+
+        // --- Bumper Collisions ---
+        const handleBumperCollision = (ball: PlayerBall, isSeeker: boolean) => {
+          for (const b of bumpers) {
+            const dist = Math.hypot(ball.x - b.x, ball.y - b.y);
+            const rSum = ball.radius + b.radius;
+            if (dist < rSum) {
+              // Resolve overlap
+              const nx = (ball.x - b.x) / dist;
+              const ny = (ball.y - b.y) / dist;
+              ball.x = b.x + nx * rSum;
+              ball.y = b.y + ny * rSum;
+
+              // Collision velocity reflection
+              const vn = ball.vx * nx + ball.vy * ny;
+              if (vn < 0) {
+                // Base bumper restitution = 1.40
+                // If seeker has superball active, bounciness is 2x!
+                let e = 1.4;
+                if (isSeeker && activePowerUp === 'superball') {
+                  e = 3.0; // explosive rebounds!
+                }
+                
+                // Reflection formula
+                ball.vx = ball.vx - (1 + e) * vn * nx;
+                ball.vy = ball.vy - (1 + e) * vn * ny;
+                
+                // Deliver small static speed kick to ensure rapid launch
+                const currentSpeed = Math.hypot(ball.vx, ball.vy);
+                const boostFactor = (isSeeker && activePowerUp === 'superball') ? 1.6 : 1.25;
+                if (currentSpeed < 4) {
+                  ball.vx = nx * 8 * boostFactor;
+                  ball.vy = ny * 8 * boostFactor;
+                } else {
+                  ball.vx *= boostFactor;
+                  ball.vy *= boostFactor;
+                }
+
+                // Trigger pulse animation and screenshake
+                b.pulseTimer = 15;
+                shakeAmtRef.current = Math.min(shakeAmtRef.current + 8, 15);
+
+                // Create bumper spark particles
+                for (let i = 0; i < 6; i++) {
+                  particlesRef.current.push({
+                    x: b.x + nx * b.radius,
+                    y: b.y + ny * b.radius,
+                    vx: nx * 3 + (Math.random() - 0.5) * 4,
+                    vy: ny * 3 + (Math.random() - 0.5) * 4,
+                    radius: 3 + Math.random() * 3,
+                    color: b.color,
+                    alpha: 1,
+                    decay: 0.03 + Math.random() * 0.03,
+                  });
+                }
+              }
+            }
+          }
+        };
+
+        handleBumperCollision(hider, false);
+        handleBumperCollision(seeker, true);
+
+        // --- Tag detection (Seeker collides with Hider) ---
+        const distToTag = Math.hypot(seeker.x - hider.x, seeker.y - hider.y);
+        const tagRadiusSum = hider.radius + seeker.radius;
+        if (distToTag < tagRadiusSum) {
+          // TAG CONFIRMED! Freeze and blast particles
+          triggerTagEvent();
+          return; // Stop physics immediately
+        }
+
+        // --- Seeker Power-Up Orb pickup ---
+        if (orb.active) {
+          const distToOrb = Math.hypot(seeker.x - orb.x, seeker.y - orb.y);
+          if (distToOrb < seeker.radius + orb.radius) {
+            orb.active = false;
+            // Absorb powerup
+            setActivePowerUp(orb.type);
+            setPowerUpDuration(1); // 1 active shot
+            
+            const titles: Record<PowerUpType, string> = {
+              laser: 'Laser Sight Opt-In!',
+              superball: 'Superball Rebound Activator!',
+              iron: 'Iron Ball Anti-Sand Mass!',
+              sonar: 'Sonar Pulse Radar Activated!'
+            };
+            setFloatMessage(`PERK ACQUIRED: ${titles[orb.type].toUpperCase()}`);
+
+            // Spawn bright items particles
+            for (let i = 0; i < 20; i++) {
+              const ang = Math.random() * Math.PI * 2;
+              const sp = 2 + Math.random() * 6;
+              particlesRef.current.push({
+                x: orb.x,
+                y: orb.y,
+                vx: Math.cos(ang) * sp,
+                vy: Math.sin(ang) * sp,
+                radius: 3 + Math.random() * 3,
+                color: '#00ffff',
+                alpha: 1,
+                decay: 0.02 + Math.random() * 0.02,
+              });
+            }
+          }
+        }
+      }
+
+      // --- Apply Friction deceleration (once per frame, after substepping) ---
+      const applyFriction = (ball: PlayerBall, isSeeker: boolean) => {
+        // Base friction deceleration rates
+        // Seeker receives a -15% less friction boost
+        let baseFriction = 0.982; // Felt resistance
+        if (isSeeker) {
+          baseFriction = 0.9855; // Glide more easily
+        }
+
+        // Suspend friction heavily during explosive slow motion tag events
+        if (slowMotionRef.current < 1.0) {
+          baseFriction = 0.997;
+        }
+
+        let enteredSand = false;
+        let enteredIce = false;
+
+        // Check hazard zones
+        for (const hp of hazards) {
+          const d = Math.hypot(ball.x - hp.x, ball.y - hp.y);
+          if (d < hp.radius + ball.radius) {
+            if (hp.type === 'sand') {
+              enteredSand = true;
+            } else if (hp.type === 'ice') {
+              enteredIce = true;
+            }
+          }
+        }
+
+        if (enteredSand) {
+          // Sand trap slow penalty: EXTRA 8% reduction.
+          // Unless seeker has the Iron Ball powerup active!
+          // Sand trap does not slow down balls during slow-motion rocket league explosions
+          if (slowMotionRef.current < 1.0) {
+            ball.vx *= baseFriction;
+            ball.vy *= baseFriction;
+          } else if (isSeeker && activePowerUp === 'iron') {
+            // Iron ball travels unaffected! Draw trails
+            ball.vx *= baseFriction;
+            ball.vy *= baseFriction;
+            
+            // spawn sandy dusty trails
+            if (Math.hypot(ball.vx, ball.vy) > 1 && Math.random() < 0.3) {
+              particlesRef.current.push({
+                x: ball.x,
+                y: ball.y,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2,
+                radius: 2,
+                color: '#ca8a04',
+                alpha: 0.6,
+                decay: 0.05,
+              });
+            }
+          } else {
+            // Unprotected slow
+            ball.vx *= baseFriction * 0.92;
+            ball.vy *= baseFriction * 0.92;
+          }
+        } else if (enteredIce) {
+          // Ice patches reduces velocity by only 1% per frame, bypassing base floor
+          ball.vx *= 0.99;
+          ball.vy *= 0.99;
+        } else {
+          // Standard felt deceleration
+          ball.vx *= baseFriction;
+          ball.vy *= baseFriction;
+        }
+
+        // Stop completely if extremely slow to toggle next turn, except during active tags
+        if (Math.hypot(ball.vx, ball.vy) < 0.08 && slowMotionRef.current >= 1.0) {
+          ball.vx = 0;
+          ball.vy = 0;
+        }
+      };
+
+      applyFriction(hider, false);
+      applyFriction(seeker, true);
+
+      // Check if balls have come to rest
+      const hSpeed = Math.hypot(hider.vx, hider.vy);
+      const sSpeed = Math.hypot(seeker.vx, seeker.vy);
+      const isMoving = hSpeed > 0 || sSpeed > 0;
+
+      if (isMoving && !ballsMoving) {
+        setBallsMoving(true);
+      }
+
+      // Detect state transition from motion to resting
+      if (!isMoving && ballsMoving) {
+        setBallsMoving(false);
+        // Clean turn swaps
+        toggleTurnFlow();
+      }
+
+      // Update Particle debris FX
+      const particles = particlesRef.current;
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        
+        // Particles move relative to slow motion scale so they look realistic but responsive
+        const pSpeedScale = Math.max(0.2, slowMotionRef.current);
+        p.x += p.vx * pSpeedScale;
+        p.y += p.vy * pSpeedScale;
+
+        // Apply physical gravity to massive heavy fragments
+        if (p.heavy) {
+          p.vy += 0.22 * pSpeedScale; // fall acceleration
+        }
+
+        // Spin rotation increments
+        if (p.spin !== undefined && p.angle !== undefined) {
+          p.angle += p.spin * pSpeedScale;
+        }
+
+        // Elastic boundary wall reflections for physical shards
+        if (p.type === 'debris' || p.type === 'glass') {
+          const bounceRest = 0.74; // Elastic restitution
+          
+          if (p.x - p.radius < 0) {
+            p.x = p.radius;
+            p.vx = -p.vx * bounceRest;
+            if (p.spin !== undefined) p.spin = -p.spin * 0.8;
+          } else if (p.x + p.radius > mapWidth) {
+            p.x = mapWidth - p.radius;
+            p.vx = -p.vx * bounceRest;
+            if (p.spin !== undefined) p.spin = -p.spin * 0.8;
+          }
+
+          if (p.y - p.radius < 0) {
+            p.y = p.radius;
+            p.vy = -p.vy * bounceRest;
+            if (p.spin !== undefined) p.spin = -p.spin * 0.8;
+          } else if (p.y + p.radius > mapHeight) {
+            p.y = mapHeight - p.radius;
+            p.vy = -p.vy * bounceRest;
+            if (p.spin !== undefined) p.spin = -p.spin * 0.8;
+          }
+        }
+
+        // Debris survives longer during slow motion
+        const decayMultiplier = slowMotionRef.current < 1.0 ? 0.55 : 1.0;
+        p.alpha -= p.decay * decayMultiplier;
+
+        if (p.alpha <= 0 || p.radius <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+
+      // Update Sonar Radar Wave emissions
+      const pings = sonarPingsRef.current;
+      for (let i = pings.length - 1; i >= 0; i--) {
+        const ping = pings[i];
+        ping.radius += ping.speed;
+        ping.alpha = Math.max(0, 1 - (ping.radius / ping.maxRadius));
+        if (ping.radius >= ping.maxRadius) {
+          pings.splice(i, 1);
+        }
+      }
+
+      // Auto Sonar Ping generator every 3 seconds for Hidden players
+      const now = performance.now();
+      if (now - lastPingTimeRef.current > 3000) {
+        lastPingTimeRef.current = now;
+        // Only if Seeker can't easily see Hider (Fog of war is active in seeker turn)
+        const d = Math.hypot(hider.x - seeker.x, hider.y - seeker.y);
+        const inFog = d > 350;
+        
+        if (inFog && activeRole === 'seeker' && !isSuddenDeath) {
+          sonarPingsRef.current.push({
+            x: hider.x,
+            y: hider.y,
+            radius: 5,
+            maxRadius: 280,
+            alpha: 1,
+            speed: 3,
+          });
+        }
+      }
+
+      // Update bumper pulse glows
+      for (const b of bumpers) {
+        if (b.pulseTimer > 0) b.pulseTimer--;
+      }
+
+      // Update orb pulse float scale
+      if (orb.active) {
+        orb.pulseScale = 1 + Math.sin(time * 0.006) * 0.12;
+      }
+
+      // --- Accumulate path tracking trails (once per physics frame) ---
+      const hTrailSpeed = Math.hypot(hider.vx, hider.vy);
+      const sTrailSpeed = Math.hypot(seeker.vx, seeker.vy);
+
+      if (hTrailSpeed > 0.05) {
+        hiderTrailRef.current.push({ x: hider.x, y: hider.y });
+        if (hiderTrailRef.current.length > 25) hiderTrailRef.current.shift();
+      } else {
+        if (hiderTrailRef.current.length > 0) hiderTrailRef.current.shift();
+      }
+
+      if (sTrailSpeed > 0.05) {
+        seekerTrailRef.current.push({ x: seeker.x, y: seeker.y });
+        if (seekerTrailRef.current.length > 25) seekerTrailRef.current.shift();
+      } else {
+        if (seekerTrailRef.current.length > 0) seekerTrailRef.current.shift();
+      }
+
+      // --- Propagate post-tag shockwave ripple ---
+      if (activeShockwaveRef.current && activeShockwaveRef.current.active) {
+        activeShockwaveRef.current.r += 6.5; 
+        if (activeShockwaveRef.current.r >= activeShockwaveRef.current.maxR) {
+          activeShockwaveRef.current.active = false;
+        }
+      }
+
+      // --- Decelerate camera screen-shake vibration ---
+      if (shakeAmtRef.current > 0.05) {
+        shakeAmtRef.current *= 0.935;
+      } else {
+        shakeAmtRef.current = 0;
+      }
+
+      // --- Recover slow-motion timeline dampening back to normal ---
+      if (slowMotionRef.current < 1.0) {
+        slowMotionRef.current += 0.009;
+        if (slowMotionRef.current > 1.0) slowMotionRef.current = 1.0;
+      }
+    };
+
+    // Trigger turn toggle sequence
+    const toggleTurnFlow = () => {
+      if (activeRole === 'hider') {
+        // Hider completed fling!
+        // Swap turn to seeker
+        setActiveRole('seeker');
+        // Earn survival point
+        setTurnsSurvived(prev => prev + 1);
+      } else {
+        // Seeker flings and misses!
+        // Swap back to Hider
+        setActiveRole('hider');
+
+        // Check if Seeker consumed their active single-use powerup
+        if (activePowerUp) {
+          setPowerUpDuration(prev => {
+            const next = prev - 1;
+            if (next <= 0) {
+              setActivePowerUp(null);
+              setFloatMessage('PERK EXPIRED');
+            }
+            return next;
+          });
+        }
+      }
+    };
+
+    // Play high impact tag animation
+    const triggerTagEvent = () => {
+      const h = hiderBallRef.current;
+      const s = seekerBallRef.current;
+
+      // Set hiderExploded to true so the solid ball core shatters out of sight
+      hiderExplodedRef.current = true;
+
+      // Tag confirmed! Apply intense screen shake and engage dramatic slow-motion
+      shakeAmtRef.current = 42; // Very dramatic screen rattle
+      slowMotionRef.current = 0.025; // High-tension 2.5% slow speed
+
+      const centerTagX = (h.x + s.x) / 2;
+      const centerTagY = (h.y + s.y) / 2;
+
+      // Initiate golden expanding shockwave
+      activeShockwaveRef.current = {
+        x: centerTagX,
+        y: centerTagY,
+        r: 15,
+        maxR: 640,
+        active: true,
+      };
+
+      const ringParts: Particle[] = [];
+
+      // 1. Core combustion sparks (65 glowing fire elements)
+      const count = 65;
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+        const speed = 8 + Math.random() * 26;
+        ringParts.push({
+          x: centerTagX,
+          y: centerTagY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius: 2 + Math.random() * 5,
+          color: i % 3 === 0 ? '#ea580c' : (i % 3 === 1 ? '#d97706' : '#ffffff'), // Solar Orange, Rich Amber Gold, White flash
+          alpha: 1.0,
+          decay: 0.012 + Math.random() * 0.01,
+          type: 'spark',
+        });
+      }
+
+      // 2. Physical heavy bouncing shards representing the shattered Hider (35 sky blue cyan slabs)
+      for (let i = 0; i < 35; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 7 + Math.random() * 24;
+        ringParts.push({
+          x: h.x,
+          y: h.y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius: 4.5 + Math.random() * 8.5,
+          color: i % 2 === 0 ? '#38bdf8' : '#ffffff', // Sky Blue glow & silver-white chrome highlights
+          alpha: 1.0,
+          decay: 0.0035 + Math.random() * 0.004, // slides and decays very slowly
+          type: 'debris',
+          angle: Math.random() * Math.PI * 2,
+          spin: (Math.random() - 0.5) * 0.45,
+          heavy: true, // gravity bound
+        });
+      }
+
+      // 3. Delicate glass fragments bursting out (25 neon ice-blue shards)
+      for (let i = 0; i < 25; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 12 + Math.random() * 30;
+        ringParts.push({
+          x: centerTagX,
+          y: centerTagY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius: 3 + Math.random() * 5.5,
+          color: '#e0f2fe', // Bright iceberg highlight
+          alpha: 1.0,
+          decay: 0.005 + Math.random() * 0.006,
+          type: 'glass',
+          angle: Math.random() * Math.PI * 2,
+          spin: (Math.random() - 0.5) * 0.65,
+        });
+      }
+
+      particlesRef.current = ringParts;
+
+      // Force extreme Rocket League slow-mo recoil physics: blast player balls outwards!
+      const recoilAngle = Math.atan2(h.y - s.y, h.x - s.x);
+      
+      // Highly boosted recoil speeds so they glide super far and bounce off walls in slow motion
+      h.vx = Math.cos(recoilAngle) * 200;
+      h.vy = Math.sin(recoilAngle) * 200;
+      s.vx = -Math.cos(recoilAngle) * 145;
+      s.vy = -Math.sin(recoilAngle) * 145;
+
+      // Conclude round in 1.45 seconds to showcase the slow-mo kinetic bounces and shockwave
+      setTimeout(() => {
+        // Halt velocity forces when transitioning
+        h.vx = 0; h.vy = 0;
+        s.vx = 0; s.vy = 0;
+        
+        if (isSuddenDeath) {
+          onRoundComplete(turnsSurvived, 'seeker');
+        } else {
+          onRoundComplete(turnsSurvived);
+        }
+      }, 1450);
+    };
+
+    animFrame = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(animFrame);
+    };
+  }, [phase, activeRole, ballsMoving, activePowerUp, isSuddenDeath]);
+
+  // Handle active aiming line projections + reflect wall trajectories
+  const getAimPoints = () => {
+    if (!isDraggingRef.current) return [];
+    
+    const activeBall = activeRole === 'hider' ? hiderBallRef.current : seekerBallRef.current;
+    const dragX = dragCurrentRef.current.x;
+    const dragY = dragCurrentRef.current.y;
+
+    const dx = activeBall.x - dragX;
+    const dy = activeBall.y - dragY;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 10) return [];
+
+    const baseMaxDrag = 160;
+    const dragPower = Math.min(1.0, dist / baseMaxDrag);
+    
+    // Scale vectors linearly according to slingshot power
+    const vMax = activeRole === 'seeker' ? 22 : 15;
+    const launchSpeed = vMax * dragPower;
+    
+    const vx = (dx / dist) * launchSpeed;
+    const vy = (dy / dist) * launchSpeed;
+
+    const points: { x: number; y: number }[] = [{ x: activeBall.x, y: activeBall.y }];
+    
+    // Calculate laser sight projection with reflections if active
+    const beamLength = (activeRole === 'seeker' && activePowerUp === 'laser') ? 480 : 180;
+    let cx = activeBall.x;
+    let cy = activeBall.y;
+    let cvx = vx;
+    let cvy = vy;
+
+    // Normalizing
+    const launchHypot = Math.hypot(cvx, cvy);
+    if (launchHypot === 0) return [];
+    const dirX = cvx / launchHypot;
+    const dirY = cvy / launchHypot;
+
+    // Fast segment walk to detect reflections
+    let steps = beamLength / 10;
+    let testX = cx;
+    let testY = cy;
+
+    for (let i = 0; i < steps; i++) {
+      testX += dirX * 10;
+      testY += dirY * 10;
+
+      // Check border bounces
+      let bounced = false;
+      let nx = 0, ny = 0;
+
+      if (testX < 15) { testX = 15; nx = 1; bounced = true; }
+      else if (testX > mapWidth - 15) { testX = mapWidth - 15; nx = -1; bounced = true; }
+
+      if (testY < 15) { testY = 15; ny = 1; bounced = true; }
+      else if (testY > mapHeight - 15) { testY = mapHeight - 15; ny = -1; bounced = true; }
+
+      // Also support drawing bumper prediction markers!
+      for (const b of bumpersRef.current) {
+        const d = Math.hypot(testX - b.x, testY - b.y);
+        if (d < b.radius + activeBall.radius) {
+          bounced = true;
+          nx = (testX - b.x) / d;
+          ny = (testY - b.y) / d;
+          testX = b.x + nx * (b.radius + activeBall.radius + 2);
+          break;
+        }
+      }
+
+      if (bounced) {
+        points.push({ x: testX, y: testY });
+        // Reflection ray directional shift!
+        break; // Show first bounce node for laser clarity
+      }
+    }
+
+    // Add trailing pointer
+    points.push({ x: testX, y: testY });
+    return points;
+  };
+
+  // Main Draw function to render Canvas elements
+  const draw = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    const hider = hiderBallRef.current;
+    const seeker = seekerBallRef.current;
+    const bumpers = bumpersRef.current;
+    const hazards = hazardsRef.current;
+    const orb = orbRef.current;
+    const particles = particlesRef.current;
+    const pings = sonarPingsRef.current;
+
+    // Clean viewport background
+    ctx.fillStyle = '#020502'; // Pure pitch black
+    ctx.fillRect(0, 0, w, h);
+
+    // --- Dynamic Lead Camera Math ---
+    // Target coordinate tracks movement or turns
+    let targetCamX = 1000;
+    let targetCamY = 750;
+    let targetZoom = 0.8;
+
+    const hMoving = Math.hypot(hider.vx, hider.vy) > 0.05;
+    const sMoving = Math.hypot(seeker.vx, seeker.vy) > 0.05;
+    const dBetween = Math.hypot(hider.x - seeker.x, hider.y - seeker.y);
+
+    if (hMoving && sMoving) {
+      targetCamX = (hider.x + seeker.x) / 2;
+      targetCamY = (hider.y + seeker.y) / 2;
+      const normalZoom = Math.max(0.42, Math.min(1.0, (window.innerWidth - 100) / (dBetween + 200)));
+      
+      // Proximity Tension Zoom: Magnifies significantly as Seeker narrows down onto Hider
+      if (dBetween < 420) {
+        const proximityRatio = Math.max(0, (420 - dBetween) / 420);
+        // Elevate zoom dramatically peaking up to 1.95x when on top of each other!
+        targetZoom = normalZoom + proximityRatio * 1.05;
+      } else {
+        targetZoom = normalZoom;
+      }
+    } else if (hMoving) {
+      targetCamX = hider.x;
+      targetCamY = hider.y;
+      targetZoom = 1.05;
+    } else if (sMoving) {
+      targetCamX = seeker.x;
+      targetCamY = seeker.y;
+      targetZoom = 1.05;
+    } else {
+      // Resting turn layout: Zoom in heavily if they are close, otherwise normal focus
+      const activeObj = activeRole === 'hider' ? hider : seeker;
+      targetCamX = activeObj.x;
+      targetCamY = activeObj.y;
+      
+      if (dBetween < 260) {
+        targetZoom = 1.55; // Intensified tense focus
+      } else {
+        targetZoom = 1.15;
+      }
+    }
+
+    // Sudden death camera override
+    if (isSuddenDeath) {
+      targetCamX = 600;
+      targetCamY = 450;
+      targetZoom = 0.72; // Full map override
+    }
+
+    // Apply LERP smoothly over coordinates
+    cameraRef.current.x += (targetCamX - cameraRef.current.x) * 0.08;
+    cameraRef.current.y += (targetCamY - cameraRef.current.y) * 0.08;
+    cameraRef.current.zoom += (targetZoom - cameraRef.current.zoom) * 0.05;
+
+    const cam = cameraRef.current;
+
+    // Calculate Screen shake random offsets
+    let shakeX = 0;
+    let shakeY = 0;
+    if (shakeAmtRef.current > 0.1) {
+      shakeX = (Math.random() - 0.5) * shakeAmtRef.current;
+      shakeY = (Math.random() - 0.5) * shakeAmtRef.current;
+    }
+
+    // Apply viewport matrices translations with screen shake offset
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    ctx.scale(cam.zoom, cam.zoom);
+    ctx.translate(-cam.x + shakeX, -cam.y + shakeY);
+
+    // --- DRAW MAP INNER FLOOR ---
+    ctx.fillStyle = '#080a0f'; // Luxurious cinematic deep charcoal slate space floor
+    ctx.fillRect(0, 0, mapWidth, mapHeight);
+
+    // Draw Grid vector lines for high tech feel
+    ctx.strokeStyle = 'rgba(217, 119, 6, 0.032)'; // Softest grid gold
+    ctx.lineWidth = 1;
+
+    const gSize = 100;
+    for (let x = 0; x <= mapWidth; x += gSize) {
+       ctx.beginPath();
+       ctx.moveTo(x, 0);
+       ctx.lineTo(x, mapHeight);
+       ctx.stroke();
+    }
+    for (let y = 0; y <= mapHeight; y += gSize) {
+       ctx.beginPath();
+       ctx.moveTo(0, y);
+       ctx.lineTo(mapWidth, y);
+       ctx.stroke();
+    }
+
+    // Draw Map Outer Border Walls
+    ctx.strokeStyle = '#d97706'; // Rich Sand Gold
+    ctx.lineWidth = 12;
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = 'rgba(217, 119, 6, 0.35)';
+    ctx.strokeRect(0, 0, mapWidth, mapHeight);
+    ctx.shadowBlur = 0; // reset
+
+    // --- DRAW TERRAIN HAZARDS ---
+    for (const haz of hazards) {
+      ctx.beginPath();
+      ctx.arc(haz.x, haz.y, haz.radius, 0, Math.PI * 2);
+      
+      if (haz.type === 'sand') {
+        // Sand trap
+        ctx.fillStyle = 'rgba(63, 29, 11, 0.32)'; // Sienna deep shade
+        ctx.fill();
+        ctx.strokeStyle = '#d97706'; // Gold outline
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 8]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Drawn sand slowdown label text
+        ctx.fillStyle = '#d97706';
+        ctx.font = 'bold 9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('SAND SLOWDOWN', haz.x, haz.y);
+      } else if (haz.type === 'ice') {
+        // Ice patch
+        ctx.fillStyle = 'rgba(186, 230, 253, 0.16)'; // Frosty Silver Blue
+        ctx.fill();
+        ctx.strokeStyle = '#38bdf8'; // Sky light outline
+        ctx.lineWidth = 3;
+        ctx.setLineDash([12, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Label
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('ICE GLIDE', haz.x, haz.y);
+      }
+    }
+
+    // --- DRAW POWER-UP ITEM ORB ---
+    if (orb.active && !isSuddenDeath) {
+      ctx.save();
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = '#22d3ee';
+      
+      // Outer pulse ring
+      ctx.beginPath();
+      ctx.arc(orb.x, orb.y, orb.radius * orb.pulseScale, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(34, 211, 238, 0.45)';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // Inner glowing core
+      ctx.beginPath();
+      ctx.arc(orb.x, orb.y, orb.radius * 0.65, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.strokeStyle = '#22d3ee';
+      ctx.lineWidth = 3.5;
+      ctx.stroke();
+
+      // Mini text tag
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#22d3ee';
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(orb.type.toUpperCase(), orb.x, orb.y - orb.radius - 8);
+      ctx.restore();
+    }
+
+    // --- DRAW SECTIONS OF SONAR PING SENSORS ---
+    for (const ping of pings) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(ping.x, ping.y, ping.radius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(34, 211, 238, ${ping.alpha})`;
+      ctx.lineWidth = 2.5;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#22d3ee';
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // --- DRAW NEON STATIC BUMPERS ---
+    for (const b of bumpers) {
+      ctx.save();
+      const currentRadius = b.radius + (b.pulseTimer > 0 ? b.pulseTimer * 0.5 : 0);
+      
+      // Warm amber base
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, currentRadius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(217, 119, 6, 0.08)';
+      ctx.fill();
+
+      // Pulse glows (Sand-Gold/Sienna core indicators)
+      ctx.lineWidth = b.pulseTimer > 0 ? 5.5 : 3.5;
+      const bumperColor = b.color === '#ff0055' || b.color === '#ff00aa' ? '#ea580c' : '#f59e0b';
+      ctx.strokeStyle = bumperColor;
+      ctx.shadowBlur = b.pulseTimer > 0 ? 25 : 12;
+      ctx.shadowColor = bumperColor;
+      ctx.stroke();
+
+      // Core details
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, currentRadius * 0.5, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Static cross indicator
+      ctx.beginPath();
+      ctx.moveTo(b.x - 8, b.y); ctx.lineTo(b.x + 8, b.y);
+      ctx.moveTo(b.x, b.y - 8); ctx.lineTo(b.x, b.y + 8);
+      ctx.strokeStyle = bumperColor;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // --- DRAW EXPANDING POST-TAG SHOCKWAVE ---
+    if (activeShockwaveRef.current && activeShockwaveRef.current.active) {
+      const sw = activeShockwaveRef.current;
+      const alpha = Math.max(0, 1 - (sw.r / sw.maxR));
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(sw.x, sw.y, sw.r, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(217, 119, 6, ${alpha})`; // Rich sand-gold ripple
+      ctx.lineWidth = 8 * alpha;
+      ctx.shadowBlur = 25;
+      ctx.shadowColor = '#d97706';
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // --- HIGH-END TRAILING PATHS ENGINE ---
+    // Draw Hider Trail (Sky/Cyan Platinum stardust)
+    const hTrail = hiderTrailRef.current;
+    if (hTrail.length > 2) {
+      ctx.save();
+      for (let i = 1; i < hTrail.length; i++) {
+        const ratio = i / hTrail.length;
+        ctx.beginPath();
+        ctx.moveTo(hTrail[i-1].x, hTrail[i-1].y);
+        ctx.lineTo(hTrail[i].x, hTrail[i].y);
+        ctx.strokeStyle = `rgba(186, 230, 253, ${ratio * 0.45})`; // ice path glow
+        ctx.lineWidth = hider.radius * 0.9 * ratio;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Draw Seeker Trail (Molten Amber gold firecomet)
+    const sTrail = seekerTrailRef.current;
+    if (sTrail.length > 2) {
+      ctx.save();
+      for (let i = 1; i < sTrail.length; i++) {
+        const ratio = i / sTrail.length;
+        ctx.beginPath();
+        ctx.moveTo(sTrail[i-1].x, sTrail[i-1].y);
+        ctx.lineTo(sTrail[i].x, sTrail[i].y);
+        ctx.strokeStyle = `rgba(217, 119, 6, ${ratio * 0.65})`; // sand-gold comet
+        ctx.lineWidth = seeker.radius * 0.95 * ratio;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // --- AIMING SLINGSHOT VECTOR LINE gradient DRAW ---
+    if (isDraggingRef.current && !ballsMoving) {
+      const pts = getAimPoints();
+      if (pts.length >= 2) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) {
+          ctx.lineTo(pts[i].x, pts[i].y);
+        }
+
+        // Create gradient stroke based on stretch pull distance
+        const startBall = pts[0];
+        const endTarget = pts[pts.length - 1];
+        const g = ctx.createLinearGradient(startBall.x, startBall.y, endTarget.x, endTarget.y);
+        g.addColorStop(0, '#eab308'); // Amber start
+        g.addColorStop(0.5, '#f97316'); // Orange mid
+        g.addColorStop(1, '#ef4444'); // Crimson finish (heavy tension)
+
+        ctx.strokeStyle = g;
+        ctx.lineWidth = 4;
+        ctx.setLineDash([5, 4]);
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#f97316';
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+
+        // Draw aiming ring node
+        ctx.beginPath();
+        ctx.arc(endTarget.x, endTarget.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#ef4444';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+
+    // --- DRAW PARTICLES ---
+    for (const p of particles) {
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      ctx.shadowBlur = p.type === 'debris' || p.type === 'glass' ? 14 : 8;
+      ctx.shadowColor = p.color;
+
+      if ((p.type === 'debris' || p.type === 'glass') && p.angle !== undefined) {
+        // Render 3D irregular rotating shards (Rocket League particle shards!)
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+        ctx.fillStyle = p.color;
+
+        ctx.beginPath();
+        if (p.type === 'glass') {
+          // Sharp glass lance shard
+          ctx.moveTo(-p.radius, 0);
+          ctx.lineTo(0, -p.radius * 1.6);
+          ctx.lineTo(p.radius, 0);
+          ctx.lineTo(0, p.radius * 0.9);
+        } else {
+          // Chunk heavy polygon slab debris
+          ctx.moveTo(-p.radius, -p.radius * 0.6);
+          ctx.lineTo(p.radius * 0.8, -p.radius * 1.3);
+          ctx.lineTo(p.radius, p.radius);
+          ctx.lineTo(-p.radius * 0.6, p.radius * 0.8);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // High gloss 3D light highlight reflection strip
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(-p.radius * 0.4, 0);
+        ctx.lineTo(p.radius * 0.4, 0);
+        ctx.stroke();
+
+      } else {
+        // Fast dynamic circular sparks
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // --- DRAW HIDER BALL (Radiant White/Cyan Glow) ---
+    // Rule: Hide if distance is greater than 350px and not Seeker active Radar, and turn === seeker
+    const shroudDistance = Math.hypot(hider.x - seeker.x, hider.y - seeker.y);
+    const shroudEnabled = shroudDistance > 350 && activeRole === 'seeker' && !isSuddenDeath && (activePowerUp !== 'sonar');
+
+    if (!shroudEnabled && !hiderExplodedRef.current) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(hider.x, hider.y, hider.radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#f8fafc'; // Pearl Silver-White
+      ctx.fill();
+      ctx.lineWidth = 4.5;
+      ctx.strokeStyle = '#38bdf8'; // Cyan glowing outline
+      ctx.shadowBlur = 18;
+      ctx.shadowColor = '#38bdf8';
+      ctx.stroke();
+
+      // Mini hider letter
+      ctx.shadowBlur = 0;
+      ctx.font = 'bold 12px monospace';
+      ctx.fillStyle = '#0f172a'; // slate dark
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('H', hider.x, hider.y);
+
+      // Turn halo marker ring if Hider's turn
+      if (activeRole === 'hider' && !ballsMoving) {
+        ctx.beginPath();
+        ctx.arc(hider.x, hider.y, hider.radius + 12, 0, Math.PI * 2);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // --- DRAW SEEKER BALL (Molten Gold and Copper) ---
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(seeker.x, seeker.y, seeker.radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#d97706'; // Rich Amber Gold
+    ctx.fill();
+    ctx.lineWidth = 4.5;
+    ctx.strokeStyle = '#ea580c'; // Solar orange rim
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = '#d97706';
+    ctx.stroke();
+
+    // Text "S" inside
+    ctx.shadowBlur = 0;
+    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('S', seeker.x, seeker.y);
+
+    // Turn halo indicator
+    if (activeRole === 'seeker' && !ballsMoving) {
+      ctx.beginPath();
+      ctx.arc(seeker.x, seeker.y, seeker.radius + 12, 0, Math.PI * 2);
+      ctx.strokeStyle = '#d97706';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // --- DRAW FOG OF WAR SHROUD (Premium compositing effect) ---
+    if (activeRole === 'seeker' && !isSuddenDeath && activePowerUp !== 'sonar') {
+      ctx.save();
+      
+      // Let's create an offscreen backing layer manually inside canvas context state to avoid clearing grid lines!
+      // 1. Draw solid dark overlay everywhere except inside Seeker visual center
+      ctx.fillStyle = 'rgba(6, 8, 12, 0.95)'; // Deep charcoal slate mist
+      
+      ctx.beginPath();
+      // Outer rect
+      ctx.rect(0, 0, mapWidth, mapHeight);
+      // Inner circle (opposite direction to subtract)
+      const revealRadius = 350;
+      ctx.arc(seeker.x, seeker.y, revealRadius, 0, Math.PI * 2, true);
+      ctx.closePath();
+      ctx.fill(); // Paints everywhere except the circle!
+
+      // Draw faint boundary line around the Fog of War threshold
+      ctx.beginPath();
+      ctx.arc(seeker.x, seeker.y, revealRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(217, 119, 6, 0.22)'; // Soft gold dashed veil edge
+      ctx.lineWidth = 4;
+      ctx.setLineDash([6, 6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.restore();
+    }
+
+    ctx.restore(); // Restore camera matrices scales
+  };
+
+  // --- Helpers for Ice & coordination labelings ---
+  const ixCoord = (x: number) => x;
+  const iyCoord = (y: number) => y;
+
+  // --- TOUCH / MOUSE CONTROLS MAPPINGS ---
+  const handleStart = (clientX: number, clientY: number) => {
+    if (ballsMoving || phase !== 'playing') return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+
+    // Transform viewport screen click coordinates to map space coordinates
+    const sx = clientX - rect.left;
+    const sy = clientY - rect.top;
+
+    // Convert to target coordinates with scale translation
+    // Mouse coords: (sx, sy). We need to transform these using current camera scale/zoom
+    const cam = cameraRef.current;
+    const cw = canvas.width;
+    const ch = canvas.height;
+
+    // Inverse matrix formulas:
+    // (sx - cw/2) / zoom + cam.x = mapX
+    const mapX = (sx - cw / 2) / cam.zoom + cam.x;
+    const mapY = (sy - ch / 2) / cam.zoom + cam.y;
+
+    const activeBall = activeRole === 'hider' ? hiderBallRef.current : seekerBallRef.current;
+    const dist = Math.hypot(mapX - activeBall.x, mapY - activeBall.y);
+
+    // Increase touch target bounding circle offset slightly for mobile ease: radius + 40px
+    if (dist < activeBall.radius + 50) {
+      isDraggingRef.current = true;
+      dragStartRef.current = { x: activeBall.x, y: activeBall.y };
+      dragCurrentRef.current = { x: mapX, y: mapY };
+    }
+  };
+
+  const handleMove = (clientX: number, clientY: number) => {
+    if (!isDraggingRef.current) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+
+    const sx = clientX - rect.left;
+    const sy = clientY - rect.top;
+
+    const cam = cameraRef.current;
+    const cw = canvas.width;
+    const ch = canvas.height;
+
+    const mapX = (sx - cw / 2) / cam.zoom + cam.x;
+    const mapY = (sy - ch / 2) / cam.zoom + cam.y;
+
+    dragCurrentRef.current = { x: mapX, y: mapY };
+  };
+
+  const handleEnd = () => {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+
+    // Trigger sling fling launch!
+    const activeBall = activeRole === 'hider' ? hiderBallRef.current : seekerBallRef.current;
+    
+    // Drag opposite direction vector formula
+    const dx = activeBall.x - dragCurrentRef.current.x;
+    const dy = activeBall.y - dragCurrentRef.current.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist < 12) return; // ignore static tiny drags to avoid false releases
+
+    const maxDragVec = 160;
+    const dragPower = Math.min(1.0, dist / maxDragVec);
+
+    // Max speeds limit. Seeker receives +50% velocity boost
+    const baseVMax = 15;
+    const seekerVMax = baseVMax * 1.5; // seeker gets 22.5 max speed
+    const currentLimit = activeRole === 'seeker' ? seekerVMax : baseVMax;
+
+    const launchSpeed = currentLimit * dragPower;
+
+    // Apply impulse physics
+    activeBall.vx = (dx / dist) * launchSpeed;
+    activeBall.vy = (dy / dist) * launchSpeed;
+
+    // Launch sparks particle
+    for (let i = 0; i < 14; i++) {
+      particlesRef.current.push({
+        x: activeBall.x,
+        y: activeBall.y,
+        vx: -activeBall.vx * 0.35 + (Math.random() - 0.5) * 5,
+        vy: -activeBall.vy * 0.35 + (Math.random() - 0.5) * 5,
+        radius: 2.5 + Math.random() * 3.5,
+        color: activeRole === 'seeker' ? '#ffaa00' : '#ffffff',
+        alpha: 0.9,
+        decay: 0.02 + Math.random() * 0.03,
+      });
+    }
+  };
+
+  // Resize listener
+  useEffect(() => {
+    const handleResize = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      canvas.width = canvas.parentElement?.clientWidth || window.innerWidth;
+      canvas.height = canvas.parentElement?.clientHeight || (window.innerHeight - 80);
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize(); // initial set
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return (
+    <div className="relative flex flex-col h-screen select-none overflow-hidden bg-[#020502]">
+      
+      {/* Top Banner HUD display */}
+      <div className="w-full bg-neutral-950/80 backdrop-blur-md border-b border-emerald-500/25 px-4 py-3 flex justify-between items-center z-10 font-mono text-[11px] h-14 shrink-0 shadow-lg">
+        
+        {/* Left Side: Game details */}
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col">
+            <span className="text-zinc-500 text-[9px] uppercase tracking-wider">CHASE INDEX</span>
+            <span className="text-white font-sans font-bold uppercase tracking-widest flex items-center gap-1.5 leading-none">
+              <Swords className="w-4 h-4 text-emerald-400" /> RD {currentRound + 1}
+            </span>
+          </div>
+
+          <div className="flex flex-col">
+            <span className="text-zinc-500 text-[9px] uppercase tracking-wider">ELAPSED SCORE</span>
+            <span className="text-emerald-400 font-sans font-black text-sm tracking-widest leading-none">
+              {turnsSurvived} TURNS
+            </span>
+          </div>
+        </div>
+
+        {/* Center Side: Wholesome turn indicators */}
+        <div className="flex items-center gap-2">
+          {isSuddenDeath ? (
+            <div className="px-3 py-1 bg-fuchsia-950/40 border border-fuchsia-500/30 rounded-lg text-fuchsia-400 font-black animate-pulse leading-none text-[10px] tracking-widest uppercase">
+              SUDDEN DEATH ACTIVEE
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 bg-black/60 border border-emerald-500/10 rounded-full px-3 py-1">
+              <span className="text-zinc-500 text-[9px] uppercase mr-1">SHOT PORT:</span>
+              {activeRole === 'hider' ? (
+                <span className="text-white font-sans font-bold flex items-center gap-1">
+                  <span className="w-2 h-2 bg-white rounded-full animate-ping" /> {hiderName}
+                </span>
+              ) : (
+                <span className="text-orange-400 font-sans font-bold flex items-center gap-1">
+                  <span className="w-2 h-2 bg-orange-500 rounded-full animate-ping" /> {seekerName}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Right Side: Active power-up badge item */}
+        <div className="flex items-center gap-2">
+          {activePowerUp && (
+            <div className={`px-2.5 py-1 rounded border leading-none text-[9px] font-bold tracking-widest uppercase flex items-center gap-1.5 ${
+              activePowerUp === 'laser' ? 'bg-blue-950/20 text-blue-400 border-blue-500/20' :
+              activePowerUp === 'superball' ? 'bg-fuchsia-950/20 text-fuchsia-400 border-fuchsia-500/20' :
+              activePowerUp === 'iron' ? 'bg-yellow-950/20 text-yellow-400 border-yellow-500/20' :
+              'bg-purple-950/30 text-purple-400 border-purple-500/20'
+            }`}>
+              <Zap className="w-3 h-3 fill-current" /> {activePowerUp.toUpperCase()}
+            </div>
+          )}
+
+          <button
+            onClick={onOpenHelp}
+            id="btn-hud-help"
+            className="p-1.5 text-zinc-400 hover:text-white hover:bg-neutral-900 border border-neutral-800 rounded-lg transition-colors cursor-pointer"
+            title="Help"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={onExitGame}
+            id="btn-hud-exit"
+            className="px-2 py-1 bg-red-950/40 border border-red-500/20 text-red-400 rounded hover:bg-red-900 hover:text-white text-[9px] uppercase font-bold tracking-wider transition-colors cursor-pointer"
+          >
+            QUIT
+          </button>
+        </div>
+      </div>
+
+      {/* Floating Alerts Container */}
+      {floatMessage && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-emerald-500/10 border border-emerald-400/40 text-emerald-400 rounded-full font-mono text-xs font-bold tracking-widest shadow-lg shadow-emerald-500/5 animate-bounce">
+          {floatMessage}
+        </div>
+      )}
+
+      {/* Input Locking Visual Overlay Indicator */}
+      {!ballsMoving && (
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-neutral-950/90 border border-white/5 rounded-full text-[10px] text-zinc-400 font-mono tracking-widest shadow-xl pointer-events-none flex items-center gap-2">
+          <Compass className="w-3.5 h-3.5 text-emerald-400 animate-spin" style={{ animationDuration: '6s' }} />
+          DRAG BACKWARD TO AIM FLING
+        </div>
+      )}
+
+      {/* Canvas Element Container */}
+      <div className="flex-1 w-full bg-[#020502] relative touch-none outline-none">
+        <canvas
+          ref={canvasRef}
+          onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
+          onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
+          onMouseUp={handleEnd}
+          onMouseLeave={handleEnd}
+          onTouchStart={(e) => {
+            if (e.touches.length > 0) {
+              handleStart(e.touches[0].clientX, e.touches[0].clientY);
+            }
+          }}
+          onTouchMove={(e) => {
+            if (e.touches.length > 0) {
+              handleMove(e.touches[0].clientX, e.touches[0].clientY);
+            }
+          }}
+          onTouchEnd={handleEnd}
+          className="block w-full h-full cursor-crosshair touch-none"
+        />
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Neon Night Golf Chase",
+  "description": "A high-octane 2-player turn-based physics evasion game where one player hides and the other seeks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
