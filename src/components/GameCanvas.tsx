@@ -10,8 +10,53 @@ import {
   Particle, 
   SonarPing, 
   PowerUpType, 
-  RoundRecord 
+  RoundRecord,
+  RoundMeta,
+  Unlocks,
 } from '../types';
+import {
+  FOG_RADIUS,
+  MAP_WIDTH,
+  MAP_HEIGHT,
+  SD_MAP_WIDTH,
+  SD_MAP_HEIGHT,
+  HIDER_RADIUS,
+  SEEKER_RADIUS,
+  SUBSTEPS,
+  FRICTION_BASE,
+  FRICTION_SEEKER,
+  FRICTION_SLOWMO,
+  FRICTION_SAND_MULT,
+  FRICTION_ICE,
+  STOP_THRESHOLD,
+  BOUNCE_REST_NORMAL,
+  BOUNCE_REST_SLOWMO,
+  BOUNCE_REST_SUPERBALL,
+  BUMPER_REST,
+  BUMPER_REST_SUPERBALL,
+  BUMPER_BOOST_NORMAL,
+  BUMPER_BOOST_SUPERBALL,
+  BUMPER_MIN_SPEED,
+  BUMPER_KICK_SPEED,
+  MAX_DRAG,
+  MIN_DRAG_DIST,
+  TOUCH_TARGET_PAD,
+  LAUNCH_SPARKS,
+  SONAR_INTERVAL,
+  PARTICLE_MAX,
+  SEEKER_SPEED_MULT,
+  HIDER_BASE_SPEED,
+  BUMPER_COUNT_NORMAL,
+  BUMPER_COUNT_SD,
+  SAND_COUNT,
+  ICE_COUNT,
+  ORB_RESPAWN_TIME,
+  CREDITS_BASE_MULT,
+  CREDITS_POWERUP_BONUS,
+  LEADERBOARD_MAX,
+  AI_THINK_DELAY,
+  AI_EASY_ERROR,
+} from '../constants';
 import { 
   Zap, 
   Target, 
@@ -23,7 +68,8 @@ import {
   Swords, 
   Trophy, 
   Grid3X3,
-  Dribbble
+  Dribbble,
+  Cpu,
 } from 'lucide-react';
 
 interface GameCanvasProps {
@@ -31,9 +77,10 @@ interface GameCanvasProps {
   config: MatchConfig;
   currentRound: number;
   isSuddenDeath: boolean;
-  onRoundComplete: (turns: number, suddenDeathWinnerRole?: PlayerRole) => void;
+  onRoundComplete: (turns: number, suddenDeathWinnerRole?: PlayerRole, roundMeta?: RoundMeta) => void;
   onOpenHelp: () => void;
   onExitGame: () => void;
+  unlocks: Unlocks;
 }
 
 export function GameCanvas({
@@ -44,6 +91,7 @@ export function GameCanvas({
   onRoundComplete,
   onOpenHelp,
   onExitGame,
+  unlocks,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   
@@ -57,6 +105,9 @@ export function GameCanvas({
   const [floatMessage, setFloatMessage] = useState<string | null>(null);
   const [floatTimer, setFloatTimer] = useState<number>(0);
 
+  // CPU AI thinking overlay state
+  const [aiThinking, setAiThinking] = useState<boolean>(false);
+
   // Determine who plays which role in the current round
   // Player 1 is Hider on even-indexed rounds (0, 2, ...), Seeker on odd-indexed rounds
   const p1IsHider = currentRound % 2 === 0;
@@ -64,8 +115,8 @@ export function GameCanvas({
   const seekerName = p1IsHider ? config.p2Name : config.p1Name;
 
   // Map limits
-  const mapWidth = isSuddenDeath ? 1200 : 2000;
-  const mapHeight = isSuddenDeath ? 900 : 1500;
+  const mapWidth = isSuddenDeath ? SD_MAP_WIDTH : MAP_WIDTH;
+  const mapHeight = isSuddenDeath ? SD_MAP_HEIGHT : MAP_HEIGHT;
 
   // Core physics references to prevent React re-renders of high-frequency coordinates
   const hiderBallRef = useRef<PlayerBall>({
@@ -73,7 +124,7 @@ export function GameCanvas({
     y: 750,
     vx: 0,
     vy: 0,
-    radius: 20,
+    radius: HIDER_RADIUS,
     role: 'hider',
     name: hiderName,
   });
@@ -83,7 +134,7 @@ export function GameCanvas({
     y: 750,
     vx: 0,
     vy: 0,
-    radius: 24, // Seeker is slightly larger and heavier
+    radius: SEEKER_RADIUS,
     role: 'seeker',
     name: seekerName,
   });
@@ -125,8 +176,23 @@ export function GameCanvas({
   const activeShockwaveRef = useRef<{ x: number; y: number; r: number; maxR: number; active: boolean } | null>(null);
   const hiderExplodedRef = useRef<boolean>(false);
 
+  // Meta-progression tracking refs (reset each round)
+  const bumperHitCountRef = useRef<number>(0);
+  const powerUpCollectedRef = useRef<boolean>(false);
+  const tagTurnRef = useRef<number>(0);
+
+  // Unlock config refs (synced from props for use inside game loop)
+  const activeSkinRef = useRef<string>('default');
+  const activeTrailRef = useRef<string>('default');
+  const activeBumperRef = useRef<string>('default');
+  const activeMapBgRef = useRef<string>('default');
+
   // Controls lock during active flings
   const [ballsMoving, setBallsMoving] = useState<boolean>(false);
+
+  // CPU AI timing
+  const cpuTimerRef = useRef<number>(0);
+  const cpuThinkingRef = useRef<boolean>(false);
 
   // Run procedural map generator when a round shifts
   const generateMap = () => {
@@ -153,7 +219,7 @@ export function GameCanvas({
 
     // Bumpers
     const newBumpers: NeonBumper[] = [];
-    const numBumpers = isSuddenDeath ? 8 : 6;
+    const numBumpers = isSuddenDeath ? BUMPER_COUNT_SD : BUMPER_COUNT_NORMAL;
     const colors = ['#ff0055', '#ff00aa', '#00f0ff', '#e0ffff'];
 
     let tries = 0;
@@ -190,8 +256,8 @@ export function GameCanvas({
     // Sand and Ice Patches (Zero on sudden death map to intensify bounces)
     const newHazards: HazardPatch[] = [];
     if (!isSuddenDeath) {
-      const numSand = 4;
-      const numIce = 4;
+      const numSand = SAND_COUNT;
+      const numIce = ICE_COUNT;
 
       // Add Sand
       let sandCount = 0;
@@ -292,6 +358,11 @@ export function GameCanvas({
     setTurnsSurvived(0);
     setActivePowerUp(null);
     setBallsMoving(false);
+
+    // Reset meta-progression tracking
+    bumperHitCountRef.current = 0;
+    powerUpCollectedRef.current = false;
+    tagTurnRef.current = 0;
   };
 
   // Build the map on mount & phase variations
@@ -300,6 +371,21 @@ export function GameCanvas({
       generateMap();
     }
   }, [currentRound, phase, isSuddenDeath]);
+
+  // Sync unlock config into refs so game loop can read them
+  useEffect(() => {
+    // Pick the last (first non-default) unlocked item in each category
+    const pickFirst = (cat: Record<string, boolean>): string => {
+      for (const key of Object.keys(cat)) {
+        if (key !== 'default' && cat[key]) return key;
+      }
+      return 'default';
+    };
+    activeSkinRef.current = pickFirst(unlocks.ballSkins);
+    activeTrailRef.current = pickFirst(unlocks.trailColors);
+    activeBumperRef.current = pickFirst(unlocks.bumperThemes);
+    activeMapBgRef.current = pickFirst(unlocks.mapBackgrounds);
+  }, [unlocks]);
 
   // Handle float text notification animation
   useEffect(() => {
@@ -324,6 +410,33 @@ export function GameCanvas({
 
       // Update positions & physics with substepping
       physicsStep(time);
+
+      // ── CPU AI Seeker auto-play ──
+      if (config.isCpu && activeRole === 'seeker') {
+        const hSpeed = Math.hypot(hiderBallRef.current.vx, hiderBallRef.current.vy);
+        const sSpeed = Math.hypot(seekerBallRef.current.vx, seekerBallRef.current.vy);
+        const bothStopped = hSpeed === 0 && sSpeed === 0;
+
+        if (bothStopped) {
+          if (!cpuThinkingRef.current) {
+            cpuThinkingRef.current = true;
+            cpuTimerRef.current = 0;
+            setAiThinking(true);
+          }
+          cpuTimerRef.current += delta;
+          if (cpuTimerRef.current >= AI_THINK_DELAY) {
+            cpuThinkingRef.current = false;
+            cpuTimerRef.current = 0;
+            setAiThinking(false);
+            executeAISeekerFling();
+          }
+        } else if (cpuThinkingRef.current) {
+          // Safety: balls started moving unexpectedly
+          cpuThinkingRef.current = false;
+          cpuTimerRef.current = 0;
+          setAiThinking(false);
+        }
+      }
 
       // Render
       draw();
@@ -351,11 +464,9 @@ export function GameCanvas({
         seeker.y += (seeker.vy / subStepsCount) * speedScale;
 
         // --- Boundary collisions & clamp updates ---
-        // Normal border restitution = 0.60
-        // If Seeker has Superball powerup, Seeker gets 1.0 bounciness off border walls
         const isExploding = slowMotionRef.current < 1.0;
-        const hiderRest = isExploding ? 0.93 : 0.65;
-        const seekerRest = isExploding ? 0.93 : ((activePowerUp === 'superball') ? 1.0 : 0.65);
+        const hiderRest = isExploding ? BOUNCE_REST_SLOWMO : BOUNCE_REST_NORMAL;
+        const seekerRest = isExploding ? BOUNCE_REST_SLOWMO : ((activePowerUp === 'superball') ? BOUNCE_REST_SUPERBALL : BOUNCE_REST_NORMAL);
 
         // Hider Borders
         if (hider.x - hider.radius < 0) {
@@ -406,12 +517,11 @@ export function GameCanvas({
               // Collision velocity reflection
               const vn = ball.vx * nx + ball.vy * ny;
               if (vn < 0) {
-                // Base bumper restitution = 1.40
-                // If seeker has superball active, bounciness is 2x!
-                let e = 1.4;
+                let e = BUMPER_REST;
                 if (isSeeker && activePowerUp === 'superball') {
-                  e = 3.0; // explosive rebounds!
+                  e = BUMPER_REST_SUPERBALL;
                 }
+                bumperHitCountRef.current++;
                 
                 // Reflection formula
                 ball.vx = ball.vx - (1 + e) * vn * nx;
@@ -419,10 +529,10 @@ export function GameCanvas({
                 
                 // Deliver small static speed kick to ensure rapid launch
                 const currentSpeed = Math.hypot(ball.vx, ball.vy);
-                const boostFactor = (isSeeker && activePowerUp === 'superball') ? 1.6 : 1.25;
-                if (currentSpeed < 4) {
-                  ball.vx = nx * 8 * boostFactor;
-                  ball.vy = ny * 8 * boostFactor;
+                const boostFactor = (isSeeker && activePowerUp === 'superball') ? BUMPER_BOOST_SUPERBALL : BUMPER_BOOST_NORMAL;
+                if (currentSpeed < BUMPER_MIN_SPEED) {
+                  ball.vx = nx * BUMPER_KICK_SPEED * boostFactor;
+                  ball.vy = ny * BUMPER_KICK_SPEED * boostFactor;
                 } else {
                   ball.vx *= boostFactor;
                   ball.vy *= boostFactor;
@@ -467,6 +577,7 @@ export function GameCanvas({
           const distToOrb = Math.hypot(seeker.x - orb.x, seeker.y - orb.y);
           if (distToOrb < seeker.radius + orb.radius) {
             orb.active = false;
+            powerUpCollectedRef.current = true;
             // Absorb powerup
             setActivePowerUp(orb.type);
             setPowerUpDuration(1); // 1 active shot
@@ -475,7 +586,9 @@ export function GameCanvas({
               laser: 'Laser Sight Opt-In!',
               superball: 'Superball Rebound Activator!',
               iron: 'Iron Ball Anti-Sand Mass!',
-              sonar: 'Sonar Pulse Radar Activated!'
+              sonar: 'Sonar Pulse Radar Activated!',
+              cloak: 'Cloak Displacement Engaged!',
+              magnet: 'Magnetic Attraction!',
             };
             setFloatMessage(`PERK ACQUIRED: ${titles[orb.type].toUpperCase()}`);
 
@@ -500,16 +613,11 @@ export function GameCanvas({
 
       // --- Apply Friction deceleration (once per frame, after substepping) ---
       const applyFriction = (ball: PlayerBall, isSeeker: boolean) => {
-        // Base friction deceleration rates
-        // Seeker receives a -15% less friction boost
-        let baseFriction = 0.982; // Felt resistance
-        if (isSeeker) {
-          baseFriction = 0.9855; // Glide more easily
-        }
+        let baseFriction = isSeeker ? FRICTION_SEEKER : FRICTION_BASE;
 
         // Suspend friction heavily during explosive slow motion tag events
         if (slowMotionRef.current < 1.0) {
-          baseFriction = 0.997;
+          baseFriction = FRICTION_SLOWMO;
         }
 
         let enteredSand = false;
@@ -528,17 +636,12 @@ export function GameCanvas({
         }
 
         if (enteredSand) {
-          // Sand trap slow penalty: EXTRA 8% reduction.
-          // Unless seeker has the Iron Ball powerup active!
-          // Sand trap does not slow down balls during slow-motion rocket league explosions
           if (slowMotionRef.current < 1.0) {
             ball.vx *= baseFriction;
             ball.vy *= baseFriction;
           } else if (isSeeker && activePowerUp === 'iron') {
-            // Iron ball travels unaffected! Draw trails
             ball.vx *= baseFriction;
             ball.vy *= baseFriction;
-            
             // spawn sandy dusty trails
             if (Math.hypot(ball.vx, ball.vy) > 1 && Math.random() < 0.3) {
               particlesRef.current.push({
@@ -553,22 +656,19 @@ export function GameCanvas({
               });
             }
           } else {
-            // Unprotected slow
-            ball.vx *= baseFriction * 0.92;
-            ball.vy *= baseFriction * 0.92;
+            ball.vx *= baseFriction * FRICTION_SAND_MULT;
+            ball.vy *= baseFriction * FRICTION_SAND_MULT;
           }
         } else if (enteredIce) {
-          // Ice patches reduces velocity by only 1% per frame, bypassing base floor
-          ball.vx *= 0.99;
-          ball.vy *= 0.99;
+          ball.vx *= FRICTION_ICE;
+          ball.vy *= FRICTION_ICE;
         } else {
-          // Standard felt deceleration
           ball.vx *= baseFriction;
           ball.vy *= baseFriction;
         }
 
-        // Stop completely if extremely slow to toggle next turn, except during active tags
-        if (Math.hypot(ball.vx, ball.vy) < 0.08 && slowMotionRef.current >= 1.0) {
+        // Stop completely if extremely slow
+        if (Math.hypot(ball.vx, ball.vy) < STOP_THRESHOLD && slowMotionRef.current >= 1.0) {
           ball.vx = 0;
           ball.vy = 0;
         }
@@ -660,11 +760,11 @@ export function GameCanvas({
 
       // Auto Sonar Ping generator every 3 seconds for Hidden players
       const now = performance.now();
-      if (now - lastPingTimeRef.current > 3000) {
+      if (now - lastPingTimeRef.current > SONAR_INTERVAL) {
         lastPingTimeRef.current = now;
         // Only if Seeker can't easily see Hider (Fog of war is active in seeker turn)
         const d = Math.hypot(hider.x - seeker.x, hider.y - seeker.y);
-        const inFog = d > 350;
+        const inFog = d > FOG_RADIUS;
         
         if (inFog && activeRole === 'seeker' && !isSuddenDeath) {
           sonarPingsRef.current.push({
@@ -726,6 +826,11 @@ export function GameCanvas({
         slowMotionRef.current += 0.009;
         if (slowMotionRef.current > 1.0) slowMotionRef.current = 1.0;
       }
+
+      // Hard cap to avoid pathological spikes
+      if (particlesRef.current.length > PARTICLE_MAX) {
+        particlesRef.current.splice(0, particlesRef.current.length - PARTICLE_MAX);
+      }
     };
 
     // Trigger turn toggle sequence
@@ -762,6 +867,9 @@ export function GameCanvas({
 
       // Set hiderExploded to true so the solid ball core shatters out of sight
       hiderExplodedRef.current = true;
+
+      // Record which turn the tag happened on
+      tagTurnRef.current = turnsSurvived + 1; // +1 because this turn is currently in progress
 
       // Tag confirmed! Apply intense screen shake and engage dramatic slow-motion
       shakeAmtRef.current = 42; // Very dramatic screen rattle
@@ -854,11 +962,18 @@ export function GameCanvas({
         // Halt velocity forces when transitioning
         h.vx = 0; h.vy = 0;
         s.vx = 0; s.vy = 0;
-        
+
+        const roundMeta: RoundMeta = {
+          turnsSurvived,
+          powerUpCollected: powerUpCollectedRef.current,
+          bumperHits: bumperHitCountRef.current,
+          tagTurn: tagTurnRef.current,
+        };
+
         if (isSuddenDeath) {
-          onRoundComplete(turnsSurvived, 'seeker');
+          onRoundComplete(turnsSurvived, 'seeker', roundMeta);
         } else {
-          onRoundComplete(turnsSurvived);
+          onRoundComplete(turnsSurvived, undefined, roundMeta);
         }
       }, 1450);
     };
@@ -867,7 +982,176 @@ export function GameCanvas({
     return () => {
       cancelAnimationFrame(animFrame);
     };
-  }, [phase, activeRole, ballsMoving, activePowerUp, isSuddenDeath]);
+  }, [phase, activeRole, ballsMoving, activePowerUp, isSuddenDeath, config]);
+
+  // ── AI Opponent (CPU Seeker) ─────────────────────────────────
+
+  const simulateBallPath = (
+    startX: number, startY: number,
+    vx: number, vy: number,
+    radius: number,
+    steps: number,
+    maxBounces: number,
+  ): { x: number; y: number }[] => {
+    const points: { x: number; y: number }[] = [{ x: startX, y: startY }];
+    let cx = startX, cy = startY, cvx = vx, cvy = vy;
+    let bounces = 0;
+    const mw = mapWidth, mh = mapHeight;
+    const bumpers = bumpersRef.current;
+    const restitution = 0.65;
+
+    for (let s = 0; s < steps && Math.hypot(cvx, cvy) > STOP_THRESHOLD; s++) {
+      cx += cvx;
+      cy += cvy;
+
+      let bounced = false;
+      // Wall bounces
+      if (cx - radius < 0) { cx = radius; cvx = -cvx * restitution; bounced = true; }
+      else if (cx + radius > mw) { cx = mw - radius; cvx = -cvx * restitution; bounced = true; }
+      if (cy - radius < 0) { cy = radius; cvy = -cvy * restitution; bounced = true; }
+      else if (cy + radius > mh) { cy = mh - radius; cvy = -cvy * restitution; bounced = true; }
+      if (bounced) bounces++;
+
+      // Bumper bounces (only if we still have budget)
+      if (bounces < maxBounces) {
+        for (const b of bumpers) {
+          const dist = Math.hypot(cx - b.x, cy - b.y);
+          if (dist < radius + b.radius) {
+            const nx = (cx - b.x) / dist;
+            const ny = (cy - b.y) / dist;
+            cx = b.x + nx * (radius + b.radius);
+            cy = b.y + ny * (radius + b.radius);
+            const vn = cvx * nx + cvy * ny;
+            if (vn < 0) {
+              cvx = cvx - (1 + BUMPER_REST) * vn * nx;
+              cvy = cvy - (1 + BUMPER_REST) * vn * ny;
+              const speed = Math.hypot(cvx, cvy);
+              if (speed < BUMPER_MIN_SPEED) {
+                cvx = nx * BUMPER_KICK_SPEED * BUMPER_BOOST_NORMAL;
+                cvy = ny * BUMPER_KICK_SPEED * BUMPER_BOOST_NORMAL;
+              } else {
+                cvx *= BUMPER_BOOST_NORMAL;
+                cvy *= BUMPER_BOOST_NORMAL;
+              }
+            }
+            bounces++;
+            break;
+          }
+        }
+      }
+
+      if (bounces >= maxBounces) { points.push({ x: cx, y: cy }); break; }
+
+      // Friction
+      cvx *= FRICTION_BASE;
+      cvy *= FRICTION_BASE;
+
+      points.push({ x: cx, y: cy });
+    }
+
+    return points;
+  };
+
+  const executeAISeekerFling = () => {
+    const hider = hiderBallRef.current;
+    const seeker = seekerBallRef.current;
+    const orb = orbRef.current;
+    const diff = config.difficulty || 'medium';
+
+    // Difficulty: bounces to simulate
+    const maxBounces = diff === 'medium' ? 1 : 2;
+    const includePowerUp = diff === 'hard';
+
+    // 1. Predict hider future position for ~30 physics steps
+    const hiderSteps = 30;
+    const hiderPath = simulateBallPath(
+      hider.x, hider.y, hider.vx, hider.vy,
+      hider.radius, hiderSteps, maxBounces,
+    );
+
+    // 2. Try candidate launch angles and powers
+    const angles = 24; // every 15 degrees
+    const powers = [0.5, 0.75, 1.0];
+    const seekerVMax = HIDER_BASE_SPEED * SEEKER_SPEED_MULT;
+
+    let bestScore = Infinity;
+    let bestDx = 0, bestDy = 0, bestPower = 0.5;
+
+    for (let ai = 0; ai < angles; ai++) {
+      const angle = (ai / angles) * Math.PI * 2;
+      const dirX = Math.cos(angle);
+      const dirY = Math.sin(angle);
+
+      for (const p of powers) {
+        const speed = seekerVMax * p;
+        const path = simulateBallPath(
+          seeker.x, seeker.y, dirX * speed, dirY * speed,
+          SEEKER_RADIUS, 40, maxBounces,
+        );
+
+        // Score: closest approach to any hider position at similar time
+        let minDist = Infinity;
+        for (let si = 0; si < path.length; si++) {
+          const hi = Math.min(si, hiderPath.length - 1);
+          const dist = Math.hypot(path[si].x - hiderPath[hi].x, path[si].y - hiderPath[hi].y);
+          if (dist < minDist) minDist = dist;
+        }
+
+        // Power-up collection bonus
+        let orbBonus = 0;
+        if (includePowerUp && orb.active) {
+          for (const pt of path) {
+            const dOrb = Math.hypot(pt.x - orb.x, pt.y - orb.y);
+            if (dOrb < 200) { orbBonus = -100; break; }
+          }
+        }
+
+        const score = minDist + orbBonus;
+        if (score < bestScore) {
+          bestScore = score;
+          bestDx = dirX;
+          bestDy = dirY;
+          bestPower = p;
+        }
+      }
+    }
+
+    // 3. Apply difficulty error
+    let finalDx = bestDx, finalDy = bestDy;
+    let finalPower = bestPower;
+
+    if (diff === 'easy') {
+      // ±15% random error to aim angle
+      const angleError = (Math.random() - 0.5) * AI_EASY_ERROR * Math.PI * 2;
+      const cosE = Math.cos(angleError);
+      const sinE = Math.sin(angleError);
+      const edx = finalDx * cosE - finalDy * sinE;
+      const edy = finalDx * sinE + finalDy * cosE;
+      const eNorm = Math.hypot(edx, edy);
+      if (eNorm > 0) { finalDx = edx / eNorm; finalDy = edy / eNorm; }
+      // ±15% power error
+      finalPower *= (1 + (Math.random() - 0.5) * AI_EASY_ERROR);
+      finalPower = Math.max(0.3, Math.min(1.0, finalPower));
+    }
+
+    // 4. Execute fling
+    const launchSpeed = seekerVMax * finalPower;
+    seeker.vx = finalDx * launchSpeed;
+    seeker.vy = finalDy * launchSpeed;
+
+    // Launch spark particles
+    for (let i = 0; i < LAUNCH_SPARKS; i++) {
+      particlesRef.current.push({
+        x: seeker.x, y: seeker.y,
+        vx: -seeker.vx * 0.35 + (Math.random() - 0.5) * 5,
+        vy: -seeker.vy * 0.35 + (Math.random() - 0.5) * 5,
+        radius: 2.5 + Math.random() * 3.5,
+        color: '#ffaa00',
+        alpha: 0.9,
+        decay: 0.02 + Math.random() * 0.03,
+      });
+    }
+  };
 
   // Handle active aiming line projections + reflect wall trajectories
   const getAimPoints = () => {
@@ -882,11 +1166,11 @@ export function GameCanvas({
     const dist = Math.hypot(dx, dy);
     if (dist < 10) return [];
 
-    const baseMaxDrag = 160;
+    const baseMaxDrag = MAX_DRAG;
     const dragPower = Math.min(1.0, dist / baseMaxDrag);
     
     // Scale vectors linearly according to slingshot power
-    const vMax = activeRole === 'seeker' ? 22 : 15;
+    const vMax = activeRole === 'seeker' ? HIDER_BASE_SPEED * SEEKER_SPEED_MULT : HIDER_BASE_SPEED;
     const launchSpeed = vMax * dragPower;
     
     const vx = (dx / dist) * launchSpeed;
@@ -1044,26 +1328,51 @@ export function GameCanvas({
     ctx.scale(cam.zoom, cam.zoom);
     ctx.translate(-cam.x + shakeX, -cam.y + shakeY);
 
-    // --- DRAW MAP INNER FLOOR ---
-    ctx.fillStyle = '#080a0f'; // Luxurious cinematic deep charcoal slate space floor
-    ctx.fillRect(0, 0, mapWidth, mapHeight);
+    // --- DRAW MAP FLOOR PATTERN ---
+    // Map backgrounds: grid (default), hex, blank
+    const mapTheme = activeMapBgRef.current;
+    if (mapTheme !== 'blank') {
+      ctx.strokeStyle = 'rgba(217, 119, 6, 0.032)'; // Softest grid gold
+      ctx.lineWidth = 1;
 
-    // Draw Grid vector lines for high tech feel
-    ctx.strokeStyle = 'rgba(217, 119, 6, 0.032)'; // Softest grid gold
-    ctx.lineWidth = 1;
-
-    const gSize = 100;
-    for (let x = 0; x <= mapWidth; x += gSize) {
-       ctx.beginPath();
-       ctx.moveTo(x, 0);
-       ctx.lineTo(x, mapHeight);
-       ctx.stroke();
-    }
-    for (let y = 0; y <= mapHeight; y += gSize) {
-       ctx.beginPath();
-       ctx.moveTo(0, y);
-       ctx.lineTo(mapWidth, y);
-       ctx.stroke();
+      if (mapTheme === 'grid' || mapTheme === 'default') {
+        // Default grid
+        const gSize = 100;
+        for (let x = 0; x <= mapWidth; x += gSize) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, mapHeight);
+          ctx.stroke();
+        }
+        for (let y = 0; y <= mapHeight; y += gSize) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(mapWidth, y);
+          ctx.stroke();
+        }
+      } else if (mapTheme === 'hex') {
+        // Hex pattern
+        const r = 30;
+        const hexHeight = r * Math.sqrt(3);
+        const rows = Math.ceil(mapHeight / hexHeight) + 2;
+        const cols = Math.ceil(mapWidth / (r * 1.5)) + 2;
+        for (let row = -1; row < rows; row++) {
+          for (let col = -1; col < cols; col++) {
+            const cx = col * r * 1.5;
+            const cy = row * hexHeight + (col % 2 === 0 ? 0 : hexHeight / 2);
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+              const a = (i / 6) * Math.PI * 2;
+              const x = cx + r * Math.cos(a);
+              const y = cy + r * Math.sin(a);
+              if (i === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+          }
+        }
+      }
     }
 
     // Draw Map Outer Border Walls
@@ -1170,10 +1479,23 @@ export function GameCanvas({
       // Pulse glows (Sand-Gold/Sienna core indicators)
       ctx.lineWidth = b.pulseTimer > 0 ? 5.5 : 3.5;
       const bumperColor = b.color === '#ff0055' || b.color === '#ff00aa' ? '#ea580c' : '#f59e0b';
+
+      // --- Bumper theme overrides ---
+      const theme = activeBumperRef.current;
+      if (theme === 'dotted') {
+        ctx.setLineDash([4, 4]);
+      } else if (theme === 'dashed') {
+        ctx.setLineDash([8, 3]);
+      } else if (theme === 'neon') {
+        ctx.shadowBlur = (b.pulseTimer > 0 ? 35 : 22);
+        ctx.shadowColor = '#ffffff'; // white glow
+      }
+
       ctx.strokeStyle = bumperColor;
       ctx.shadowBlur = b.pulseTimer > 0 ? 25 : 12;
       ctx.shadowColor = bumperColor;
       ctx.stroke();
+      ctx.setLineDash([]); // reset dash
 
       // Core details
       ctx.beginPath();
@@ -1208,7 +1530,18 @@ export function GameCanvas({
     }
 
     // --- HIGH-END TRAILING PATHS ENGINE ---
-    // Draw Hider Trail (Sky/Cyan Platinum stardust)
+    // Trail color map
+    const TRAIL_COLORS: Record<string, string> = {
+      default: '186, 230, 253', // ice (RGB)
+      blue: '34, 211, 238',     // cyan
+      green: '132, 204, 22',   // lime
+      red: '249, 115, 22',     // orange
+      purple: '192, 132, 252', // purple
+      white: '226, 232, 240',  // white
+    };
+    const trailRGB = TRAIL_COLORS[activeTrailRef.current] || TRAIL_COLORS.default;
+
+    // Draw Hider Trail
     const hTrail = hiderTrailRef.current;
     if (hTrail.length > 2) {
       ctx.save();
@@ -1217,7 +1550,7 @@ export function GameCanvas({
         ctx.beginPath();
         ctx.moveTo(hTrail[i-1].x, hTrail[i-1].y);
         ctx.lineTo(hTrail[i].x, hTrail[i].y);
-        ctx.strokeStyle = `rgba(186, 230, 253, ${ratio * 0.45})`; // ice path glow
+        ctx.strokeStyle = `rgba(${trailRGB}, ${ratio * 0.45})`;
         ctx.lineWidth = hider.radius * 0.9 * ratio;
         ctx.lineCap = 'round';
         ctx.stroke();
@@ -1234,7 +1567,7 @@ export function GameCanvas({
         ctx.beginPath();
         ctx.moveTo(sTrail[i-1].x, sTrail[i-1].y);
         ctx.lineTo(sTrail[i].x, sTrail[i].y);
-        ctx.strokeStyle = `rgba(217, 119, 6, ${ratio * 0.65})`; // sand-gold comet
+        ctx.strokeStyle = `rgba(${trailRGB}, ${ratio * 0.65})`; // higher alpha for seeker
         ctx.lineWidth = seeker.radius * 0.95 * ratio;
         ctx.lineCap = 'round';
         ctx.stroke();
@@ -1281,12 +1614,17 @@ export function GameCanvas({
       }
     }
 
-    // --- DRAW PARTICLES ---
+    // --- DRAW PARTICLES (optimized: reduced shadowBlur) ---
     for (const p of particles) {
       ctx.save();
       ctx.globalAlpha = p.alpha;
-      ctx.shadowBlur = p.type === 'debris' || p.type === 'glass' ? 14 : 8;
-      ctx.shadowColor = p.color;
+      // Only apply shadowBlur to larger/important particles
+      if (p.type === 'spark' && p.radius > 3) {
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = p.color;
+      } else {
+        ctx.shadowBlur = 0;
+      }
 
       if ((p.type === 'debris' || p.type === 'glass') && p.angle !== undefined) {
         // Render 3D irregular rotating shards (Rocket League particle shards!)
@@ -1329,21 +1667,33 @@ export function GameCanvas({
       ctx.restore();
     }
 
-    // --- DRAW HIDER BALL (Radiant White/Cyan Glow) ---
+    // --- SKIN COLOR MAP ---
+    const SKIN_COLORS: Record<string, { fill: string; stroke: string; glow: string }> = {
+      default: { fill: '#f8fafc', stroke: '#38bdf8', glow: '#38bdf8' },
+      blue: { fill: '#3b82f6', stroke: '#1d4ed8', glow: '#3b82f6' },
+      green: { fill: '#10b981', stroke: '#059669', glow: '#10b981' },
+      red: { fill: '#ef4444', stroke: '#dc2626', glow: '#ef4444' },
+      purple: { fill: '#a855f7', stroke: '#9333ea', glow: '#a855f7' },
+      pink: { fill: '#ec4899', stroke: '#db2777', glow: '#ec4899' },
+    };
+    const hColor = SKIN_COLORS[activeSkinRef.current] || SKIN_COLORS.default;
+    const sColor = SKIN_COLORS[activeSkinRef.current] || SKIN_COLORS.default;
+
+    // --- DRAW HIDER BALL ---
     // Rule: Hide if distance is greater than 350px and not Seeker active Radar, and turn === seeker
     const shroudDistance = Math.hypot(hider.x - seeker.x, hider.y - seeker.y);
-    const shroudEnabled = shroudDistance > 350 && activeRole === 'seeker' && !isSuddenDeath && (activePowerUp !== 'sonar');
+    const shroudEnabled = shroudDistance > FOG_RADIUS && activeRole === 'seeker' && !isSuddenDeath && (activePowerUp !== 'sonar');
 
     if (!shroudEnabled && !hiderExplodedRef.current) {
       ctx.save();
       ctx.beginPath();
       ctx.arc(hider.x, hider.y, hider.radius, 0, Math.PI * 2);
-      ctx.fillStyle = '#f8fafc'; // Pearl Silver-White
+      ctx.fillStyle = hColor.fill;
       ctx.fill();
       ctx.lineWidth = 4.5;
-      ctx.strokeStyle = '#38bdf8'; // Cyan glowing outline
+      ctx.strokeStyle = hColor.stroke;
       ctx.shadowBlur = 18;
-      ctx.shadowColor = '#38bdf8';
+      ctx.shadowColor = hColor.glow;
       ctx.stroke();
 
       // Mini hider letter
@@ -1358,7 +1708,7 @@ export function GameCanvas({
       if (activeRole === 'hider' && !ballsMoving) {
         ctx.beginPath();
         ctx.arc(hider.x, hider.y, hider.radius + 12, 0, Math.PI * 2);
-        ctx.strokeStyle = '#38bdf8';
+        ctx.strokeStyle = hColor.stroke;
         ctx.lineWidth = 2.5;
         ctx.setLineDash([4, 4]);
         ctx.stroke();
@@ -1366,16 +1716,16 @@ export function GameCanvas({
       ctx.restore();
     }
 
-    // --- DRAW SEEKER BALL (Molten Gold and Copper) ---
+    // --- DRAW SEEKER BALL ---
     ctx.save();
     ctx.beginPath();
     ctx.arc(seeker.x, seeker.y, seeker.radius, 0, Math.PI * 2);
-    ctx.fillStyle = '#d97706'; // Rich Amber Gold
+    ctx.fillStyle = sColor.fill;
     ctx.fill();
     ctx.lineWidth = 4.5;
-    ctx.strokeStyle = '#ea580c'; // Solar orange rim
+    ctx.strokeStyle = sColor.stroke;
     ctx.shadowBlur = 18;
-    ctx.shadowColor = '#d97706';
+    ctx.shadowColor = sColor.glow;
     ctx.stroke();
 
     // Text "S" inside
@@ -1390,7 +1740,7 @@ export function GameCanvas({
     if (activeRole === 'seeker' && !ballsMoving) {
       ctx.beginPath();
       ctx.arc(seeker.x, seeker.y, seeker.radius + 12, 0, Math.PI * 2);
-      ctx.strokeStyle = '#d97706';
+      ctx.strokeStyle = sColor.stroke;
       ctx.lineWidth = 2.5;
       ctx.setLineDash([4, 4]);
       ctx.stroke();
@@ -1409,7 +1759,7 @@ export function GameCanvas({
       // Outer rect
       ctx.rect(0, 0, mapWidth, mapHeight);
       // Inner circle (opposite direction to subtract)
-      const revealRadius = 350;
+      const revealRadius = FOG_RADIUS;
       ctx.arc(seeker.x, seeker.y, revealRadius, 0, Math.PI * 2, true);
       ctx.closePath();
       ctx.fill(); // Paints everywhere except the circle!
@@ -1459,8 +1809,8 @@ export function GameCanvas({
     const activeBall = activeRole === 'hider' ? hiderBallRef.current : seekerBallRef.current;
     const dist = Math.hypot(mapX - activeBall.x, mapY - activeBall.y);
 
-    // Increase touch target bounding circle offset slightly for mobile ease: radius + 40px
-    if (dist < activeBall.radius + 50) {
+    // Increase touch target bounding circle offset slightly for mobile ease
+    if (dist < activeBall.radius + TOUCH_TARGET_PAD) {
       isDraggingRef.current = true;
       dragStartRef.current = { x: activeBall.x, y: activeBall.y };
       dragCurrentRef.current = { x: mapX, y: mapY };
@@ -1499,14 +1849,14 @@ export function GameCanvas({
     const dy = activeBall.y - dragCurrentRef.current.y;
     const dist = Math.hypot(dx, dy);
 
-    if (dist < 12) return; // ignore static tiny drags to avoid false releases
+    if (dist < MIN_DRAG_DIST) return; // ignore static tiny drags to avoid false releases
 
-    const maxDragVec = 160;
+    const maxDragVec = MAX_DRAG;
     const dragPower = Math.min(1.0, dist / maxDragVec);
 
     // Max speeds limit. Seeker receives +50% velocity boost
-    const baseVMax = 15;
-    const seekerVMax = baseVMax * 1.5; // seeker gets 22.5 max speed
+    const baseVMax = HIDER_BASE_SPEED;
+    const seekerVMax = baseVMax * SEEKER_SPEED_MULT;
     const currentLimit = activeRole === 'seeker' ? seekerVMax : baseVMax;
 
     const launchSpeed = currentLimit * dragPower;
@@ -1516,7 +1866,7 @@ export function GameCanvas({
     activeBall.vy = (dy / dist) * launchSpeed;
 
     // Launch sparks particle
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < LAUNCH_SPARKS; i++) {
       particlesRef.current.push({
         x: activeBall.x,
         y: activeBall.y,
@@ -1530,13 +1880,18 @@ export function GameCanvas({
     }
   };
 
-  // Resize listener
+  // Resize listener with high-DPI support
   useEffect(() => {
     const handleResize = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      canvas.width = canvas.parentElement?.clientWidth || window.innerWidth;
-      canvas.height = canvas.parentElement?.clientHeight || (window.innerHeight - 80);
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.parentElement?.clientWidth || window.innerWidth;
+      const h = canvas.parentElement?.clientHeight || (window.innerHeight - 80);
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.scale(dpr, dpr);
     };
 
     window.addEventListener('resize', handleResize);
@@ -1629,10 +1984,18 @@ export function GameCanvas({
       )}
 
       {/* Input Locking Visual Overlay Indicator */}
-      {!ballsMoving && (
+      {!ballsMoving && !aiThinking && (
         <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-neutral-950/90 border border-white/5 rounded-full text-[10px] text-zinc-400 font-mono tracking-widest shadow-xl pointer-events-none flex items-center gap-2">
           <Compass className="w-3.5 h-3.5 text-emerald-400 animate-spin" style={{ animationDuration: '6s' }} />
           DRAG BACKWARD TO AIM FLING
+        </div>
+      )}
+
+      {/* CPU AI Thinking Overlay */}
+      {aiThinking && config.isCpu && (
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 px-5 py-3 bg-emerald-950/40 border border-emerald-500/30 rounded-full text-xs text-emerald-400 font-mono font-bold tracking-widest shadow-xl shadow-emerald-500/10 pointer-events-none flex items-center gap-3 animate-pulse">
+          <Cpu className="w-4 h-4 text-emerald-400" />
+          CPU THINKING...
         </div>
       )}
 
@@ -1645,16 +2008,21 @@ export function GameCanvas({
           onMouseUp={handleEnd}
           onMouseLeave={handleEnd}
           onTouchStart={(e) => {
+            e.preventDefault();
             if (e.touches.length > 0) {
               handleStart(e.touches[0].clientX, e.touches[0].clientY);
             }
           }}
           onTouchMove={(e) => {
+            e.preventDefault();
             if (e.touches.length > 0) {
               handleMove(e.touches[0].clientX, e.touches[0].clientY);
             }
           }}
-          onTouchEnd={handleEnd}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            handleEnd();
+          }}
           className="block w-full h-full cursor-crosshair touch-none"
         />
       </div>

@@ -33,28 +33,38 @@ menu → round_intro → playing → round_over → (next round or match_over)
 
 ```
 App.tsx (state machine)
-├── MainMenu.tsx          — Config form, name inputs, best-of selector
+├── MainMenu.tsx          — Config form, name inputs, best-of selector, Shop/Leaderboard/Profile buttons
 ├── GameCanvas.tsx        — Canvas rendering, physics engine, input handling
 │   ├── Procedural map generation (bumpers, hazards, power-up orb)
 │   ├── Physics sub-stepping (5 steps/frame)
 │   ├── Slingshot drag controls
-│   ├── Particle system (sparks, debris, shockwaves)
+│   ├── Particle system (sparks, debris, shockwaves) — capped at 500
 │   ├── Sonar ping system (Hider position leak)
-│   └── Power-up system (laser, superball, iron, sonar)
+│   ├── Power-up system (laser, superball, iron, sonar)
+│   ├── DPI-aware canvas scaling
+│   └── Touch-safe input handlers
 ├── MatchOverlay.tsx      — Round intro, round over, match over, sudden death screens
-└── HelpManual.tsx        — Operations manual modal
+├── HelpManual.tsx        — Operations manual modal
+├── ShopModal.tsx         — Purchase ball skins, trails, themes, backgrounds
+├── LeaderboardModal.tsx  — Top-10 survival leaderboard
+└── ProfileModal.tsx      — Badges and lifetime stats display
 ```
 
 ### Key Files
 
 | File | Purpose |
 |------|---------|
-| `src/App.tsx` | State machine, game phase management, score tracking |
-| `src/types.ts` | TypeScript types (PlayerRole, GamePhase, PlayerBall, etc.) |
-| `src/components/GameCanvas.tsx` | Canvas game loop, physics, rendering, input |
-| `src/components/MainMenu.tsx` | Player config form |
-| `src/components/MatchOverlay.tsx` | Round/match transition screens |
+| `src/App.tsx` | State machine, game phase management, score tracking, meta-progression |
+| `src/types.ts` | TypeScript types (PlayerRole, GamePhase, PlayerBall, MetaState, etc.) |
+| `src/constants.ts` | All game constants (physics, camera, rendering, AI, progression) — single source of truth |
+| `src/components/GameCanvas.tsx` | Canvas game loop, physics, rendering, input (~1750 lines; refactor planned) |
+| `src/components/MainMenu.tsx` | Player config form, shop/leaderboard/profile buttons |
+| `src/components/MatchOverlay.tsx` | Round/match transition screens with meta-progression display |
 | `src/components/HelpManual.tsx` | Help modal |
+| `src/components/ShopModal.tsx` | Shop UI for purchasing unlocks with credits |
+| `src/components/LeaderboardModal.tsx` | Leaderboard modal |
+| `src/components/ProfileModal.tsx` | Badges and stats modal |
+| `src/hooks/useMetaProgression.ts` | Credits, unlocks, leaderboard, badges (localStorage persistence) |
 | `src/index.css` | Tailwind import, custom animations, scrollbar |
 | `vite.config.ts` | Vite config with Tailwind plugin |
 | `tsconfig.json` | TypeScript config (ES2022, bundler resolution) |
@@ -79,6 +89,16 @@ Single-use orbs spawn in the middle zone. Seeker picks them up by collision:
 | Iron Ball | Ignores sand friction |
 | Sonar Pulse | Reveals Hider position, removes fog |
 
+**Note:** Power-up balance needs tuning (CC-007). Laser should increase speed. New power-ups planned: Cloak (Hider invisible 3s), Magnet (Seeker pulls Hider).
+
+### Meta-Progression
+
+- **Credits ("Cybernetic Credits"):** earned per round (turns survived × 1.5 if power-up collected)
+- **Unskins, trail colors, bumper themes, map backgrounds**: purchasable with credits
+- **Leaderboard:** top-10 survival turns (localStorage)
+- **Badges:** Sand Dodger, Bounce Master, Quick Tag, First Round, Century Runner, Power Hungry
+- **Persistence:** localStorage for all meta state
+
 ### Scoring
 
 - Hider earns 1 point per turn survived
@@ -91,6 +111,44 @@ Single-use orbs spawn in the middle zone. Seeker picks them up by collision:
 - **Slingshot:** Click/touch and drag backwards from your ball to aim, release to launch
 - **Turn alternation:** Hider always goes first each round
 - **Turn end:** Next turn starts only when BOTH balls have stopped moving
+- **Touch:** `preventDefault()` on all touch handlers prevents mobile scroll
+
+### Performance
+
+- **DPI scaling:** Canvas multiplied by `devicePixelRatio`, context scaled
+- **ShadowBlur:** Only large spark particles get shadowBlur (6px); debris/glass render flat
+- **Particle cap:** Hard limit of 500 particles; oldest culled
+- **Constants:** All magic numbers centralized in `src/constants.ts` for easy tuning
+
+---
+
+## Roadmap
+
+### v1.3 (Next Sprint)
+- AI Opponent (Seeker) with 3 difficulty levels
+- Power-up balance rework (Laser speed buff, Iron ice immunity)
+- New power-ups: Cloak, Magnet
+- Orb respawn timer (10s)
+- Fog of war rework (directional cone, sonar cooldown)
+- Minimap in HUD
+
+### v1.4
+- Colorblind mode (shape overlays, palette toggle)
+- Hazard icons (⨳ sand, ❄️ ice)
+- Typo fix ("Collogation" → "Collection")
+- Title branding consistency
+- Power-up placement bias (spawn within view)
+
+### v2.0
+- Game mode variants (Time Attack, Endless)
+- Map template system
+- Audio (Web Audio API)
+- Replay system
+- PWA support (vite-plugin-pwa)
+- ARIA live regions for accessibility
+- GameCanvas module split (physics, renderer, input, map, particles, camera)
+- Online multiplayer (WebRTC)
+- Android app store (Capacitor/TWA wrapper)
 
 ---
 

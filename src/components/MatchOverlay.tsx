@@ -17,6 +17,10 @@ interface MatchOverlayProps {
   onReturnToMenu: () => void;
   isP1Turn: boolean;
   activeRole: PlayerRole;
+  creditsEarned?: number;
+  totalTurnsSurvived?: number;
+  averageSurvival?: number;
+  totalPowerUpsCollected?: number;
 }
 
 export function MatchOverlay({
@@ -34,6 +38,10 @@ export function MatchOverlay({
   onReturnToMenu,
   isP1Turn,
   activeRole,
+  creditsEarned,
+  totalTurnsSurvived,
+  averageSurvival,
+  totalPowerUpsCollected,
 }: MatchOverlayProps) {
   if (phase === 'playing' || phase === 'tag_freeze') return null;
 
@@ -175,7 +183,7 @@ export function MatchOverlay({
             </div>
 
             {/* Quick Summary metrics */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl">
                 <span className="text-[10px] text-neutral-500 font-mono uppercase tracking-wider block mb-1">
                   TAGGED IN TURN
@@ -190,6 +198,14 @@ export function MatchOverlay({
                 </span>
                 <span className="text-xl font-bold text-emerald-400 tracking-wider font-sans">
                   +{roundRecord.turnsSurvived} PTS
+                </span>
+              </div>
+              <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col justify-center">
+                <span className="text-[10px] text-neutral-500 font-mono uppercase tracking-wider block mb-1">
+                  CREDITS EARNED
+                </span>
+                <span className="text-2xl font-bold text-amber-400 tracking-wider font-sans">
+                  +{creditsEarned ?? 0}
                 </span>
               </div>
             </div>
@@ -271,6 +287,29 @@ export function MatchOverlay({
                 ))}
               </div>
             </div>
+
+            {/* Meta-progression stats overlay */}
+            {(totalTurnsSurvived !== undefined || totalPowerUpsCollected !== undefined) && (
+              <div className="p-4 bg-neutral-900 border border-amber-500/10 rounded-xl">
+                <span className="text-[10px] font-mono tracking-widest text-amber-400 uppercase font-semibold block text-left mb-3">
+                  Career Summary
+                </span>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-black text-white font-mono">{totalTurnsSurvived ?? 0}</div>
+                    <div className="text-[10px] text-neutral-500 uppercase tracking-wider">Total Turns</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-black text-white font-mono">{averageSurvival !== undefined ? averageSurvival.toFixed(1) : '0'}</div>
+                    <div className="text-[10px] text-neutral-500 uppercase tracking-wider">Avg Survival</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-black text-white font-mono">{totalPowerUpsCollected ?? 0}</div>
+                    <div className="text-[10px] text-neutral-500 uppercase tracking-wider">Power-ups</div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Option menus */}
             <div className="flex gap-3 pt-2">

@@ -1,23 +1,30 @@
 import React, { useState } from 'react';
-import { MatchConfig } from '../types';
-import { Swords, Trophy, Play, Settings, Users, BookOpen } from 'lucide-react';
+import { MatchConfig, AIDifficulty } from '../types';
+import { Swords, Trophy, Play, Settings, Users, BookOpen, Cpu, Store } from 'lucide-react';
 
 interface MainMenuProps {
   onStartGame: (config: MatchConfig) => void;
   onOpenHelp: () => void;
+  onOpenShop: () => void;
+  onOpenLeaderboard: () => void;
+  onOpenProfile: () => void;
 }
 
-export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
+export function MainMenu({ onStartGame, onOpenHelp, onOpenShop, onOpenLeaderboard, onOpenProfile }: MainMenuProps) {
   const [p1Name, setP1Name] = useState('Player 1');
   const [p2Name, setP2Name] = useState('Player 2');
   const [bestOf, setBestOf] = useState<number>(5);
+  const [isCpu, setIsCpu] = useState(false);
+  const [difficulty, setDifficulty] = useState<AIDifficulty>('medium');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onStartGame({
       p1Name: p1Name.trim() || 'Player 1',
-      p2Name: p2Name.trim() || 'Player 2',
+      p2Name: isCpu ? 'CPU' : (p2Name.trim() || 'Player 2'),
       bestOfRounds: bestOf,
+      isCpu,
+      difficulty: isCpu ? difficulty : undefined,
     });
   };
 
@@ -95,6 +102,54 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
           </div>
         </div>
 
+        {/* Play vs CPU Toggle */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              id="btn-cpu-toggle"
+              onClick={() => {
+                setIsCpu(!isCpu);
+                if (!isCpu) setP2Name('CPU');
+              }}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold tracking-wider transition-all ${
+                isCpu
+                  ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-400 shadow-lg shadow-emerald-500/5'
+                  : 'bg-neutral-900/40 border-amber-500/10 text-neutral-400 hover:border-amber-500/30'
+              }`}
+            >
+              <Cpu className={`w-4 h-4 ${isCpu ? 'text-emerald-400' : 'text-neutral-500'}`} />
+              Play vs CPU
+            </button>
+          </div>
+
+          {/* Difficulty selector (visible only when CPU is enabled) */}
+          {isCpu && (
+            <div className="flex items-center gap-2 pl-1">
+              <label className="text-[10px] tracking-widest text-neutral-400 uppercase font-mono font-medium mr-1">
+                AI Level
+              </label>
+              <div className="flex gap-1.5">
+                {(['easy', 'medium', 'hard'] as AIDifficulty[]).map((level) => (
+                  <button
+                    key={level}
+                    id={`btn-diff-${level}`}
+                    type="button"
+                    onClick={() => setDifficulty(level)}
+                    className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold tracking-widest uppercase transition-all ${
+                      difficulty === level
+                        ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-400 shadow-lg shadow-emerald-500/5'
+                        : 'bg-neutral-900/40 border-amber-500/10 text-neutral-400 hover:border-amber-500/30'
+                    }`}
+                  >
+                    {level === 'easy' ? 'Easy' : level === 'medium' ? 'Medium' : 'Hard'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Series Length Selector */}
         <div className="space-y-2">
           <label className="block text-[10px] tracking-widest text-neutral-400 uppercase font-mono font-medium">
@@ -128,6 +183,15 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
             className="flex-1 py-3 text-xs bg-neutral-900/40 hover:bg-neutral-850 text-neutral-300 font-bold tracking-wider rounded-xl uppercase border border-amber-500/10 transition-colors flex items-center justify-center gap-2"
           >
             <BookOpen className="w-4 h-4 text-amber-500" /> Manual
+          </button>
+
+          <button
+            type="button"
+            id="btn-main-shop"
+            onClick={onOpenShop}
+            className="flex-1 py-3 text-xs bg-amber-950/20 hover:bg-amber-900/30 text-amber-300 border border-amber-500/20 rounded-xl uppercase font-bold tracking-wider transition-colors flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Store className="w-4 h-4" /> Shop
           </button>
 
           <button
