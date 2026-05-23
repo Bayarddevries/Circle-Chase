@@ -97,9 +97,10 @@ export interface RoundRecord {
 export interface MatchConfig {
   p1Name: string;
   p2Name: string;
-  bestOfRounds: number; // E.g., 3, 5, 7. First to win more than half or highest total score.
+  bestOfRounds: number;
   isCpu?: boolean;
   difficulty?: AIDifficulty;
+  colorblindMode?: boolean;
 }
 
 // --- Meta-Progression types ---

@@ -16,6 +16,7 @@ export function MainMenu({ onStartGame, onOpenHelp, onOpenShop, onOpenLeaderboar
   const [bestOf, setBestOf] = useState<number>(5);
   const [isCpu, setIsCpu] = useState(false);
   const [difficulty, setDifficulty] = useState<AIDifficulty>('medium');
+  const [colorblindMode, setColorblindMode] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +26,7 @@ export function MainMenu({ onStartGame, onOpenHelp, onOpenShop, onOpenLeaderboar
       bestOfRounds: bestOf,
       isCpu,
       difficulty: isCpu ? difficulty : undefined,
+      colorblindMode,
     });
   };
 
@@ -147,6 +149,22 @@ export function MainMenu({ onStartGame, onOpenHelp, onOpenShop, onOpenLeaderboar
               </div>
             </div>
           )}
+        </div>
+
+        {/* Colorblind Mode Toggle */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            id="btn-colorblind-toggle"
+            onClick={() => setColorblindMode(!colorblindMode)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold tracking-wider transition-all ${
+              colorblindMode
+                ? 'bg-amber-950/30 border-amber-500/40 text-amber-400 shadow-lg shadow-amber-500/5'
+                : 'bg-neutral-900/40 border-amber-500/10 text-neutral-400 hover:border-amber-500/30'
+            }`}
+          >
+            ◻ Colorblind Mode
+          </button>
         </div>
 
         {/* Series Length */}

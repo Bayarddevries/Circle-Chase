@@ -51,6 +51,11 @@ import {
   SAND_COUNT,
   ICE_COUNT,
   ORB_RESPAWN_TIME,
+  ORB_SPAWN_RANGE,
+  CLOAK_DURATION,
+  MAGNET_DURATION,
+  MAGNET_PULL_STRENGTH,
+  LASER_SPEED_MULT,
   CREDITS_BASE_MULT,
   CREDITS_POWERUP_BONUS,
   LEADERBOARD_MAX,
@@ -94,6 +99,7 @@ export function GameCanvas({
   unlocks,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const minimapRef = useRef<HTMLCanvasElement | null>(null);
   
   // Game state parameters
   const [activeRole, setActiveRole] = useState<PlayerRole>('hider');
@@ -176,10 +182,13 @@ export function GameCanvas({
   const activeShockwaveRef = useRef<{ x: number; y: number; r: number; maxR: number; active: boolean } | null>(null);
   const hiderExplodedRef = useRef<boolean>(false);
 
-  // Meta-progression tracking refs (reset each round)
-  const bumperHitCountRef = useRef<number>(0);
+  // Power-up duration tracking refs
   const powerUpCollectedRef = useRef<boolean>(false);
   const tagTurnRef = useRef<number>(0);
+  const cloakTimerRef = useRef<number>(0);  // frames remaining for cloak
+  const magnetTimerRef = useRef<number>(0); // frames remaining for magnet
+  const bumperHitCountRef = useRef<number>(0);
+  const orbRespawnTimerRef = useRef<number>(0); // ms until orb respawns
 
   // Unlock config refs (synced from props for use inside game loop)
   const activeSkinRef = useRef<string>('default');
@@ -193,6 +202,14 @@ export function GameCanvas({
   // CPU AI timing
   const cpuTimerRef = useRef<number>(0);
   const cpuThinkingRef = useRef<boolean>(false);
+  const cpuHasFledRef = useRef<boolean>(false);
+
+  // Last known hider position (for AI targeting)
+  // Updated on sonar pings and when hider is within FOG_RADIUS
+  const lastKnownHiderPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Seeker's last movement angle (for directional fog of war)
+  const seekerMoveAngleRef = useRef<number>(0);
 
   // Run procedural map generator when a round shifts
   const generateMap = () => {
@@ -326,15 +343,19 @@ export function GameCanvas({
 
     // Power-Up Orb location (randomized middle-zone position)
     if (!isSuddenDeath) {
-      const ox = (mapWidth / 2) - 150 + Math.random() * 300;
-      const oy = (mapHeight / 2) - 150 + Math.random() * 300;
-      
-      const pTypes: PowerUpType[] = ['laser', 'superball', 'iron', 'sonar'];
+      // Bias orb spawn toward the Hider's starting area so it's visible on first turn
+      const hiderStartX = isSuddenDeath ? 300 : 450;
+      const hiderStartY = isSuddenDeath ? 450 : 750;
+      const biasRange = 400;
+      const ox = hiderStartX - biasRange / 2 + Math.random() * biasRange;
+      const oy = hiderStartY - biasRange / 2 + Math.random() * biasRange;
+
+      const pTypes: PowerUpType[] = ['laser', 'superball', 'iron', 'sonar', 'cloak', 'magnet'];
       const randomType = pTypes[Math.floor(Math.random() * pTypes.length)];
 
       orbRef.current = {
-        x: ox,
-        y: oy,
+        x: Math.max(100, Math.min(mapWidth - 100, ox)),
+        y: Math.max(100, Math.min(mapHeight - 100, oy)),
         radius: 20,
         type: randomType,
         active: true,
@@ -358,6 +379,10 @@ export function GameCanvas({
     setTurnsSurvived(0);
     setActivePowerUp(null);
     setBallsMoving(false);
+
+    // Reset AI tracking
+    cpuHasFledRef.current = false;
+    lastKnownHiderPosRef.current = { x: hiderBallRef.current.x, y: hiderBallRef.current.y };
 
     // Reset meta-progression tracking
     bumperHitCountRef.current = 0;
@@ -412,7 +437,7 @@ export function GameCanvas({
       physicsStep(time);
 
       // ── CPU AI Seeker auto-play ──
-      if (config.isCpu && activeRole === 'seeker') {
+      if (config.isCpu && activeRole === 'seeker' && !cpuHasFledRef.current) {
         const hSpeed = Math.hypot(hiderBallRef.current.vx, hiderBallRef.current.vy);
         const sSpeed = Math.hypot(seekerBallRef.current.vx, seekerBallRef.current.vy);
         const bothStopped = hSpeed === 0 && sSpeed === 0;
@@ -429,6 +454,7 @@ export function GameCanvas({
             cpuTimerRef.current = 0;
             setAiThinking(false);
             executeAISeekerFling();
+            cpuHasFledRef.current = true; // Guard: only fling once per turn
           }
         } else if (cpuThinkingRef.current) {
           // Safety: balls started moving unexpectedly
@@ -462,6 +488,24 @@ export function GameCanvas({
 
         seeker.x += (seeker.vx / subStepsCount) * speedScale;
         seeker.y += (seeker.vy / subStepsCount) * speedScale;
+
+        // --- Magnet power-up: pull hider toward seeker ---
+        if (magnetTimerRef.current > 0 && activeRole === 'seeker') {
+          const dx = seeker.x - hider.x;
+          const dy = seeker.y - hider.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist > 50 && dist < 600) {
+            const pull = MAGNET_PULL_STRENGTH / dist;
+            hider.vx += dx * pull;
+            hider.vy += dy * pull;
+          }
+          magnetTimerRef.current--;
+        }
+
+        // Decrement cloak timer each frame (only once per frame, not per substep)
+        if (s === 0 && cloakTimerRef.current > 0) {
+          cloakTimerRef.current--;
+        }
 
         // --- Boundary collisions & clamp updates ---
         const isExploding = slowMotionRef.current < 1.0;
@@ -592,6 +636,16 @@ export function GameCanvas({
             };
             setFloatMessage(titles[orb.type]);
 
+            // Activate timed power-ups
+            if (orb.type === 'cloak') {
+              cloakTimerRef.current = CLOAK_DURATION;
+            } else if (orb.type === 'magnet') {
+              magnetTimerRef.current = MAGNET_DURATION;
+            }
+
+            // Start orb respawn timer
+            orbRespawnTimerRef.current = ORB_RESPAWN_TIME;
+
             // Spawn bright items particles
             for (let i = 0; i < 20; i++) {
               const ang = Math.random() * Math.PI * 2;
@@ -660,8 +714,14 @@ export function GameCanvas({
             ball.vy *= baseFriction * FRICTION_SAND_MULT;
           }
         } else if (enteredIce) {
-          ball.vx *= FRICTION_ICE;
-          ball.vy *= FRICTION_ICE;
+          // Iron power-up: immune to ice (and sand)
+          if (isSeeker && activePowerUp === 'iron') {
+            ball.vx *= baseFriction;
+            ball.vy *= baseFriction;
+          } else {
+            ball.vx *= FRICTION_ICE;
+            ball.vy *= FRICTION_ICE;
+          }
         } else {
           ball.vx *= baseFriction;
           ball.vy *= baseFriction;
@@ -758,7 +818,23 @@ export function GameCanvas({
         }
       }
 
-      // Auto Sonar Ping generator every 3 seconds for Hidden players
+      // Orb respawn timer
+      if (!orbRef.current.active && !isSuddenDeath && orbRespawnTimerRef.current > 0) {
+        orbRespawnTimerRef.current -= 16; // ~60fps frame time
+        if (orbRespawnTimerRef.current <= 0) {
+          // Respawn orb at a new random position near center
+          const ox = (mapWidth / 2) - ORB_SPAWN_RANGE + Math.random() * ORB_SPAWN_RANGE * 2;
+          const oy = (mapHeight / 2) - ORB_SPAWN_RANGE + Math.random() * ORB_SPAWN_RANGE * 2;
+          const pTypes: PowerUpType[] = ['laser', 'superball', 'iron', 'sonar', 'cloak', 'magnet'];
+          orbRef.current = {
+            x: ox, y: oy,
+            radius: 20,
+            type: pTypes[Math.floor(Math.random() * pTypes.length)],
+            active: true,
+            pulseScale: 1,
+          };
+        }
+      }
       const now = performance.now();
       if (now - lastPingTimeRef.current > SONAR_INTERVAL) {
         lastPingTimeRef.current = now;
@@ -775,6 +851,13 @@ export function GameCanvas({
             alpha: 1,
             speed: 3,
           });
+          // Update last known hider position from sonar
+          lastKnownHiderPosRef.current = { x: hider.x, y: hider.y };
+        }
+
+        // Also update last known position if hider is within fog radius (visible to seeker)
+        if (!inFog && activeRole === 'seeker') {
+          lastKnownHiderPosRef.current = { x: hider.x, y: hider.y };
         }
       }
 
@@ -841,6 +924,8 @@ export function GameCanvas({
         setActiveRole('seeker');
         // Earn survival point
         setTurnsSurvived(prev => prev + 1);
+        // Reset AI fling guard for the new seeker turn
+        cpuHasFledRef.current = false;
       } else {
         // Seeker flings and misses!
         // Swap back to Hider
@@ -992,6 +1077,7 @@ export function GameCanvas({
     radius: number,
     steps: number,
     maxBounces: number,
+    friction: number = FRICTION_BASE,
   ): { x: number; y: number }[] => {
     const points: { x: number; y: number }[] = [{ x: startX, y: startY }];
     let cx = startX, cy = startY, cvx = vx, cvy = vy;
@@ -1043,8 +1129,8 @@ export function GameCanvas({
       if (bounces >= maxBounces) { points.push({ x: cx, y: cy }); break; }
 
       // Friction
-      cvx *= FRICTION_BASE;
-      cvy *= FRICTION_BASE;
+      cvx *= friction;
+      cvy *= friction;
 
       points.push({ x: cx, y: cy });
     }
@@ -1058,21 +1144,36 @@ export function GameCanvas({
     const orb = orbRef.current;
     const diff = config.difficulty || 'medium';
 
-    // Difficulty: bounces to simulate
-    const maxBounces = diff === 'medium' ? 1 : 2;
-    const includePowerUp = diff === 'hard';
+    // ── Difficulty parameters ──
+    // Easy:   ±15% aim error, ~70% power, 0 bounces simulated
+    // Medium: ±8% aim error,  ~85% power, 1 bounce simulated
+    // Hard:   ±3% aim error,  ~95% power, 2 bounces simulated, considers power-ups
+    const diffConfig = {
+      easy:   { aimError: AI_EASY_ERROR,              powerMult: 0.70, maxBounces: 0, considerOrb: false },
+      medium: { aimError: AI_EASY_ERROR * 0.53,       powerMult: 0.85, maxBounces: 1, considerOrb: false },
+      hard:   { aimError: AI_EASY_ERROR * 0.2,        powerMult: 0.95, maxBounces: 2, considerOrb: true  },
+    }[diff];
 
-    // 1. Predict hider future position for ~30 physics steps
+    const seekerVMax = HIDER_BASE_SPEED * SEEKER_SPEED_MULT;
+
+    // ── Use last known hider position as aim target ──
+    // If hider is visible (within fog radius), use real position; otherwise use last known
+    const distToHider = Math.hypot(hider.x - seeker.x, hider.y - seeker.y);
+    const hiderVisible = distToHider <= FOG_RADIUS || isSuddenDeath;
+    const aimTarget = hiderVisible
+      ? { x: hider.x, y: hider.y }
+      : lastKnownHiderPosRef.current;
+
+    // ── Predict hider future position ──
     const hiderSteps = 30;
     const hiderPath = simulateBallPath(
       hider.x, hider.y, hider.vx, hider.vy,
-      hider.radius, hiderSteps, maxBounces,
+      hider.radius, hiderSteps, diffConfig.maxBounces + 1,
     );
 
-    // 2. Try candidate launch angles and powers
-    const angles = 24; // every 15 degrees
-    const powers = [0.5, 0.75, 1.0];
-    const seekerVMax = HIDER_BASE_SPEED * SEEKER_SPEED_MULT;
+    // ── Try candidate launch angles and powers ──
+    const angles = 36; // every 10 degrees for better coverage
+    const basePowers = [0.5, 0.65, 0.8, 0.9, 1.0];
 
     let bestScore = Infinity;
     let bestDx = 0, bestDy = 0, bestPower = 0.5;
@@ -1082,11 +1183,12 @@ export function GameCanvas({
       const dirX = Math.cos(angle);
       const dirY = Math.sin(angle);
 
-      for (const p of powers) {
+      for (const p of basePowers) {
         const speed = seekerVMax * p;
         const path = simulateBallPath(
           seeker.x, seeker.y, dirX * speed, dirY * speed,
-          SEEKER_RADIUS, 40, maxBounces,
+          SEEKER_RADIUS, 50, diffConfig.maxBounces,
+          FRICTION_SEEKER,
         );
 
         // Score: closest approach to any hider position at similar time
@@ -1097,16 +1199,23 @@ export function GameCanvas({
           if (dist < minDist) minDist = dist;
         }
 
-        // Power-up collection bonus
+        // Also factor in direct distance to aim target (last known or visible)
+        const directDist = Math.hypot(
+          seeker.x + dirX * 100 - aimTarget.x,
+          seeker.y + dirY * 100 - aimTarget.y,
+        );
+
+        // Power-up collection bonus (hard AI only)
         let orbBonus = 0;
-        if (includePowerUp && orb.active) {
+        if (diffConfig.considerOrb && orb.active) {
           for (const pt of path) {
             const dOrb = Math.hypot(pt.x - orb.x, pt.y - orb.y);
-            if (dOrb < 200) { orbBonus = -100; break; }
+            if (dOrb < SEEKER_RADIUS + orb.radius + 10) { orbBonus = -150; break; }
           }
         }
 
-        const score = minDist + orbBonus;
+        // Combined score: weight closest approach + direct aim + orb bonus
+        const score = minDist * 0.6 + directDist * 0.1 + orbBonus;
         if (score < bestScore) {
           bestScore = score;
           bestDx = dirX;
@@ -1116,30 +1225,33 @@ export function GameCanvas({
       }
     }
 
-    // 3. Apply difficulty error
+    // ── Apply difficulty error to aim and power ──
     let finalDx = bestDx, finalDy = bestDy;
-    let finalPower = bestPower;
+    let finalPower = bestPower * diffConfig.powerMult;
 
-    if (diff === 'easy') {
-      // ±15% random error to aim angle
-      const angleError = (Math.random() - 0.5) * AI_EASY_ERROR * Math.PI * 2;
-      const cosE = Math.cos(angleError);
-      const sinE = Math.sin(angleError);
-      const edx = finalDx * cosE - finalDy * sinE;
-      const edy = finalDx * sinE + finalDy * cosE;
-      const eNorm = Math.hypot(edx, edy);
-      if (eNorm > 0) { finalDx = edx / eNorm; finalDy = edy / eNorm; }
-      // ±15% power error
-      finalPower *= (1 + (Math.random() - 0.5) * AI_EASY_ERROR);
-      finalPower = Math.max(0.3, Math.min(1.0, finalPower));
-    }
+    // Random angle error based on difficulty
+    const angleError = (Math.random() - 0.5) * diffConfig.aimError * Math.PI * 2;
+    const cosE = Math.cos(angleError);
+    const sinE = Math.sin(angleError);
+    const edx = finalDx * cosE - finalDy * sinE;
+    const edy = finalDx * sinE + finalDy * cosE;
+    const eNorm = Math.hypot(edx, edy);
+    if (eNorm > 0) { finalDx = edx / eNorm; finalDy = edy / eNorm; }
 
-    // 4. Execute fling
+    // Random power error proportional to difficulty
+    const powerError = diffConfig.aimError;
+    finalPower *= (1 + (Math.random() - 0.5) * powerError);
+    finalPower = Math.max(0.25, Math.min(1.0, finalPower));
+
+    // ── Execute fling using same launch mechanism as human players ──
     const launchSpeed = seekerVMax * finalPower;
     seeker.vx = finalDx * launchSpeed;
     seeker.vy = finalDy * launchSpeed;
 
-    // Launch spark particles
+    // Track seeker movement angle for directional fog
+    seekerMoveAngleRef.current = Math.atan2(seeker.vy, seeker.vx);
+
+    // Launch spark particles (same as human launch)
     for (let i = 0; i < LAUNCH_SPARKS; i++) {
       particlesRef.current.push({
         x: seeker.x, y: seeker.y,
@@ -1378,8 +1490,8 @@ export function GameCanvas({
     // Draw Map Outer Border Walls
     ctx.strokeStyle = '#d97706'; // Rich Sand Gold
     ctx.lineWidth = 12;
-    ctx.shadowBlur = 18;
-    ctx.shadowColor = 'rgba(217, 119, 6, 0.35)';
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = 'rgba(217, 119, 6, 0.25)';
     ctx.strokeRect(0, 0, mapWidth, mapHeight);
     ctx.shadowBlur = 0; // reset
 
@@ -1424,7 +1536,7 @@ export function GameCanvas({
     // --- DRAW POWER-UP ITEM ORB ---
     if (orb.active && !isSuddenDeath) {
       ctx.save();
-      ctx.shadowBlur = 16;
+      ctx.shadowBlur = 10;
       ctx.shadowColor = '#22d3ee';
       
       // Outer pulse ring
@@ -1459,7 +1571,7 @@ export function GameCanvas({
       ctx.arc(ping.x, ping.y, ping.radius, 0, Math.PI * 2);
       ctx.strokeStyle = `rgba(34, 211, 238, ${ping.alpha})`;
       ctx.lineWidth = 2.5;
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 6;
       ctx.shadowColor = '#22d3ee';
       ctx.stroke();
       ctx.restore();
@@ -1480,20 +1592,21 @@ export function GameCanvas({
       ctx.lineWidth = b.pulseTimer > 0 ? 5.5 : 3.5;
       const bumperColor = b.color === '#ff0055' || b.color === '#ff00aa' ? '#ea580c' : '#f59e0b';
 
-      // --- Bumper theme overrides ---
+      // --- Bumper theme overrides --
       const theme = activeBumperRef.current;
       if (theme === 'dotted') {
         ctx.setLineDash([4, 4]);
       } else if (theme === 'dashed') {
         ctx.setLineDash([8, 3]);
       } else if (theme === 'neon') {
-        ctx.shadowBlur = (b.pulseTimer > 0 ? 35 : 22);
-        ctx.shadowColor = '#ffffff'; // white glow
+        ctx.shadowBlur = (b.pulseTimer > 0 ? 20 : 14);
+        ctx.shadowColor = '#ffffff';
+      } else {
+        ctx.shadowBlur = b.pulseTimer > 0 ? 14 : 6;
+        ctx.shadowColor = bumperColor;
       }
 
       ctx.strokeStyle = bumperColor;
-      ctx.shadowBlur = b.pulseTimer > 0 ? 25 : 12;
-      ctx.shadowColor = bumperColor;
       ctx.stroke();
       ctx.setLineDash([]); // reset dash
 
@@ -1597,7 +1710,7 @@ export function GameCanvas({
         ctx.strokeStyle = g;
         ctx.lineWidth = 4;
         ctx.setLineDash([5, 4]);
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 5;
         ctx.shadowColor = '#f97316';
         ctx.stroke();
         ctx.setLineDash([]);
@@ -1679,10 +1792,12 @@ export function GameCanvas({
     const hColor = SKIN_COLORS[activeSkinRef.current] || SKIN_COLORS.default;
     const sColor = SKIN_COLORS[activeSkinRef.current] || SKIN_COLORS.default;
 
-    // --- DRAW HIDER BALL ---
+    // --- DRAW HIDER BALL --
     // Rule: Hide if distance is greater than 350px and not Seeker active Radar, and turn === seeker
+    // Cloak power-up: hider is always hidden regardless of distance
     const shroudDistance = Math.hypot(hider.x - seeker.x, hider.y - seeker.y);
-    const shroudEnabled = shroudDistance > FOG_RADIUS && activeRole === 'seeker' && !isSuddenDeath && (activePowerUp !== 'sonar');
+    const isCloaked = cloakTimerRef.current > 0;
+    const shroudEnabled = (shroudDistance > FOG_RADIUS || isCloaked) && activeRole === 'seeker' && !isSuddenDeath && (activePowerUp !== 'sonar');
 
     if (!shroudEnabled && !hiderExplodedRef.current) {
       ctx.save();
@@ -1692,7 +1807,7 @@ export function GameCanvas({
       ctx.fill();
       ctx.lineWidth = 4.5;
       ctx.strokeStyle = hColor.stroke;
-      ctx.shadowBlur = 18;
+      ctx.shadowBlur = 10;
       ctx.shadowColor = hColor.glow;
       ctx.stroke();
 
@@ -1703,6 +1818,14 @@ export function GameCanvas({
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('H', hider.x, hider.y);
+
+      // Colorblind shape overlay — square for Hider
+      if (config.colorblindMode) {
+        const s = hider.radius * 0.7;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(hider.x - s, hider.y - s, s * 2, s * 2);
+      }
 
       // Turn halo marker ring if Hider's turn
       if (activeRole === 'hider' && !ballsMoving) {
@@ -1736,6 +1859,19 @@ export function GameCanvas({
     ctx.textBaseline = 'middle';
     ctx.fillText('S', seeker.x, seeker.y);
 
+    // Colorblind shape overlay — triangle for Seeker
+    if (config.colorblindMode) {
+      const s = seeker.radius * 0.7;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(seeker.x, seeker.y - s);
+      ctx.lineTo(seeker.x + s, seeker.y + s * 0.7);
+      ctx.lineTo(seeker.x - s, seeker.y + s * 0.7);
+      ctx.closePath();
+      ctx.stroke();
+    }
+
     // Turn halo indicator
     if (activeRole === 'seeker' && !ballsMoving) {
       ctx.beginPath();
@@ -1745,30 +1881,73 @@ export function GameCanvas({
       ctx.setLineDash([4, 4]);
       ctx.stroke();
     }
+
+    // AI thinking indicator — pulsing ellipsis above seeker ball
+    if (config.isCpu && activeRole === 'seeker' && cpuThinkingRef.current && !ballsMoving) {
+      ctx.setLineDash([]);
+      const pulsePhase = performance.now() * 0.005;
+      const dotCount = 3;
+      const dotRadius = 3;
+      const dotSpacing = 8;
+      const totalW = (dotCount - 1) * dotSpacing;
+      const baseY = seeker.y - seeker.radius - 20;
+      for (let d = 0; d < dotCount; d++) {
+        const offset = Math.sin(pulsePhase + d * 0.8) * 2;
+        ctx.beginPath();
+        ctx.arc(seeker.x - totalW / 2 + d * dotSpacing, baseY + offset, dotRadius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(52, 211, 153, ${0.5 + Math.sin(pulsePhase + d * 0.8) * 0.5})`;
+        ctx.fill();
+      }
+    }
     ctx.restore();
 
-    // --- DRAW FOG OF WAR SHROUD (Premium compositing effect) ---
+    // --- DRAW FOG OF WAR SHROUD (directional cone reveal) ---
     if (activeRole === 'seeker' && !isSuddenDeath && activePowerUp !== 'sonar') {
       ctx.save();
-      
-      // Let's create an offscreen backing layer manually inside canvas context state to avoid clearing grid lines!
-      // 1. Draw solid dark overlay everywhere except inside Seeker visual center
-      ctx.fillStyle = 'rgba(6, 8, 12, 0.95)'; // Deep charcoal slate mist
-      
-      ctx.beginPath();
-      // Outer rect
-      ctx.rect(0, 0, mapWidth, mapHeight);
-      // Inner circle (opposite direction to subtract)
-      const revealRadius = FOG_RADIUS;
-      ctx.arc(seeker.x, seeker.y, revealRadius, 0, Math.PI * 2, true);
-      ctx.closePath();
-      ctx.fill(); // Paints everywhere except the circle!
 
-      // Draw faint boundary line around the Fog of War threshold
+      ctx.fillStyle = 'rgba(6, 8, 12, 0.95)';
+
+      // Draw full-map dark overlay
       ctx.beginPath();
-      ctx.arc(seeker.x, seeker.y, revealRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(217, 119, 6, 0.22)'; // Soft gold dashed veil edge
-      ctx.lineWidth = 4;
+      ctx.rect(0, 0, mapWidth, mapHeight);
+
+      // Cut out a directional cone (wide arc) in the seeker's last movement direction
+      // plus a small circle around the seeker for close-range vision
+      const coneAngle = Math.PI * 0.6; // ~108° cone
+      const coneRadius = FOG_RADIUS * 1.3; // cone extends slightly further
+      const closeRadius = FOG_RADIUS * 0.4; // small close-range circle
+
+      const sx = seeker.x;
+      const sy = seeker.y;
+      const sa = seekerMoveAngleRef.current;
+
+      // Cone path
+      ctx.moveTo(sx, sy);
+      ctx.arc(sx, sy, coneRadius, sa - coneAngle / 2, sa + coneAngle / 2);
+      ctx.closePath();
+
+      // Close-range circle
+      ctx.moveTo(sx + closeRadius, sy);
+      ctx.arc(sx, sy, closeRadius, 0, Math.PI * 2, true);
+
+      ctx.fill();
+
+      // Draw faint boundary lines
+      ctx.beginPath();
+      // Cone edges
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + Math.cos(sa - coneAngle / 2) * coneRadius, sy + Math.sin(sa - coneAngle / 2) * coneRadius);
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + Math.cos(sa + coneAngle / 2) * coneRadius, sy + Math.sin(sa + coneAngle / 2) * coneRadius);
+      // Cone arc
+      ctx.moveTo(sx + Math.cos(sa - coneAngle / 2) * coneRadius, sy + Math.sin(sa - coneAngle / 2) * coneRadius);
+      ctx.arc(sx, sy, coneRadius, sa - coneAngle / 2, sa + coneAngle / 2);
+      // Close-range circle
+      ctx.moveTo(sx + closeRadius, sy);
+      ctx.arc(sx, sy, closeRadius, 0, Math.PI * 2);
+
+      ctx.strokeStyle = 'rgba(217, 119, 6, 0.22)';
+      ctx.lineWidth = 3;
       ctx.setLineDash([6, 6]);
       ctx.stroke();
       ctx.setLineDash([]);
@@ -1776,7 +1955,73 @@ export function GameCanvas({
       ctx.restore();
     }
 
+    // --- DRAW MINIMAP ---
+    drawMinimap();
+
     ctx.restore(); // Restore camera matrices scales
+  };
+
+  // --- Minimap drawing ---
+  const drawMinimap = () => {
+    const mc = minimapRef.current;
+    if (!mc) return;
+    const mctx = mc.getContext('2d');
+    if (!mctx) return;
+
+    const mw = mc.width;
+    const mh = mc.height;
+    const scaleX = mw / mapWidth;
+    const scaleY = mh / mapHeight;
+
+    // Clear
+    mctx.clearRect(0, 0, mw, mh);
+
+    // Background
+    mctx.fillStyle = 'rgba(6, 8, 12, 0.85)';
+    mctx.fillRect(0, 0, mw, mh);
+
+    // Border
+    mctx.strokeStyle = 'rgba(217, 119, 6, 0.4)';
+    mctx.lineWidth = 1;
+    mctx.strokeRect(0, 0, mw, mh);
+
+    // Hazards
+    for (const h of hazards) {
+      mctx.beginPath();
+      mctx.arc(h.x * scaleX, h.y * scaleY, h.radius * scaleX, 0, Math.PI * 2);
+      mctx.fillStyle = h.type === 'sand' ? 'rgba(217, 119, 6, 0.25)' : 'rgba(34, 211, 238, 0.2)';
+      mctx.fill();
+    }
+
+    // Bumpers
+    for (const b of bumpers) {
+      mctx.beginPath();
+      mctx.arc(b.x * scaleX, b.y * scaleY, b.radius * scaleX, 0, Math.PI * 2);
+      mctx.fillStyle = 'rgba(217, 119, 6, 0.5)';
+      mctx.fill();
+    }
+
+    // Orb
+    if (orbRef.current.active) {
+      mctx.beginPath();
+      mctx.arc(orbRef.current.x * scaleX, orbRef.current.y * scaleY, 3, 0, Math.PI * 2);
+      mctx.fillStyle = '#22d3ee';
+      mctx.fill();
+    }
+
+    // Hider (always show on minimap)
+    const hider = hiderBallRef.current;
+    mctx.beginPath();
+    mctx.arc(hider.x * scaleX, hider.y * scaleY, 3, 0, Math.PI * 2);
+    mctx.fillStyle = '#38bdf8';
+    mctx.fill();
+
+    // Seeker
+    const seeker = seekerBallRef.current;
+    mctx.beginPath();
+    mctx.arc(seeker.x * scaleX, seeker.y * scaleY, 3, 0, Math.PI * 2);
+    mctx.fillStyle = '#d97706';
+    mctx.fill();
   };
 
   // --- Helpers for Ice & coordination labelings ---
@@ -1857,13 +2102,23 @@ export function GameCanvas({
     // Max speeds limit. Seeker receives +50% velocity boost
     const baseVMax = HIDER_BASE_SPEED;
     const seekerVMax = baseVMax * SEEKER_SPEED_MULT;
-    const currentLimit = activeRole === 'seeker' ? seekerVMax : baseVMax;
+    let currentLimit = activeRole === 'seeker' ? seekerVMax : baseVMax;
+
+    // Laser power-up: +20% launch speed
+    if (activePowerUp === 'laser') {
+      currentLimit *= LASER_SPEED_MULT;
+    }
 
     const launchSpeed = currentLimit * dragPower;
 
     // Apply impulse physics
     activeBall.vx = (dx / dist) * launchSpeed;
     activeBall.vy = (dy / dist) * launchSpeed;
+
+    // Track seeker movement angle for directional fog
+    if (activeRole === 'seeker') {
+      seekerMoveAngleRef.current = Math.atan2(activeBall.vy, activeBall.vx);
+    }
 
     // Launch sparks particle
     for (let i = 0; i < LAUNCH_SPARKS; i++) {
@@ -1951,11 +2206,22 @@ export function GameCanvas({
               activePowerUp === 'laser' ? 'bg-blue-950/20 text-blue-400 border-blue-500/20' :
               activePowerUp === 'superball' ? 'bg-fuchsia-950/20 text-fuchsia-400 border-fuchsia-500/20' :
               activePowerUp === 'iron' ? 'bg-yellow-950/20 text-yellow-400 border-yellow-500/20' :
+              activePowerUp === 'cloak' ? 'bg-gray-950/30 text-gray-300 border-gray-500/20' :
+              activePowerUp === 'magnet' ? 'bg-red-950/20 text-red-400 border-red-500/20' :
               'bg-purple-950/30 text-purple-400 border-purple-500/20'
             }`}>
-              <Zap className="w-3 h-3 fill-current" /> {activePowerUp === 'laser' ? 'Laser' : activePowerUp === 'superball' ? 'Super' : activePowerUp === 'iron' ? 'Iron' : activePowerUp}
+              <Zap className="w-3 h-3 fill-current" /> {activePowerUp === 'laser' ? 'Laser' : activePowerUp === 'superball' ? 'Super' : activePowerUp === 'iron' ? 'Iron' : activePowerUp === 'cloak' ? 'Cloak' : activePowerUp === 'magnet' ? 'Magnet' : activePowerUp}
             </div>
           )}
+
+          {/* Minimap */}
+          <canvas
+            ref={minimapRef}
+            width={120}
+            height={90}
+            className="rounded border border-amber-500/20 shrink-0"
+            style={{ imageRendering: 'pixelated' }}
+          />
 
           <button
             onClick={onOpenHelp}

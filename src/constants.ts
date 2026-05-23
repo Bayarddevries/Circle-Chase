@@ -76,7 +76,7 @@ export const FOG_ALPHA = 0.95;
 export const FOG_EDGE_ALPHA = 0.22;
 
 // ── Sonar ────────────────────────────────────────────
-export const SONAR_INTERVAL = 3000;              // ms
+export const SONAR_INTERVAL = 5000;              // ms (increased from 3s for balance)
 export const SONAR_SPEED = 3;
 export const SONAR_MAX_RADIUS = 280;
 export const SONAR_START_RADIUS = 5;
@@ -109,6 +109,12 @@ export const ORB_PULSE_SPEED = 0.006;
 export const ORB_PULSE_AMP = 0.12;
 export const ORB_RESPAWN_TIME = 10000;           // ms
 export const ORB_COLLECT_PARTICLES = 20;
+
+// ── Power-up durations (frames at 60fps) ──
+export const CLOAK_DURATION = 180;    // 3 seconds
+export const MAGNET_DURATION = 300;   // 5 seconds
+export const MAGNET_PULL_STRENGTH = 0.15;
+export const LASER_SPEED_MULT = 1.2;  // 20% speed boost
 
 // ── Particles ────────────────────────────────────────
 export const TAG_SPARKS = 65;

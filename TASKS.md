@@ -1,50 +1,41 @@
-# Chase Tag — Tasks
+# Circle Chase
 
-## Critical
+## v1.3 - Next Sprint
+- [ ] AI Opponent (Seeker) with 3 difficulty levels | From review: top priority; enables solo play
+- [ ] Power-up balance rework (Laser speed buff, Iron ice immunity) | Address imbalance: Superball OP, Laser/IRON weak
+- [ ] New power-ups: Cloak (Hider invisibility), Magnet (Seeker pull) | Increases strategic depth
+- [ ] Orb respawn timer (10s if not collected) | Keeps map dynamic
+- [ ] Fog of war rework (directional cone, sonar cooldown 5s) | More cat-mouse tactics
+- [ ] Minimap in HUD | Aids orientation when camera zoomed
+- [ ] Meta-progression & unlock system | Credits, shop (skins, themes), leaderboard, badges (localStorage)
+- [ ] DPI-aware canvas scaling | Crisp on retina displays; high impact low effort
+- [ ] Touch input safety (preventDefault) | Prevents accidental scroll; essential for mobile
+- [ ] Reduce shadowBlur usage | Performance: lower blur radii, use gradients, selective glow
 
-- [ ] Game is unplayable on mobile — touch controls, viewport, and layout need fixing
+## v1.4 - Polish & Accessibility
+- [ ] Colorblind mode (shape overlays for Hider/Seeker, palette toggle) | Accessibility improvement
+- [ ] Hazard icons (⨳ for sand, ❄️ for ice) | Faster recognition than text labels
+- [ ] Typo fix: "Collogation" → "Collection" in HelpManual.tsx
+- [ ] Title branding consistency | "Neon Night Golf Chase" vs "NIGHT GOLF CHASE"
+- [ ] Power-up placement bias | Ensure orb spawns within active player's initial view region
 
-## Branding & Naming
-- [x] Rename game — "Night Golf Chase" → "Chase Tag" ✓
-- [x] Define consistent naming conventions — Runner/Chaser ✓
-- [x] Standardize title branding across all UI ✓
+## v2.0 - Major Features
+- [ ] Game mode variants (Time Attack, Endless)
+- [ ] Map template system (Open Arena, Bumper Maze, etc.) | Adds strategic variety
+- [ ] Audio (Web Audio API) | Whoosh, clang, explosion, chime
+- [ ] Replay system | Record positions and tag events for sharing highlights
+- [ ] PWA support | Add to Home Screen, offline play
+- [ ] Accessibility: ARIA live regions | Screen reader announcements for turn changes, scores
+- [ ] GameCanvas refactor into modules | Split monolith into physics, renderer, input, map, particles, camera
+- [ ] Online multiplayer (WebRTC) | Remote play
+- [ ] Android app store (Capacitor/TWA wrapper) | Deploy to Play Store
 
-## Visual Design
-- [ ] Establish consistent colour scheme / design language
-- [ ] Improve power-up orb visuals — better colour coding, distinct shapes per type
-- [ ] Improve player ball markers — clearer identity, better contrast
-- [x] Redesign hazard zones — icons (⨳ sand, ❄️ ice) ✓
-- [x] Remove AI copy from UI — simplify all text labels ✓
-
-## Gameplay
-- [ ] AI Opponent — single-player mode with difficulty levels (Easy/Med/Hard)
-- [ ] Power-up balance rework — Laser speed buff, Iron ice immunity, new Cloak/Magnet
-- [ ] Orb respawn timer (10s) if not collected
-- [ ] Fog of war rework — directional cone, sonar cooldown
-- [ ] Better define slow/fast zones with clearer visual language
-
-## Polish
-- [ ] Minimap in HUD
-- [ ] Colorblind mode — shape overlays + palette toggle
-- [x] Fix typo "Collogation" in HelpManual.tsx ✓
-- [ ] PWA support — installable, offline-capable
-- [ ] ARIA live regions for accessibility
-
-## Infrastructure
-- [x] Set up GitHub Actions CI/CD for auto-deploy to GitHub Pages ✓
-- [ ] Online multiplayer — WebRTC or server-based
-
-## Completed
-- [x] Project scaffolded (React + TypeScript + Vite + TailwindCSS)
-- [x] Main menu, canvas physics, slingshot controls
-- [x] Procedural map generation (bumpers, hazards, power-up orb)
-- [x] Turn-based gameplay, tag detection, score tracking
-- [x] Fog of War, sonar ping, particle effects, slow-mo
-- [x] Power-up system (laser, superball, iron, sonar)
-- [x] Sudden Death mode, round/match flow screens
-- [x] Help manual modal
-- [x] DPI scaling, touch safety, shadowBlur reduction
-- [x] Particle cap (500), constants extraction
-- [x] Meta-progression scaffold (credits, shop, leaderboard, badges)
-- [x] GitHub Pages deployment workflow
-- [x] Rename to Chase Tag — remove AI text, simplify all labels
+## Backlog / Ideas
+- [ ] FPS counter (debug mode) | Monitor performance during spikes
+- [ ] Particle system hard cap (e.g., 500) | Defensive against pathological bursts
+- [ ] Pre-render static background (grid, floor) | Cache to offscreen canvas
+- [ ] Minimap expansion (fog overlay) | Could show explored area
+- [ ] Alternate color schemes | Let players pick cyan/amber, blue/orange, green/red
+- [ ] Statistics tracking | Total turns survived, avg survival time, power-up usage, bounces
+- [ ] Scoring bonus for distance/risk | Extra points for staying away from Seeker; chase points for quick tags
+- [ ] Time Attack mode (already in v2?) but separate variant with countdown timer

@@ -122,6 +122,14 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
                 <span className="text-xs font-semibold text-purple-400 uppercase block">Sonar Pulse</span>
                 <span className="text-xs text-zinc-400">Reveal Runner position, removes fog.</span>
               </div>
+              <div className="p-2.5 rounded bg-neutral-900 border border-gray-500/25">
+                <span className="text-xs font-semibold text-gray-300 uppercase block">Cloak</span>
+                <span className="text-xs text-zinc-400">Runner invisible for 3 seconds.</span>
+              </div>
+              <div className="p-2.5 rounded bg-neutral-900 border border-red-500/25">
+                <span className="text-xs font-semibold text-red-400 uppercase block">Magnet</span>
+                <span className="text-xs text-zinc-400">Pulls Runner toward Chaser for 5 seconds.</span>
+              </div>
             </div>
           </div>
 
