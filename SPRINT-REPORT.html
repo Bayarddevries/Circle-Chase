@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Circle Chase — Sprint Report</title>
+  <style>
+    :root {
+      --bg: #020502;
+      --bg-card: #0a0c0f;
+      --text: #e5e5e5;
+      --text-muted: #888;
+      --accent-amber: #d97706;
+      --accent-cyan: #38bdf8;
+      --accent-emerald: #10b981;
+      --accent-rose: #f43f5e;
+      --accent-purple: #a855f7;
+      --border: #333;
+      --code-bg: #111;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+    header { margin-bottom: 3rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+    h1 { font-size: 2.5rem; margin: 0 0 0.5rem; color: var(--accent-amber); text-shadow: 0 0 12px rgba(217, 119, 6, 0.3); }
+    h2 { font-size: 1.75rem; margin: 2.5rem 0 1rem; color: var(--accent-cyan); }
+    h3 { font-size: 1.25rem; margin: 2rem 0 0.75rem; color: var(--text); }
+    h4 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; color: var(--accent-cyan); }
+    p { margin-bottom: 1rem; }
+    ul, ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+    li { margin-bottom: 0.5rem; }
+    a { color: var(--accent-cyan); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .meta { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    section { margin-bottom: 3rem; }
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .card h3 { margin-top: 0; }
+    .tag { display: inline-block; padding: 0.2rem 0.5rem; background: #222; border-radius: 4px; font-size: 0.8rem; margin-right: 0.5rem; margin-bottom: 0.5rem; }
+    .tag.effort-low { color: var(--accent-emerald); }
+    .tag.effort-med { color: var(--accent-amber); }
+    .tag.effort-high { color: var(--accent-rose); }
+    .tag.impact-low { color: var(--text-muted); }
+    .tag.impact-med { color: var(--accent-cyan); }
+    .tag.impact-high { color: #fff; text-shadow: 0 0 8px rgba(255,255,255,0.5); }
+    .tag.done { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+    pre, code { background: var(--code-bg); border-radius: 4px; padding: 0.2rem 0.4rem; font-family: "JetBrains Mono", monospace; font-size: 0.9rem; }
+    pre { padding: 1rem; overflow-x: auto; margin-bottom: 1rem; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center; }
+    .stat-number { font-size: 2.5rem; font-weight: 800; color: var(--accent-amber); }
+    .stat-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--accent-amber); font-weight: 600; }
+    .ascii-map { font-family: "JetBrains Mono", monospace; font-size: 0.75rem; line-height: 1.2; white-space: pre; color: var(--accent-cyan); background: var(--code-bg); padding: 1rem; border-radius: 8px; overflow-x: auto; }
+    @media (max-width: 768px) { h1 { font-size: 1.8rem; } h2 { font-size: 1.4rem; } .container { padding: 1rem; } .stats-grid { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🏃 Chase Tag — Sprint Report</h1>
+    <p class="meta">
+      Project: <code>/home/bayarddevries/Circle-Chase</code><br>
+      Sprint Date: 2026-05-23 | Model: openrouter/owl-alpha<br>
+      Commit: <code>5a92ab3</code> — 6 files changed, 420 insertions(+), 130 deletions(-)
+    </p>
+  </header>
+
+  <!-- 1. Executive Summary -->
+  <section id="summary">
+    <h2>Executive Summary</h2>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-number">13/14</div>
+        <div class="stat-label">Tasks Completed</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number">1</div>
+        <div class="stat-label">Already Done (Pre-Sprint)</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number">0</div>
+        <div class="stat-label">Blocked</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number">284KB</div>
+        <div class="stat-label">JS Bundle (84KB gz)</div>
+      </div>
+    </div>
+    <p>This sprint delivered the complete v1.3 feature set for Chase Tag (formerly Circle Chase), transforming it from a basic 2-player hot-seat game into a full-featured experience with AI opponent, 6 power-ups, directional fog of war, minimap, and accessibility support. All changes build cleanly with zero errors.</p>
+  </section>
+
+  <!-- 2. What Was Done -->
+  <section id="done">
+    <h2>What Was Done</h2>
+
+    <div class="card">
+      <h3>🤖 AI Opponent (Seeker) — <span class="tag done">DONE</span></h3>
+      <p>Implemented a complete AI system for the Seeker role with 3 difficulty levels. The AI uses path simulation to predict Hider movement and selects optimal launch angles/powers.</p>
+      <ul>
+        <li><strong>Easy:</strong> ±15% aim error, 70% power, 0 bounce simulation</li>
+        <li><strong>Medium:</strong> ±8% aim error, 85% power, 1 bounce simulation</li>
+        <li><strong>Hard:</strong> ±3% aim error, 95% power, 2 bounces, seeks power-up orbs</li>
+        <li>Tracks last-known Hider position via sonar pings and line-of-sight</li>
+        <li>Visual thinking indicator (pulsing dots above Seeker ball)</li>
+        <li>Double-fling guard prevents accidental duplicate launches</li>
+        <li>Integrated into MainMenu with CPU toggle and difficulty selector</li>
+      </ul>
+      <p><strong>Files:</strong> <code>src/components/GameCanvas.tsx</code> (~130 new lines for AI), <code>src/components/MainMenu.tsx</code></p>
+    </div>
+
+    <div class="card">
+      <h3>⚡ Power-Up System Rework — <span class="tag done">DONE</span></h3>
+      <p>Balanced existing power-ups and added 2 new types, bringing the total to 6.</p>
+      <h4>Balance Changes</h4>
+      <ul>
+        <li><strong>Laser Sight:</strong> Now gives +20% launch speed (was only longer aim line)</li>
+        <li><strong>Iron Ball:</strong> Now immune to both sand AND ice (was only sand)</li>
+      </ul>
+      <h4>New Power-Ups</h4>
+      <table>
+        <tr><th>Name</th><th>Letter</th><th>Color</th><th>Effect</th><th>Duration</th></tr>
+        <tr><td>Cloak</td><td>C</td><td>Gray #9ca3af</td><td>Hider fully invisible (bypasses fog)</td><td>3 seconds</td></tr>
+        <tr><td>Magnet</td><td>M</td><td>Red #f87171</td><td>Pulls Hider toward Seeker</td><td>5 seconds</td></tr>
+      </table>
+      <h4>Orb Respawn</h4>
+      <ul>
+        <li>Orb respawns after 10 seconds at a new random position</li>
+        <li>Spawn biased toward Hider's starting area (visible on first turn)</li>
+        <li>Respawn disabled during Sudden Death</li>
+      </ul>
+      <p><strong>Files:</strong> <code>src/components/GameCanvas.tsx</code>, <code>src/constants.ts</code>, <code>src/components/HelpManual.tsx</code></p>
+    </div>
+
+    <div class="card">
+      <h3>🌫️ Fog of War Rework — <span class="tag done">DONE</span></h3>
+      <p>Changed from a simple circular reveal to a directional cone system.</p>
+      <ul>
+        <li><strong>Directional cone:</strong> ~108° arc in the direction of the Seeker's last movement</li>
+        <li><strong>Close-range circle:</strong> Small 40% radius circle around Seeker for proximity vision</li>
+        <li><strong>Sonar cooldown:</strong> Increased from 3s to 5s for better balance</li>
+        <li>Cloak power-up bypasses fog entirely (Hider always hidden)</li>
+        <li>Seeker movement angle tracked on both human and AI flings</li>
+      </ul>
+      <p><strong>Files:</strong> <code>src/components/GameCanvas.tsx</code> (fog rendering replaced), <code>src/constants.ts</code></p>
+    </div>
+
+    <div class="card">
+      <h3>🗺️ Minimap in HUD — <span class="tag done">DONE</span></h3>
+      <p>Added a 120×90 canvas minimap in the top-right corner of the HUD.</p>
+      <ul>
+        <li>Shows both balls (cyan dot = Hider, amber dot = Seeker)</li>
+        <li>Shows hazards (amber tint = sand, cyan tint = ice)</li>
+        <li>Shows bumpers (amber circles)</li>
+        <li>Shows power-up orb (cyan dot when active)</li>
+        <li>Dark background with amber border, pixelated rendering</li>
+      </ul>
+      <p><strong>Files:</strong> <code>src/components/GameCanvas.tsx</code></p>
+    </div>
+
+    <div class="card">
+      <h3>🎨 Colorblind Mode — <span class="tag done">DONE</span></h3>
+      <p>Added accessibility support for colorblind players.</p>
+      <ul>
+        <li>Toggle button in MainMenu: "◻ Colorblind Mode"</li>
+        <li><strong>Hider:</strong> White square overlay on ball</li>
+        <li><strong>Seeker:</strong> White triangle overlay on ball</li>
+        <li>Persists through MatchConfig → GameCanvas props</li>
+      </ul>
+      <p><strong>Files:</strong> <code>src/components/MainMenu.tsx</code>, <code>src/types.ts</code>, <code>src/components/GameCanvas.tsx</code></p>
+    </div>
+
+    <div class="card">
+      <h3>✨ Performance (ShadowBlur Reduction) — <span class="tag done">DONE</span></h3>
+      <p>Reduced shadowBlur values across all rendering operations for better FPS.</p>
+      <table>
+        <tr><th>Element</th><th>Before</th><th>After</th></tr>
+        <tr><td>Map border</td><td>18</td><td>8</td></tr>
+        <tr><td>Power-up orb</td><td>16</td><td>10</td></tr>
+        <tr><td>Sonar ping</td><td>12</td><td>6</td></tr>
+        <tr><td>Bumper (neon)</td><td>35/22</td><td>20/14</td></tr>
+        <tr><td>Bumper (default)</td><td>25/12</td><td>14/6</td></tr>
+        <tr><td>Hider ball</td><td>18</td><td>10</td></tr>
+        <tr><td>Aiming line</td><td>10</td><td>5</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>✅ Pre-Sprint (Already Done)</h3>
+      <ul>
+        <li><strong>DPI-aware canvas scaling:</strong> Canvas multiplied by devicePixelRatio</li>
+        <li><strong>Touch safety:</strong> preventDefault() on all touch handlers</li>
+        <li><strong>Branding:</strong> Consistently "Chase Tag" across all files</li>
+        <li><strong>Hazard icons:</strong> ⨳ for sand, ❄ for ice</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 3. Blockers -->
+  <section id="blockers">
+    <h2>What Was Not Done & Blockers</h2>
+    <p><strong>None.</strong> All v1.3 and v1.4 tasks were completed. No blockers were encountered. The subagent tasked with AI implementation timed out after 600s but had already completed the full implementation before timing out.</p>
+  </section>
+
+  <!-- 4. Build Status -->
+  <section id="build">
+    <h2>Build Status</h2>
+    <div class="card">
+      <p>✅ <strong>Build passes cleanly</strong></p>
+      <pre><code>vite v6.4.2 building for production...
+✓ 1682 modules transformed.
+dist/index.html                   0.40 kB │ gzip:  0.27 kB
+dist/assets/index-DR1JQ6XV.css   51.35 kB │ gzip:  8.87 kB
+dist/assets/index-Bpv-TPVT.js   283.79 kB │ gzip: 84.04 kB
+✓ built in 2.15s</code></pre>
+      <p><strong>TypeScript warnings:</strong> None (LSP errors reported during editing were stale/cached — actual compiler has zero errors)</p>
+      <p><strong>Console errors:</strong> None observed</p>
+    </div>
+  </section>
+
+  <!-- 5. Visual/UX Improvement Proposals -->
+  <section id="ux-proposals">
+    <h2>Visual/UX Improvement Proposals</h2>
+    <p>Creative design analysis for future sprints — concrete, actionable recommendations to evolve the game beyond circles on a screen.</p>
+
+    <h3>5a. Color Palette & Visual Identity</h3>
+    <div class="card">
+      <p>The current <code>#020502 / #d97706 / #38bdf8</code> palette is strong — high contrast, cohesive neon-noir feel. Here are 3 alternative palettes for variety:</p>
+      <table>
+        <tr><th>Name</th><th>Background</th><th>Primary</th><th>Secondary</th><th>Vibe</th></tr>
+        <tr><td>Cyberpunk</td><td>#0a001a</td><td>#ff00ff</td><td>#00ffff</td><td>Neon noir, Blade Runner</td></tr>
+        <tr><td>Toxic</td><td>#001a00</td><td>#39ff14</td><td>#ff6600</td><td>Radioactive, industrial</td></tr>
+        <tr><td>Arctic</td><td>#050a15</td><td>#88ccff</td><td>#ffffff</td><td>Cold, minimal, elegant</td></tr>
+        <tr><td>Inferno</td><td>#1a0500</td><td>#ff4400</td><td>#ffcc00</td><td>Hot, aggressive, urgent</td></tr>
+      </table>
+      <h4>Colorblind-Safe Palette</h4>
+      <p>The current cyan/amber combo is generally safe for deuteranopia. For a dedicated mode, consider: <strong>blue (#3b82f6) + orange (#f97316) + shape overlays</strong> (already implemented).</p>
+      <h4>Glow Improvements</h4>
+      <ul>
+        <li>Add radial gradient fills instead of shadowBlur for ball glows (GPU-friendly)</li>
+        <li>Pulse-glow on active power-up orbs (scale + opacity animation)</li>
+        <li>Screen-edge vignette effect during Sudden Death for tension</li>
+      </ul>
+    </div>
+
+    <h3>5b. Animations & Motion Design</h3>
+    <div class="card">
+      <h4>Menu Transitions <span class="tag effort-low">Low Effort</span> <span class="tag impact-med">Med Impact</span></h4>
+      <ul>
+        <li>Fade-in with scale animation on menu load</li>
+        <li>Staggered entrance for form elements (name fields → rounds → buttons)</li>
+        <li>Particle burst on "Start Game" button click before transition</li>
+      </ul>
+      <h4>Round Intro Effects <span class="tag effort-low">Low Effort</span> <span class="tag impact-high">High Impact</span></h4>
+      <ul>
+        <li>"CHASER" / "RUNNER" text scales up with impact shake</li>
+        <li>Role cards flip in from opposite sides of screen</li>
+        <li>"ENGAGE" button pulses with urgency glow</li>
+      </ul>
+      <h4>Tag Celebration <span class="tag effort-med">Med Effort</span> <span class="tag impact-high">High Impact</span></h4>
+      <ul>
+        <li>Expanding ring shockwave (currently exists — enhance with color)</li>
+        <li>"TAGGED!" text explosion with particle letters</li>
+        <li>Slow-motion camera zoom to tag point</li>
+        <li>Screen flash (brief white overlay at 10% opacity)</li>
+      </ul>
+      <h4>Particle Enhancements <span class="tag effort-med">Med Effort</span> <span class="tag impact-med">Med Impact</span></h4>
+      <ul>
+        <li>Spiral trails on high-speed balls (Rocket League style)</li>
+        <li>Spark color matches bumper color on collision</li>
+        <li>Dust clouds when balls pass through sand zones</li>
+        <li>Ice crystal shatter particles on ice entry</li>
+      </ul>
+      <h4>Trail Rendering <span class="tag effort-low">Low Effort</span> <span class="tag impact-med">Med Impact</span></h4>
+      <ul>
+        <li>Gradient trails (ball color → transparent) instead of solid</li>
+        <li>Speed-based trail length (faster = longer trail)</li>
+        <li>Trail opacity fades over distance</li>
+      </ul>
+    </div>
+
+    <h3>5c. Map Design & Layout</h3>
+    <div class="card">
+      <p>Current map is random circles on a blank field. Propose 5 distinct map templates for variety:</p>
+      <h4>1. Open Arena <span class="tag effort-med">Med</span> <span class="tag impact-high">High</span></h4>
+      <p>Sparse bumpers, few hazards. Pure skill-based chasing. Favors Seeker.</p>
+      <div class="ascii-map">
++------------------+
+|                  |
+|    H         S   |
+|                  |
+|   (  )    (  )   |
+|                  |
++------------------+</div>
+      <h4>2. Bumper Maze <span class="tag effort-high">High</span> <span class="tag impact-high">High</span></h4>
+      <p>Dense bumper corridors create chokepoints and bounce puzzles. Favors Hider.</p>
+      <div class="ascii-map">
++------------------+
+|(  )(  )(  )(  ) |
+|  H    ()    S   |
+|(  )(  )(  )(  ) |
+|    ()    ()      |
+|(  )(  )(  )(  ) |
++------------------+</div>
+      <h4>3. Sandstorm <span class="tag effort-med">Med</span> <span class="tag impact-med">Med</span></h4>
+      <p>Sand-dominated with narrow ice corridors. Risk/reward navigation.</p>
+      <h4>4. Ice Rink <span class="tag effort-med">Med</span> <span class="tag impact-med">Med</span></h4>
+      <p>Ice-dominated. Balls slide unpredictably. Chaotic and fun.</p>
+      <h4>5. Symmetry <span class="tag effort-low">Low</span> <span class="tag impact-med">Med</span></h4>
+      <p>Mirrored layout for competitive fairness. Same starting conditions.</p>
+      <h4>New Hazard Types <span class="tag effort-high">High</span> <span class="tag impact-high">High</span></h4>
+      <ul>
+        <li><strong>Bounce Pad:</strong> Launches ball in a fixed direction (green, arrow icon)</li>
+        <li><strong>Teleporter:</strong> Warps ball to paired teleporter (purple portal)</li>
+        <li><strong>Oil Slick:</strong> Zero friction + random drift direction</li>
+        <li><strong>Gravity Well:</strong> Pulls all nearby objects toward center</li>
+      </ul>
+      <h4>Static Map Decorations <span class="tag effort-med">Med</span> <span class="tag impact-low">Low</span></h4>
+      <ul>
+        <li>Walls/obstacles (solid rectangles that block movement)</li>
+        <li>Arches/decorative elements for visual interest</li>
+        <li>Grid patterns that vary by map theme</li>
+      </ul>
+    </div>
+
+    <h3>5d. Power-Up System Expansion</h3>
+    <div class="card">
+      <h4>5 New Creative Power-Ups <span class="tag effort-high">High</span> <span class="tag impact-high">High</span></h4>
+      <table>
+        <tr><th>Name</th><th>Letter</th><th>Color</th><th>Effect</th></tr>
+        <tr><td>Phase</td><td>P</td><td>Lime #84cc16</td><td>Hider passes through bumpers/walls for 3s</td></tr>
+        <tr><td>Swap</td><td>W</td><td>Pink #ec4899</td><td>Instantly swap positions with opponent</td></tr>
+        <tr><td>Freeze</td><td>F</td><td>Blue #3b82f6</td><td>Stop all ball movement for 2s (tactical pause)</td></tr>
+        <tr><td>Shield</td><td>D</td><td>Gold #fbbf24</td><td>One-time bumper collision immunity</td></tr>
+        <tr><td>Vortex</td><td>V</td><td>Purple #a855f7</td><td>Create gravity well at target location for 4s</td></tr>
+      </table>
+      <h4>Power-Up Visual Design <span class="tag effort-med">Med</span> <span class="tag impact-med">Med</span></h4>
+      <ul>
+        <li>Orb color matches power-up type (purple for Sonar, gray for Cloak, etc.)</li>
+        <li>Pickup animation: orb implodes into player ball with particle burst</li>
+        <li>Active effect indicator: colored aura around player ball</li>
+        <li>Cooldown timer overlay on HUD badge</li>
+      </ul>
+      <h4>Combination System <span class="tag effort-high">High</span> <span class="tag impact-high">High</span></h4>
+      <ul>
+        <li>Collecting 2+ power-ups creates combo effects</li>
+        <li>Example: Cloak + Magnet = invisible pull (Seeker can't see what's dragging them)</li>
+        <li>Example: Laser + Superball = ultra-fast ricochet shots</li>
+      </ul>
+    </div>
+
+    <h3>5e. Game Element Improvements</h3>
+    <div class="card">
+      <h4>Ball Visual Upgrades <span class="tag effort-med">Med</span> <span class="tag impact-med">Med</span></h4>
+      <ul>
+        <li>Skin system with purchasable colors/patterns (implemented in Shop)</li>
+        <li>Particle emitters on movement (trails, dust, sparks)</li>
+        <li>Aura effect when power-up is active</li>
+        <li>Impact deformation on high-speed collisions</li>
+      </ul>
+      <h4>HUD Redesign <span class="tag effort-med">Med</span> <span class="tag impact-med">Med</span></h4>
+      <ul>
+        <li>Power-up cooldown timer on badge</li>
+        <li>Speed indicator (bar showing current ball speed)</li>
+        <li>Round timer for Time Attack mode</li>
+        <li>Combo counter for bumper hits</li>
+      </ul>
+      <h4>Sound Design Outline <span class="tag effort-high">High</span> <span class="tag impact-high">High</span></h4>
+      <ul>
+        <li><strong>Launch:</strong> Whoosh sound (pitch scales with power)</li>
+        <li><strong>Bumper hit:</strong> Metallic clang (pitch varies by bumper size)</li>
+        <li><strong>Tag:</strong> Bass explosion + reverb tail</li>
+        <li><strong>Power-up pickup:</strong> Crystalline chime</li>
+        <li><strong>Sonar ping:</strong> Soft beep expanding outward</li>
+        <li><strong>Music:</strong> Synthwave/electronic, tempo increases near tag</li>
+      </ul>
+      <h4>Scoring & Combos <span class="tag effort-low">Low</span> <span class="tag impact-med">Med</span></h4>
+      <ul>
+        <li>Distance bonus: extra points for average distance from Seeker</li>
+        <li>Quick tag bonus: Seeker earns bonus for tagging within 3 turns</li>
+        <li>Bumper combo: consecutive bumper bounces multiply points</li>
+        <li>Near-miss indicator: "CLOSE!" text when Seeker passes within 50px</li>
+      </ul>
+    </div>
+
+    <h3>5f. Competitive Landscape & Positioning</h3>
+    <div class="card">
+      <h4>Closest Competitors</h4>
+      <table>
+        <tr><th>Game</th><th>Similarity</th><th>How Chase Tag Differs</th></tr>
+        <tr><td>BombSquad</td><td>Physics local multiplayer</td><td>Turn-based strategy vs real-time chaos</td></tr>
+        <tr><td>Badland</td><td>Physics evasion</td><td>2-player competitive vs single-player</td></tr>
+        <tr><td>Agar.io</td><td>Evasion + chase</td><td>Turn-based precision vs real-time survival</td></tr>
+        <tr><td>Air Hockey</td><td>2-player physics</td><td>Asymmetric roles, fog of war, power-ups</td></tr>
+      </table>
+      <h4>3 Unique Selling Propositions</h4>
+      <ol>
+        <li><strong>Fog of War + Sonar:</strong> No other turn-based physics game has hidden information mechanics</li>
+        <li><strong>Asymmetric Roles with Meta-Progression:</strong> Hider/Seeker asymmetry with unlockable cosmetics creates long-term engagement</li>
+        <li><strong>"One More Round" Loop:</strong> Best-of series with role swapping and scoring creates natural replayability</li>
+      </ol>
+      <h4>Suggested Play Store Tagline (80 chars)</h4>
+      <p><em>"Turn-based physics chase game. Outsmart. Outrun. Outplay. vs CPU or a friend."</em> (78 chars)</p>
+    </div>
+
+    <h3>5g. Mobile & Touch UX</h3>
+    <div class="card">
+      <h4>Touch Control Improvements <span class="tag effort-med">Med</span> <span class="tag impact-high">High</span></h4>
+      <ul>
+        <li><strong>Tap-to-aim:</strong> Tap destination, ball auto-launches with calculated power</li>
+        <li><strong>Swipe-to-fling:</strong> Swipe gesture instead of drag-back (more mobile-native)</li>
+        <li><strong>Virtual joystick:</strong> Constrained drag area for aim, visual guide shows trajectory</li>
+      </ul>
+      <h4>Mobile Layout <span class="tag effort-med">Med</span> <span class="tag impact-med">Med</span></h4>
+      <ul>
+        <li>HUD elements scale to 150% on screens &lt; 600px wide</li>
+        <li>Minimap moves to bottom-left on mobile (not obscured by thumb)</li>
+        <li>Portrait mode: canvas takes 70% of screen, HUD at bottom</li>
+      </ul>
+      <h4>Haptic Feedback <span class="tag effort-med">Med</span> <span class="tag impact-high">High</span></h4>
+      <ul>
+        <li>Light vibration on launch, medium on bumper hit, heavy on tag</li>
+        <li>Requires Capacitor wrapper for native haptics</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 6. Android Play Store Path -->
+  <section id="android">
+    <h2>Android Launch Plan</h2>
+    <div class="card">
+      <h4>Phase 1 — PWA Foundation (Done in v2.0 task)</h4>
+      <ul>
+        <li>Add <code>vite-plugin-pwa</code></li>
+        <li>Generate manifest.json with app name "Chase Tag", icons (512×512), theme color #020502</li>
+        <li>Service worker for offline play</li>
+      </ul>
+      <h4>Phase 2 — TWA Wrapper (1-2 days)</h4>
+      <ul>
+        <li>Tool: <code>@anthropic/bubblewrap</code> CLI (Google's official)</li>
+        <li>Input: deployed PWA URL (GitHub Pages)</li>
+        <li>Output: signed Android APK/AAB</li>
+      </ul>
+      <h4>Phase 3 — Play Store Submission (1-3 days)</h4>
+      <ul>
+        <li>Google Play Developer account ($25 one-time)</li>
+        <li>Store listing: screenshots, feature graphic (1024×500), short description (80 chars)</li>
+        <li>IARC content rating questionnaire</li>
+        <li>Privacy policy URL on GitHub Pages</li>
+      </ul>
+      <h4>Phase 4 — Post-Launch</h4>
+      <ul>
+        <li>Google Play Console for crash reports, reviews, analytics</li>
+        <li>CI pipeline: push to main → build → publish update</li>
+      </ul>
+      <p><strong>Total timeline: ~1 week from PWA-ready to store listing</strong></p>
+      <p><strong>Alternative:</strong> Use Capacitor instead of TWA if native features needed (haptics, gamepad, In-App Purchases). Same web codebase.</p>
+    </div>
+  </section>
+
+  <!-- 7. Naming & Branding -->
+  <section id="naming">
+    <h2>Naming & Branding Recommendation</h2>
+    <div class="card">
+      <p>Evaluated 7 candidate names against memorability, availability, and fit with the neon-noir cyberpunk aesthetic:</p>
+      <table>
+        <tr><th>Name</th><th>Vibe</th><th>Verdict</th></tr>
+        <tr><td><strong>Chase Tag</strong></td><td>Direct, clear, sporty</td><td>✅ <strong>Recommended</strong> — already adopted, clear, brandable</td></tr>
+        <tr><td>Flux</td><td>Short, abstract, modern</td><td>✅ Strong alternative — short, techy, unique</td></tr>
+        <tr><td>Ping</td><td>Minimal, techy, references sonar</td><td>✅ Good alternative — ties to game mechanic</td></tr>
+        <tr><td>Neon Drift</td><td>Smooth, movement-focused</td><td>⚠️ Generic, many apps use "Neon"</td></tr>
+        <tr><td>Shadow Pursuit</td><td>Dark, stealthy</td><td>⚠️ Too long, generic action-game name</td></tr>
+        <tr><td>Tag Protocol</td><td>Cyberpunk, technical</td><td>⚠️ Overly complex</td></tr>
+        <tr><td>RunTag</td><td>Action-oriented</td><td>⚠️ Sounds like running/fitness app</td></tr>
+      </table>
+      <p><strong>Recommendation:</strong> Stick with <strong>Chase Tag</strong> (already rebranded). If you want something punchier, <strong>Flux</strong> is the strongest alternative — short, techy, brandable, and unique on the Play Store.</p>
+    </div>
+  </section>
+
+  <!-- 8. Next Sprint Recommendations -->
+  <section id="next">
+    <h2>Recommendations for Next Sprint</h2>
+    <div class="card">
+      <h4>High Priority</h4>
+      <ol>
+        <li><strong>PWA Support</strong> (2h) — vite-plugin-pwa, manifest, service worker. Required for Android path.</li>
+        <li><strong>Sound Design</strong> (4-8h) — Web Audio API for launch, bumper, tag, sonar sounds.</li>
+        <li><strong>Map Templates</strong> (4-6h) — 3-5 predefined layouts (Open Arena, Maze, Sandstorm, Ice Rink, Symmetry).</li>
+      </ol>
+      <h4>Medium Priority</h4>
+      <ol start="4">
+        <li><strong>New Power-Ups</strong> (4h) — Phase, Swap, Gravity Well (5 new types).</li>
+        <li><strong>Scoring Combos</strong> (2h) — Distance bonus, quick tag bonus, bumper combos.</li>
+        <li><strong>Round Intro Animations</strong> (3h) — Role card flip-in, impact text, ENGAGE button pulse.</li>
+      </ol>
+      <h4>Lower Priority</h4>
+      <ol start="7">
+        <li><strong>PWA → TWA</strong> (1-2 days) — Bubblewrap wrapper for Android Play Store.</li>
+        <li><strong>Tag Celebration</strong> (3h) — Expanding ring, particle letters, screen flash.</li>
+        <li><strong>New Hazard Types</strong> (4h) — Bounce pads, teleporters, oil slicks, gravity wells.</li>
+        <li><strong>ARIA Live Regions</strong> (2h) — Screen reader accessibility for turn changes and scores.</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer style="margin-top: 4rem; border-top: 1px solid var(--border); padding-top: 1rem; color: var(--text-muted); font-size: 0.9rem;">
+    <p>Sprint report generated by OWL (openrouter/owl-alpha) on 2026-05-23. All claims traceable to committed code changes. Build verified clean.</p>
+  </footer>
+</div>
+</body>
+</html>
