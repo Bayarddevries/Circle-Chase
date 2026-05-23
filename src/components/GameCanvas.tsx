@@ -100,9 +100,6 @@ export function GameCanvas({
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const minimapRef = useRef<HTMLCanvasElement | null>(null);
-
-  // Mobile detection — viewport width below 768px (landscape phones, small tablets)
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   
   // Game state parameters
   const [activeRole, setActiveRole] = useState<PlayerRole>('hider');
@@ -1795,9 +1792,6 @@ export function GameCanvas({
     const hColor = SKIN_COLORS[activeSkinRef.current] || SKIN_COLORS.default;
     const sColor = SKIN_COLORS[activeSkinRef.current] || SKIN_COLORS.default;
 
-    // On mobile, scale up ball rendering so they're visible on small screens
-    const mobileRadiusScale = isMobile ? 1.8 : 1;
-
     // --- DRAW HIDER BALL --
     // Rule: Hide if distance is greater than 350px and not Seeker active Radar, and turn === seeker
     // Cloak power-up: hider is always hidden regardless of distance
@@ -1808,7 +1802,7 @@ export function GameCanvas({
     if (!shroudEnabled && !hiderExplodedRef.current) {
       ctx.save();
       ctx.beginPath();
-      ctx.arc(hider.x, hider.y, hider.radius * mobileRadiusScale, 0, Math.PI * 2);
+      ctx.arc(hider.x, hider.y, hider.radius, 0, Math.PI * 2);
       ctx.fillStyle = hColor.fill;
       ctx.fill();
       ctx.lineWidth = 4.5;
@@ -1827,7 +1821,7 @@ export function GameCanvas({
 
       // Colorblind shape overlay — square for Hider
       if (config.colorblindMode) {
-        const s = hider.radius * 0.7 * mobileRadiusScale;
+        const s = hider.radius * 0.7;
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
         ctx.strokeRect(hider.x - s, hider.y - s, s * 2, s * 2);
@@ -1836,7 +1830,7 @@ export function GameCanvas({
       // Turn halo marker ring if Hider's turn
       if (activeRole === 'hider' && !ballsMoving) {
         ctx.beginPath();
-        ctx.arc(hider.x, hider.y, (hider.radius + 12) * mobileRadiusScale, 0, Math.PI * 2);
+        ctx.arc(hider.x, hider.y, hider.radius + 12, 0, Math.PI * 2);
         ctx.strokeStyle = hColor.stroke;
         ctx.lineWidth = 2.5;
         ctx.setLineDash([4, 4]);
@@ -1848,7 +1842,7 @@ export function GameCanvas({
     // --- DRAW SEEKER BALL ---
     ctx.save();
     ctx.beginPath();
-    ctx.arc(seeker.x, seeker.y, seeker.radius * mobileRadiusScale, 0, Math.PI * 2);
+    ctx.arc(seeker.x, seeker.y, seeker.radius, 0, Math.PI * 2);
     ctx.fillStyle = sColor.fill;
     ctx.fill();
     ctx.lineWidth = 4.5;
@@ -1867,7 +1861,7 @@ export function GameCanvas({
 
     // Colorblind shape overlay — triangle for Seeker
     if (config.colorblindMode) {
-      const s = seeker.radius * 0.7 * mobileRadiusScale;
+      const s = seeker.radius * 0.7;
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -1881,7 +1875,7 @@ export function GameCanvas({
     // Turn halo indicator
     if (activeRole === 'seeker' && !ballsMoving) {
       ctx.beginPath();
-      ctx.arc(seeker.x, seeker.y, (seeker.radius + 12) * mobileRadiusScale, 0, Math.PI * 2);
+      ctx.arc(seeker.x, seeker.y, seeker.radius + 12, 0, Math.PI * 2);
       ctx.strokeStyle = sColor.stroke;
       ctx.lineWidth = 2.5;
       ctx.setLineDash([4, 4]);
@@ -2149,14 +2143,10 @@ export function GameCanvas({
       const dpr = window.devicePixelRatio || 1;
       const w = canvas.parentElement?.clientWidth || window.innerWidth;
       const h = canvas.parentElement?.clientHeight || (window.innerHeight - 80);
-      // Set CSS dimensions so layout fills the viewport
-      canvas.style.width = w + 'px';
-      canvas.style.height = h + 'px';
-      // Backing store matches CSS pixels (no DPR multiply — we handle DPR via setTransform)
-      canvas.width = w;
-      canvas.height = h;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
       const ctx = canvas.getContext('2d');
-      if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (ctx) ctx.scale(dpr, dpr);
     };
 
     window.addEventListener('resize', handleResize);

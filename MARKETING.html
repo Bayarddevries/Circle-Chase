@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chase Tag — Marketing & Monetization Strategy</title>
+  <style>
+    :root {
+      --bg: #07090e;
+      --surface: #0c0e14;
+      --border: rgba(217, 119, 6, 0.15);
+      --amber: #d97706;
+      --amber-light: #fbbf24;
+      --amber-dim: rgba(217, 119, 6, 0.2);
+      --emerald: #10b981;
+      --emerald-dim: rgba(16, 185, 129, 0.15);
+      --cyan: #22d3ee;
+      --red: #ef4444;
+      --text: #e5e7eb;
+      --muted: #6b7280;
+      --code-bg: #0f1117;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      padding: 2rem 1rem 6rem;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--amber);
+      border: 1px solid var(--amber-dim);
+      background: rgba(217, 119, 6, 0.06);
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 1rem;
+      font-family: monospace;
+    }
+
+    h1 {
+      font-size: 2.8rem;
+      font-weight: 900;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #fff 0%, var(--amber-light) 50%, var(--amber) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.1;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 1rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-family: monospace;
+    }
+
+    .meta-bar {
+      display: flex;
+      gap: 2rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .meta-label {
+      font-size: 9px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-family: monospace;
+    }
+
+    .meta-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--amber-light);
+      font-family: monospace;
+    }
+
+    /* ── Section ── */
+    section {
+      margin-bottom: 3.5rem;
+    }
+
+    h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--amber);
+      border-left: 3px solid var(--amber);
+      padding-left: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+      letter-spacing: 1px;
+    }
+
+    p { margin-bottom: 1rem; color: #d1d5db; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .card h3 .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      background: var(--amber-dim);
+      border: 1px solid rgba(217, 119, 6, 0.3);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--amber-light);
+      margin-right: 8px;
+    }
+
+    /* ── Priority labels ── */
+    .priority {
+      display: inline-block;
+      font-size: 9px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    .priority.high { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .priority.mid  { background: rgba(217,119,6,0.15); color: var(--amber-light); border: 1px solid rgba(217,119,6,0.3); }
+    .priority.low   { background: var(--emerald-dim); color: var(--emerald); border: 1px solid rgba(16,185,129,0.3); }
+
+    /* ── Tables ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1rem;
+      font-size: 13px;
+    }
+
+    th {
+      text-align: left;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-family: monospace;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: #d1d5db;
+      vertical-align: top;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    td:first-child { color: var(--amber-light); font-weight: 600; font-family: monospace; }
+
+    /* ── Grids ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+    @media (max-width: 640px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      h1 { font-size: 1.8rem; }
+      .meta-bar { gap: 1rem; }
+    }
+
+    /* ── Tags ── */
+    .tag {
+      display: inline-block;
+      font-size: 10px;
+      font-family: monospace;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin: 2px;
+    }
+
+    .tag-core   { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+    .tag-growth { background: var(--emerald-dim); color: var(--emerald); border: 1px solid rgba(16,185,129,0.2); }
+    .tag-revenue{ background: rgba(217,119,6,0.1); color: var(--amber-light); border: 1px solid rgba(217,119,6,0.2); }
+    .tag-pr     { background: rgba(34,211,238,0.1); color: var(--cyan); border: 1px solid rgba(34,211,238,0.2); }
+
+    /* ── Highlight box ── */
+    .callout {
+      border: 1px solid rgba(217,119,6,0.2);
+      background: rgba(217,119,6,0.05);
+      border-radius: 10px;
+      padding: 1.2rem 1.5rem;
+      margin: 1.5rem 0;
+    }
+
+    .callout strong { color: var(--amber-light); }
+
+    .callout.green {
+      border-color: rgba(16,185,129,0.2);
+      background: rgba(16,185,129,0.05);
+    }
+
+    .callout.red {
+      border-color: rgba(239,68,68,0.2);
+      background: rgba(239,68,68,0.05);
+    }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 2.5rem 0;
+    }
+
+    /* ── Progress bars ── */
+    .bar-wrap { margin-bottom: 0.6rem; }
+    .bar-label { font-size: 11px; font-family: monospace; color: var(--muted); display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .bar-track { height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 3px; }
+    .bar-fill.amber { background: linear-gradient(90deg, var(--amber), var(--amber-light)); }
+    .bar-fill.emerald { background: linear-gradient(90deg, #059669, var(--emerald)); }
+    .bar-fill.cyan { background: linear-gradient(90deg, #0891b2, var(--cyan)); }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding-top: 2rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      font-family: monospace;
+      letter-spacing: 2px;
+    }
+
+    /* ── Phase timeline ── */
+    .phase-row {
+      display: grid;
+      grid-template-columns: 120px 1fr 100px;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 13px;
+    }
+
+    .phase-name { font-family: monospace; font-weight: 600; color: var(--amber-light); font-size: 11px; }
+    .phase-desc { color: var(--muted); }
+    .phase-time { font-family: monospace; font-size: 11px; color: var(--emerald); text-align: right; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<header>
+  <div class="badge">Bayard deVries — Circle Chase v1.3</div>
+  <h1>Chase Tag</h1>
+  <div class="subtitle">Marketing & Monetization Strategy · Google Play</div>
+  <div class="meta-bar">
+    <div class="meta-item">
+      <span class="meta-label">Document Type</span>
+      <span class="meta-value">Go-to-Market Plan</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Target Store</span>
+      <span class="meta-value">Google Play</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Build Path</span>
+      <span class="meta-value">PWA → TWA → AAB</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Game Type</span>
+      <span class="meta-value">Local 2-Player · Async Turn-Based</span>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════ SECTION 1: SITUATION ═══════════════════ -->
+<section>
+  <h2>1. Situation Analysis</h2>
+
+  <p>Chase Tag (formerly Neon Night Golf Chase, Circle Chase) is a 2-player pass-and-play physics evasion game built as a React web app. The core loop is solid — slingshot-based movement, fog of war, power-ups, particle effects, AI opponent, meta-progression with a shop, leaderboard, and badges. The tech foundation (PWA-ready, Canvas 2D, single-file physics) is clean. The app is on GitHub Pages today.</p>
+
+  <div class="callout green">
+    <strong>What's already working:</strong> The game is fun, visually distinct (neon/amber aesthetic), has genuine depth (physics, power-ups, meta layer), and an AI opponent that adds replay value. The shop and credits system already exist — this is the skeleton of a monetization layer.
+  </div>
+
+  <div class="callout red">
+    <strong>Key gaps blocking commercial success:</strong> No single-player mode beyond AI, no onboarding flow, no mobile touch polish, no social/share hooks, no app store listing, and the branding has been inconsistent (Neon Night Golf Chase → Circle Chase → Chase Tag). These need to be addressed before launch.
+  </div>
+
+  <h3 style="margin-top: 1.5rem;">Strengths / Weaknesses / Opportunities / Threats</h3>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3><span class="num">S</span>Strengths</h3>
+      <ul style="color: #d1d5db; font-size: 13px; padding-left: 1.2rem;">
+        <li>Unique aesthetic — dark neon, no direct competitors look like this</li>
+        <li>Physics-based gameplay has natural depth and replayability</li>
+        <li>Meta-progression (credits, unlocks, badges) already built</li>
+        <li>Shop with cosmetic items already exists</li>
+        <li>AI opponent makes it playable solo without a partner</li>
+        <li>PWA plan documented — clear path to mobile</li>
+        <li>Pass-and-play format works on a single device (no pairing friction)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="num">W</span>Weaknesses</h3>
+      <ul style="color: #d1d5db; font-size: 13px; padding-left: 1.2rem;">
+        <li>No social or share features — players can't show off scores</li>
+        <li>No proper onboarding — first-time players see the menu cold</li>
+        <li>Branding confusion — three names in one year</li>
+        <li>Mobile UX issues (canvas tiny on mobile, no h-screen)</li>
+        <li>No video or audio — the game is visually quiet</li>
+        <li>No frictionless "try now" CTA — no instant play link</li>
+        <li>No marketing channels identified or tested</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="num">O</span>Opportunities</h3>
+      <ul style="color: #d1d5db; font-size: 13px; padding-left: 1.2rem;">
+        <li>No real competitor owns "turn-based physics tag" on mobile</li>
+        <li>Casual party games (Spacetime Game, Golf Blitz) show the market is hungry</li>
+        <li>Short-form video (TikTok/Reels) is a natural fit for physics gameplay clips</li>
+        <li>Google Play Console has a $25 one-time fee — cheap to try</li>
+        <li>TWA + Bubblewrap is a proven low-cost path to Play Store</li>
+        <li>Cross-generational appeal — parents and kids can play together</li>
+        <li>Short game sessions fit mobile patterns perfectly</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="num">T</span>Threats</h3>
+      <ul style="color: #d1d5db; font-size: 13px; padding-left: 1.2rem;">
+        <li>No downloads = no ratings = no visibility spiral on Play Store</li>
+        <li>Physics-based games have a higher dev maintenance burden</li>
+        <li>Low-rated early reviews from bugs will kill installs permanently</li>
+        <li>Google Play Console requires a privacy policy, age rating (IARC), and screenshots — overhead</li>
+        <li>AI-generated content policies are tightening — Gemini API usage needs review</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ SECTION 2: BRANDING ═══════════════════ -->
+<section>
+  <h2>2. Branding & Positioning</h2>
+
+  <p>The app has gone through three names in one year. Before spending a dollar on marketing, lock the name. Switching names after launch fractures reviews and backlinks.</p>
+
+  <div class="callout">
+    <strong>Recommendation: Lock to "Chase Tag"</strong> — it's short, searchable, self-explanatory, and not trademarked. Drop "Circle Chase" and "Neon Night Golf Chase" from all assets. Update README, metadata, GitHub repo, and any social accounts at the same time as the launch. One name, everywhere, no exceptions.
+  </div>
+
+  <h3>Store Listing Copy (Google Play)</h3>
+
+  <table>
+    <tr>
+      <td>Short Description<br><span style="color: var(--muted); font-size: 11px;">80 characters max</span></td>
+      <td><em>2-player physics chase. Outsmart your friend in 60 seconds.</em></td>
+    </tr>
+    <tr>
+      <td>Full Description</td>
+      <td>
+        <em>Two balls. One Hider. One Seeker. First to 5 rounds wins.<br><br>
+        Chase Tag is a fast, turn-based physics game where you drag to aim and release to launch. Alternate hiding and seeking across rounds. Grab power-ups. Use bumpers. Survive.<br><br>
+        Features:<br>
+        &bull; Local 2-player pass-and-play<br>
+        &bull; Single-player vs CPU (3 difficulty levels)<br>
+        &bull; Fog of war & sonar pings<br>
+        &bull; 6 power-ups: Laser, Superball, Iron, Sonar, Cloak, Magnet<br>
+        &bull; Procedurally generated maps<br>
+        &bull; Cosmetics shop with unlocks<br>
+        &bull; Leaderboard & badges<br>
+        &bull; Offline play — no account required</em>
+      </td>
+    </tr>
+  </table>
+
+  <h3 style="margin-top: 1.5rem;">Category & Tags</h3>
+  <div style="margin-bottom: 1rem;">
+    <span class="tag tag-core">Games</span>
+    <span class="tag tag-core">Arcade</span>
+    <span class="tag tag-growth">Multiplayer</span>
+    <span class="tag tag-revenue">Casual</span>
+    <span class="tag tag-pr">Physics</span>
+    <span class="tag tag-pr">Party Game</span>
+  </div>
+  <p style="font-size: 12px; color: var(--muted);">Select both <strong style="color: var(--text);">Games > Arcade</strong> and <strong style="color: var(--text);">Games > Casual</strong> in Play Console. Use all 40 keyword slots with variations: "tag game", "2 player game", "physics game", "hotseat game", "pass and play", "chase game", "hide and seek game".</p>
+</section>
+
+<!-- ═══════════════════ SECTION 3: MONETIZATION ═══════════════════ -->
+<section>
+  <h2>3. Monetization Plan</h2>
+
+  <p>Chase Tag uses a <strong>free-to-play with cosmetic IAP + rewarded video ads</strong> model. No upfront cost to install, no energy systems, no pay-to-win. This is the right call for a game with genuine depth — forcing payment to play the core loop would tank retention before monetization even matters.</p>
+
+  <h3>Revenue Streams (Priority Order)</h3>
+
+  <div class="card">
+    <h3><span class="num">1</span>Rewarded Video Ads (Primary) <span class="priority high">Do First</span></h3>
+    <p>Earn credits ("Cybernetic Credits") by watching a 15-30 second ad between rounds or from the main menu. This is the standard for casual physics games — players are accustomed to it and it respects the core loop.</p>
+    <ul style="color: #d1d5db; font-size: 13px; padding-left: 1.2rem; margin-top: 0.5rem;">
+      <li><strong>Trigger:</strong> "Watch Ad for +50 Credits" button on the main menu and round-over screen</li>
+      <li><strong>SDK:</strong> Google AdMob (free, straightforward to integrate into a Capacitor/TWA wrapper)</li>
+      <li><strong>Format:</strong> Interstitial (between rounds) + rewarded (from menu)</li>
+      <li><strong>Target:</strong> 3-5 ads per play session — enough to be meaningful, not enough to drive uninstalls</li>
+    </ul>
+    <div class="bar-wrap" style="margin-top: 1rem;">
+      <div class="bar-label"><span>Estimated CPM (Android casual games)</span><span style="color: var(--amber-light);">$2–$6</span></div>
+      <div class="bar-track"><div class="bar-fill amber" style="width: 40%;"></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">2</span>Cosmetic IAP (Secondary) <span class="priority mid">Build on PWA</span></h3>
+    <p>The shop already exists with 17 purchasable items across 4 categories. The opportunity is to convert this to a real IAP flow. Options:</p>
+    <ul style="color: #d1d5db; font-size: 13px; padding-left: 1.2rem; margin-top: 0.5rem;">
+      <li><strong>Credit packs:</strong> $0.99 / $1.99 / $4.99 packs of Cybernetic Credits for players who don't want to watch ads. Instant purchase, no friction.</li>
+      <li><strong>Cosmetic bundles:</strong> Group 5 ball skins + 3 trails into a "Neon Pack" for $1.99 — feels like better value than buying individually.</li>
+      <li><strong>Seasonal themes:</strong> Rotate holiday-themed map backgrounds and ball skins every 4-6 weeks. Creates urgency and return visits.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">3</span>Premium Version (Optional) <span class="priority low">Phase 2</span></h3>
+    <p>A paid "Pro" version at $2.99 with all cosmetics unlocked, no ads, and exclusive badge frames. Keep the free version fully functional — the Pro version is a convenience, not a requirement. This approach converts "super fans" who want to support development without alienating casual players.</p>
+  </div>
+
+  <h3 style="margin-top: 2rem;">Pricing Sensitivity</h3>
+  <table>
+    <tr>
+      <th>Item Type</th>
+      <th>Price Point</th>
+      <th>Rationale</th>
+    </tr>
+    <tr>
+      <td>Small credit pack (200 CC)</td>
+      <td>$0.99</td>
+      <td>Impulse buy — equivalent to one coffee's change</td>
+    </tr>
+    <tr>
+      <td>Medium credit pack (600 CC)</td>
+      <td>$1.99</td>
+      <td>"Best value" anchor — not the cheapest, not expensive</td>
+    </tr>
+    <tr>
+      <td>Large credit pack (1,500 CC)</td>
+      <td>$4.99</td>
+      <td>Whale tier — 20% bonus credits over medium</td>
+    </tr>
+    <tr>
+      <td>Neon Bundle (5 skins + 3 trails)</td>
+      <td>$1.99</td>
+      <td>Themed grouping, perceived value ~$4</td>
+    </tr>
+    <tr>
+      <td>Premium Pro (all cosmetics + no ads)</td>
+      <td>$2.99</td>
+      <td>One-time, excludes casual players</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ═══════════════════ SECTION 4: USER ACQUISITION ═══════════════════ -->
+<section>
+  <h2>4. User Acquisition Channels</h2>
+
+  <p>On a $0 marketing budget, channels must be earned, not bought. The strategy is to build shareable moments, earn organic discovery, and target the audiences already looking for games like this.</p>
+
+  <h3>Channel 1: Short-Form Video (Highest Priority) <span class="priority high">Launch Week</span></h3>
+  <div class="card">
+    <p>Physics games are a proven category on TikTok and Instagram Reels. Clips of slingshot launches, bumper bounces, last-second escapes, and close games generate massive organic reach for indie games. The visual language (neon balls, particle explosions, fog of war reveal) is inherently watchable.</p>
+    <ul style="color: #d1d5db; font-size: 13px; padding-left: 1.2rem; margin-top: 0.5rem;">
+      <li><strong>What to post:</strong> 15-30 second clips of actual gameplay. Best rounds, close calls, hilarious physics moments. No commentary needed — just the game.</li>
+      <li><strong>Platforms:</strong> TikTok, Instagram Reels, YouTube Shorts (same content, cross-posted)</li>
+      <li><strong>Hashtags:</strong> #indiegames #physicsgame #2playergame #chasegame #arcade #mobilegames</li>
+      <li><strong>Frequency:</strong> 3-5 clips per week at launch, then 1-2 ongoing</li>
+      <li><strong>CTA:</strong> "Link in bio" to Google Play listing</li>
+    </ul>
+    <div class="callout" style="margin-top: 1rem; padding: 1rem;">
+      <strong>Clip ideas to record:</strong> Slingshot pull-back in slow-mo → release → ball ricochets off 3 bumpers → tag moment. Fog of war clearing as Seeker gets close. Sudden death tie-breaker. A genuinely close round that goes 15+ turns.
+    </div>
+  </div>
+
+  <h3>Channel 2: Reddit (Community Building) <span class="priority high">Week 2</span></h3>
+  <div class="card">
+    <p>Post to r/androidgaming, r/indiegaming, r/2player, and r/iosgaming (even if iOS is future). Lead with the gameplay, not the marketing pitch. Share a clip or GIF, ask for feedback, and engage genuinely with comments. Don't just drop a link — participate.</p>
+    <ul style="color: #d1d5db; font-size: 13px; padding-left: 1.2rem; margin-top: 0.5rem;">
+      <li>r/androidgaming — "I made a 2-player physics chase game" with a clip</li>
+      <li>r/indiegaming — dev journey post if there's a compelling story angle</li>
+      <li>r/2player — explicitly marketed as a couch co-op / pass-and-play game</li>
+      <li>Search "physics game" and "2 player" threads — offer the game as a suggestion when relevant</li>
+    </ul>
+  </div>
+
+  <h3>Channel 3: Google Play Store Listing (Organic) <span class="priority high">Launch Critical</span></h3>
+  <div class="card">
+    <p>Google Play organic discovery is driven by install velocity, ratings, and keyword relevance in the first 30 days. Treat the store listing as a landing page — every word earns or loses a click.</p>
+    <ul style="color: #d1d5db; font-size: 13px; padding-left: 1.2rem; margin-top: 0.5rem;">
+      <li><strong>5+ screenshots:</strong> Main menu, gameplay (hider turn), gameplay (seeker turn), power-up in action, round-over screen</li>
+      <li><strong>App icon:</strong> Two overlapping circles (amber + cyan) on dark background — simple, recognizable at 48px</li>
+      <li><strong>Feature graphic:</strong> 1024×500 — full-bleed neon game art with the name "CHASE TAG" and tagline</li>
+      <li><strong>Video preview:</strong> 30-second gameplay clip as the store preview video — this dramatically increases conversion</li>
+      <li><strong>A/B test:</strong> Two different short descriptions at launch to see which installs better</li>
+    </ul>
+  </div>
+
+  <h3>Channel 4: Product Hunt / Beta Testing <span class="priority mid">Pre-Launch</span></h3>
+  <div class="card">
+    <p>Use Play Console's internal testing tracks (closed alpha/beta) to get 10-20 real device testers before launch. Their feedback surfaces bugs, and their reviews bootstrap the rating count. Post on Product Hunt on launch day for a burst of visibility.</p>
+  </div>
+
+  <h3>Channel 5: Cross-Link with Existing Projects <span class="priority mid">Ongoing</span></h3>
+  <div class="card">
+    <p>If the RRMNHC Website or other Bayard projects have any community or audience, a link from those projects to the game is zero-cost referral traffic. Even a "Games" page on the RRMNHC site linking to the Play Store listing helps.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════ SECTION 5: PR STRATEGY ═══════════════════ -->
+<section>
+  <h2>5. PR & Communications</h2>
+
+  <h3>Narrative Angles</h3>
+  <p>Each angle gives journalists and Redditors a reason to care:</p>
+
+  <div class="card">
+    <h3><span class="num">A</span>Dev Story Angle</h3>
+    <p><em>"I built a physics chase game on weekends — now it's on Google Play."</em> Human-interest hook for indie dev communities, Product Hunt, and tech blogs. Keep it personal, not corporate.</p>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">B</span>Game Design Angle</h3>
+    <p><em>"The physics of hide-and-seek: how slingshot mechanics create dramatic chase moments."</em> Appeals to game design communities and people who appreciate procedural map generation and physics tuning.</p>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">C</span>Family / Social Angle</h3>
+    <p><em>"The game you play on the couch with your friends. No controllers, no accounts, no internet."</em> Positions against WiFi-dependent multiplayer games. Great for family-oriented press and parenting newsletters.</p>
+  </div>
+
+  <h3 style="margin-top: 2rem;">Press Kit Assets (Build at Launch)</h3>
+  <p>Create a simple press kit page (or PDF) journalists can pull from:</p>
+  <ul style="color: #d1d5db; font-size: 13px; padding-left: 1.2rem; margin-bottom: 1rem;">
+    <li>Game logo (SVG + PNG at 512px)</li>
+    <li>5-8 high-res screenshots</li>
+    <li>Feature graphic / promotional banner</li>
+    <li>30-second gameplay video (MP4)</li>
+    <li>One-paragraph game description</li>
+    <li>Developer bio (2 sentences: who you are, what you made)</li>
+    <li>Direct contact email (or GitHub Issues as public contact)</li>
+    <li>Link to Play Store listing</li>
+  </ul>
+  <p>Place this at <code style="background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: 12px;">chase.tag</code> or <code style="background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: 12px;">bayarddevries.com/chase-tag</code> — a simple landing page.</p>
+
+  <h3 style="margin-top: 2rem;">Social Accounts (Minimalist Approach)</h3>
+  <p>Don't try to be everywhere. Pick one platform and be consistent. Recommendation: <strong>X/Twitter</strong> as the primary channel — it's where indie devs and game communities live. Instagram Reels for video clips (same content as TikTok). No need for Facebook, Discord server, or newsletter until the game has an active player base.</p>
+  <ul style="color: #d1d5db; font-size: 13px; padding-left: 1.2rem;">
+    <li>X/Twitter: Post gameplay clips, dev updates, launch announcements</li>
+    <li>TikTok/Reels: Cross-post gameplay clips (zero additional effort)</li>
+    <li>GitHub: Keep the repo active — contributors add legitimacy</li>
+  </ul>
+</section>
+
+<!-- ═══════════════════ SECTION 6: IMPROVEMENTS ═══════════════════ -->
+<section>
+  <h2>6. Recommended Improvements (Marketing & UX Priority)</h2>
+
+  <p>These changes directly affect store conversion, retention, and word-of-mouth. Ordered by impact, not by roadmap phase.</p>
+
+  <div class="card">
+    <h3><span class="num">1</span>Fix Mobile Touch/Canvas <span class="priority high">Before Store Listing</span></h3>
+    <p>Your own notes flag this: canvas is tiny on mobile — body lacks <code>h-screen</code>, camera zoom 0.8, balls too small. If players download the game and the first thing they see is a broken canvas, reviews will reflect that. This must be fixed before any store listing goes live. It's a launch blocker, not a post-launch task.</p>
+    <ul style="color: #d1d5db; font-size: 13px; padding-left: 1.2rem; margin-top: 0.5rem;">
+      <li>Add <code>min-h-screen</code> to body</li>
+      <li>Set canvas to fill viewport with <code>width: 100vw; height: 100vh</code></li>
+      <li>Adjust camera zoom to auto-fit the map to screen dimensions</li>
+      <li>Increase base ball sizes for touch readability</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">2</span>Add Instant Play CTA <span class="priority high">Before Store Listing</span></h3>
+    <p>From the GitHub Pages URL, a new player should be able to start playing in under 10 seconds with no friction. The current main menu requires name entry before starting. Add a "Quick Play" button that starts a game with default names (Player 1, Player 2) so players can try the game before committing to typing.</p>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">3</span>Add Share / Screenshot Button <span class="priority high">Week 1</span></h3>
+    <p>Add a "Share" button on the round-over screen that generates a shareable image card: winner name, turns survived, map number. This is the single highest-value social feature for casual games — it turns a memorable moment into a social signal. On mobile, trigger the native share sheet. On web, copy a link or open Twitter with pre-filled text.</p>
+    <div style="margin-top: 0.5rem; font-size: 12px; color: var(--muted); background: var(--code-bg); padding: 0.8rem 1rem; border-radius: 6px; font-family: monospace;">
+      Example share text: "I survived 14 turns as Runner in Chase Tag! Can you beat me? [Play Store link]"
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">4</span>First-Time Experience (Onboarding) <span class="priority high">Before Store Listing</span></h3>
+    <p>The game has no onboarding. A new player lands on the main menu, enters names, and gets thrown into gameplay with no instruction. Add a 3-screen tutorial that shows: (1) drag back to aim, (2) release to launch, (3) Runner hides, Chaser seeks. Show this only once on first launch. Use the HelpManual component as the basis — just make it interrupt the first game.</p>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">5</span>Daily Credits / Streak System <span class="priority mid">Month 1</span></h3>
+    <p>Add a "Daily Bonus" — watch an ad once per day for a credit multiplier (e.g., 2× credits earned that day). This drives daily return visits. Keep it simple: a single banner on the main menu that resets every 24 hours. The implementation is trivial — store a timestamp in localStorage.</p>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">6</span>Add Short Game Mode <span class="priority mid">Month 1</span></h3>
+    <p>Best-of-5/7 rounds is a commitment. Add a "Quick Match" mode (single round, first to 3 tags wins) that takes 60-90 seconds. This dramatically lowers the barrier to "just one more game" and increases session frequency — which translates to more ad views and more IAP opportunities.</p>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">7</span>Fix All Naming References <span class="priority high">Before Store Listing</span></h3>
+    <p>Your own changelog flags "Collogation" typo and "Hider/Seeker" vs "Runner/Chaser" inconsistency. The code still uses "Hider/Seeker" in comments and possibly in UI text (e.g., the badge names and shop labels). Audit all visible strings and make them consistent. Players will screenshot bugs — string inconsistencies are shareable in bad ways.</p>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">8</span>Add Sound Effects <span class="priority mid">Month 2</span></h3>
+    <p>The game is visually polished but completely silent. Audio is a massive driver of emotional connection to gameplay moments — the "thwack" of a bumper hit, the tension of the sonar ping, the celebration when you survive 10 turns. Add even basic Web Audio API sound effects. The sound plan document already exists. Prioritize impact sounds and the sonar ping — they're the most emotionally charged moments.</p>
+  </div>
+
+  <div class="card">
+    <h3><span class="num">9</span>Seasonal Events <span class="priority low">Month 3+</span></h3>
+    <p>Add limited-time map backgrounds and ball skins for holidays. Players who participate feel invested; players who miss out feel urgency to return next time. Even one new cosmetic item every 6 weeks keeps the shop feeling alive without a large art budget.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════ SECTION 7: LAUNCH PHASES ═══════════════════ -->
+<section>
+  <h2>7. Launch Phases</h2>
+
+  <div class="phase-row">
+    <div class="phase-name">Phase 0: Lock</div>
+    <div class="phase-desc">Fix mobile canvas, lock name to "Chase Tag", fix all visible string inconsistencies (Hider/Seeker, typo "Collogation"), add Quick Play button, add basic onboarding tutorial, fix metadata.json name to "Chase Tag"</div>
+    <div class="phase-time">Week 1</div>
+  </div>
+  <div class="phase-row">
+    <div class="phase-name">Phase 1: PWA</div>
+    <div class="phase-desc">Implement PWA plan (vite-plugin-pwa, icons, manifest, service worker). Deploy to GitHub Pages. Verify Lighthouse score 100%. Enable "Add to Home Screen" on mobile Chrome.</div>
+    <div class="phase-time">Week 2</div>
+  </div>
+  <div class="phase-row">
+    <div class="phase-name">Phase 2: TWA</div>
+    <div class="phase-desc">Wrap PWA in Bubblewrap, generate AAB. Set up Google Play Console developer account ($25 one-time). Create store listing with screenshots, description, keywords. Submit for internal testing with 10-20 beta testers.</div>
+    <div class="phase-time">Week 3</div>
+  </div>
+  <div class="phase-row">
+    <div class="phase-name">Phase 3: Soft Launch</div>
+    <div class="phase-desc">Release to Play Console Closed Beta. Collect 10+ reviews. Fix reported bugs. Record gameplay clips. Post to Reddit (r/androidgaming, r/indiegaming, r/2player). Post TikTok/Reels clips. Monitor crash reports in Play Console.</div>
+    <div class="phase-time">Week 4</div>
+  </div>
+  <div class="phase-row">
+    <div class="phase-name">Phase 4: Launch</div>
+    <div class="phase-desc">Move Closed Beta → Production. Post to Product Hunt. Announce on X/Twitter. Brief Reddit follow-up (respond to all comments). Submit to 2-3 indie game newsletters. Monitor store listing conversion rate and adjust short description.</div>
+    <div class="phase-time">Week 5</div>
+  </div>
+  <div class="phase-row">
+    <div class="phase-name">Phase 5: Grow</div>
+    <div class="phase-desc">Integrate AdMob rewarded video ads. Add daily credit bonus. Add share/screenshot button. Monitor retention: Day 1, Day 7, Day 30. If retention is low, fix onboarding before spending more time on marketing.</div>
+    <div class="phase-time">Weeks 6–12</div>
+  </div>
+</section>
+
+<!-- ═══════════════════ SECTION 8: COMPETITIVE LANDSCAPE ═══════════════════ -->
+<section>
+  <h2>8. Competitive Landscape</h2>
+
+  <table>
+    <tr>
+      <th>Game</th>
+      <th>Platform</th>
+      <th>What It's Like</th>
+      <th>Chase Tag Advantage</th>
+    </tr>
+    <tr>
+      <td>Golf Blitz</td>
+      <td>Mobile</td>
+      <td>Real-time physics golf, 2-player online</td>
+      <td>Turn-based = no latency issues; local play works offline</td>
+    </tr>
+    <tr>
+      <td>Spacetime Game</td>
+      <td>Mobile</td>
+      <td>Async 2-player games, quick rounds</td>
+      <td>Free, no account needed, richer physics</td>
+    </tr>
+    <tr>
+      <td>Stumble Guys</td>
+      <td>Mobile</td>
+      <td>Party game, physics-based races</td>
+      <td>Solo-playable vs AI; pass-and-play for same-device multiplayer</td>
+    </tr>
+    <tr>
+      <td>8 Ball Pool</td>
+      <td>Mobile</td>
+      <td>Turn-based physics game, huge player base</td>
+      <td>Novelty of tag/chase vs pool; unique neon aesthetic</td>
+    </tr>
+    <tr>
+      <td>Tag games (real world)</td>
+      <td>Physical</td>
+      <td>Chase Tag, Footy Tag leagues exist</td>
+      <td>Digital version is always available, no场地 needed</td>
+    </tr>
+  </table>
+
+  <div class="callout green" style="margin-top: 1.5rem;">
+    <strong>Differentiation is real.</strong> There is no other app on Google Play that combines: turn-based physics + local multiplayer + fog of war + power-ups + AI opponent. The niche is real and underserved. The challenge is not finding a gap — it's building enough awareness that players in that gap can find the game.
+  </div>
+</section>
+
+<!-- ═══════════════════ SECTION 9: SUCCESS METRICS ═══════════════════ -->
+<section>
+  <h2>9. Success Metrics</h2>
+
+  <p>Track these weekly after launch. If any metric isn't moving after two consecutive weeks, revisit the assumption behind it.</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3><span class="num">1</span>Store Listing Conversion</h3>
+      <p><strong>What:</strong> Views → Installs ratio in Play Console</p>
+      <p><strong>Target:</strong> 25%+ conversion on store listing views</p>
+      <p><strong>How to improve:</strong> Better screenshots, video preview, short description punch</p>
+    </div>
+    <div class="card">
+      <h3><span class="num">2</span>Day 1 Retention</h3>
+      <p><strong>What:</strong> % of installers who return the next day</p>
+      <p><strong>Target:</strong> 40%+</p>
+      <p><strong>How to improve:</strong> Onboarding flow, instant fun moment in first round</p>
+    </div>
+    <div class="card">
+      <h3><span class="num">3</span>Average Session Length</h3>
+      <p><strong>What:</strong> Time from launch to app background</p>
+      <p><strong>Target:</strong> 5+ minutes per session</p>
+      <p><strong>How to improve:</strong> Reduce loading time, add Quick Match mode</p>
+    </div>
+    <div class="card">
+      <h3><span class="num">4</span>Ratings Count</h3>
+      <p><strong>What:</strong> Number of Play Store reviews</p>
+      <p><strong>Target:</strong> 50+ reviews in first 30 days</p>
+      <p><strong>How to improve:</strong> In-app prompt asking for rating after 3rd round (not after 1st)</p>
+    </div>
+  </div>
+
+  <h3 style="margin-top: 1.5rem;">Revenue Benchmarks</h3>
+  <div class="bar-wrap">
+    <div class="bar-label"><span>Ad impressions per DAU target (at 5 ads/session)</span><span>~15–20/day</span></div>
+    <div class="bar-track"><div class="bar-fill cyan" style="width: 35%;"></div></div>
+  </div>
+  <div class="bar-wrap">
+    <div class="bar-label"><span>Estimated daily ad revenue at 500 DAU (CPM $3)</span><span>~$6–9/day</span></div>
+    <div class="bar-track"><div class="bar-fill emerald" style="width: 18%;"></div></div>
+  </div>
+  <div class="bar-wrap">
+    <div class="bar-label"><span>Estimated daily ad revenue at 1,000 DAU</span><span>~$12–18/day</span></div>
+    <div class="bar-track"><div class="bar-track" style="background: rgba(255,255,255,0.05); height: 6px; border-radius: 3px; overflow: hidden;"><div class="bar-fill emerald" style="width: 30%;"></div></div></div>
+  </div>
+  <p style="font-size: 12px; color: var(--muted); margin-top: 0.5rem;">Reality check: at $0 marketing budget, expecting 1,000 DAU in 30 days is optimistic. A realistic near-term target is 50–100 DAU. Ad revenue at that scale is modest — treat it as validation of the model, not income. The real value is the proof-of-concept for future projects or a future spike if a video goes viral.</p>
+</section>
+
+<!-- ═══════════════════ SECTION 10: RISKS ═══════════════════ -->
+<section>
+  <h2>10. Risks & Mitigations</h2>
+
+  <table>
+    <tr>
+      <th>Risk</th>
+      <th>Likelihood</th>
+      <th>Impact</th>
+      <th>Mitigation</th>
+    </tr>
+    <tr>
+      <td>Mobile canvas remains broken on launch</td>
+      <td style="color: #f87171;">High</td>
+      <td style="color: #f87171;">Critical</td>
+      <td>Test on a real Android device (not just DevTools) before any Play Store submission</td>
+    </tr>
+    <tr>
+      <td>Zero installs — no momentum spiral</td>
+      <td style="color: #f87171;">High</td>
+      <td style="color: #fbbf24;">High</td>
+      <td>Short-form video is the only free channel that can break zero. Post clips before launch, not after.</td>
+    </tr>
+    <tr>
+      <td>Bad early reviews from bugs</td>
+      <td style="color: #fbbf24;">Medium</td>
+      <td style="color: #f87171;">Critical</td>
+      <td>Beta test with 10-20 real users before public launch. Fix all P1 bugs before moving to production track.</td>
+    </tr>
+    <tr>
+      <td>AdMob account issues (Fraud policy, payment threshold)</td>
+      <td style="color: #fbbf24;">Medium</td>
+      <td style="color: #fbbf24;">Medium</td>
+      <td>Use AdMob with care — don't incentivize ad views, don't use auto-refresh, read the policy. $100 minimum payout threshold.</td>
+    </tr>
+    <tr>
+      <td>Gemini API cost / policy issues in TWA</td>
+      <td style="color: #6b7280;">Low</td>
+      <td style="color: #fbbf24;">Medium</td>
+      <td>If AI features aren't core to gameplay (they currently aren't), remove the Gemini dependency before Play Store to simplify privacy policy and reduce attack surface.</td>
+    </tr>
+    <tr>
+      <td>Google Play policy rejection</td>
+      <td style="color: #6b7280;">Low</td>
+      <td style="color: #f87171;">Critical</td>
+      <td>Read the Play Store policy before submitting. Ads must be clearly labeled. No deceptive placement. Privacy policy URL required ($0 domain or GitHub Pages). Age rating (IARC) is required.</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ═══════════════════ SECTION 11: BUDGET ═══════════════════ -->
+<section>
+  <h2>11. Budget</h2>
+
+  <table>
+    <tr>
+      <th>Item</th>
+      <th>Cost</th>
+      <th>Notes</th>
+    </tr>
+    <tr>
+      <td>Google Play Console (one-time)</td>
+      <td style="color: var(--emerald);">$25.00</td>
+      <td>One-time developer registration. Required to publish.</td>
+    </tr>
+    <tr>
+      <td>Domain / Landing page</td>
+      <td style="color: var(--emerald);">$0–$15/yr</td>
+      <td>Optional. Can use GitHub Pages URL. A custom domain (~$12/yr) adds legitimacy for press kit.</td>
+    </tr>
+    <tr>
+      <td>Privacy Policy hosting</td>
+      <td style="color: var(--emerald);">$0</td>
+      <td>GitHub Pages hosts a static privacy policy. Free and sufficient.</td>
+    </tr>
+    <tr>
+      <td>AdMob integration</td>
+      <td style="color: var(--emerald);">$0</td>
+      <td>AdMob is free to integrate. Revenue share with Google is standard.</td>
+    </tr>
+    <tr>
+      <td>App icon design</td>
+      <td style="color: var(--emerald);">$0 (DIY)</td>
+      <td>Use ImageMagick or Figma. Two overlapping circles on dark background — anyone can make this.</td>
+    </tr>
+    <tr>
+      <td><strong>Minimum viable budget</strong></td>
+      <td style="color: var(--amber-light); font-weight: 700;">$25</td>
+      <td>Play Console only. Everything else is $0.</td>
+    </tr>
+  </table>
+
+  <div class="callout" style="margin-top: 1.5rem;">
+    <strong>Total minimum spend to launch on Google Play: $25.</strong> Everything else is time. The game, the PWA wrapper, the store listing, the marketing — all of it is buildable with the existing codebase and zero paid tools.
+  </div>
+</section>
+
+<!-- ═══════════════════ SECTION 12: EXECUTIVE SUMMARY ═══════════════════ -->
+<section>
+  <h2>12. Executive Summary</h2>
+
+  <div class="callout green">
+    <p style="margin: 0;"><strong>Chase Tag has a real product-market fit opportunity.</strong> No competitor owns "turn-based physics tag on mobile." The game has depth, the shop exists, the meta-progression is built, and the aesthetic is distinctive. The path from PWA to Play Store is documented and achievable in 3-5 weeks of part-time work.</p>
+  </div>
+
+  <div class="grid-3" style="margin-top: 1.5rem;">
+    <div class="card" style="text-align: center;">
+      <div style="font-size: 2rem; font-weight: 900; color: var(--amber-light); font-family: monospace;">$25</div>
+      <div style="font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px;">Launch Cost</div>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div style="font-size: 2rem; font-weight: 900; color: var(--amber-light); font-family: monospace;">3–5 wks</div>
+      <div style="font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px;">Time to Store</div>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div style="font-size: 2rem; font-weight: 900; color: var(--amber-light); font-family: monospace;">$0</div>
+      <div style="font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px;">Marketing Budget</div>
+    </div>
+  </div>
+
+  <div style="margin-top: 1.5rem;">
+    <h3>Critical Path (Do These Before Anything Else)</h3>
+    <ol style="color: #d1d5db; font-size: 13px; padding-left: 1.5rem; line-height: 2;">
+      <li><strong>Fix mobile canvas</strong> — body h-screen, camera auto-fit, ball sizes readable on phone</li>
+      <li><strong>Lock brand to "Chase Tag"</strong> — update README, metadata, GitHub, all visible strings</li>
+      <li><strong>Add Quick Play button</strong> — skip name entry, start game in 2 taps</li>
+      <li><strong>Add 3-screen onboarding tutorial</strong> — explain drag-to-aim and Runner/Chaser roles</li>
+      <li><strong>Fix "Collogation" typo</strong> — one screenshot of this bug goes viral on r/androidgaming</li>
+    </ol>
+  </div>
+</section>
+
+<footer>
+  Chase Tag · Marketing Strategy · Prepared for Bayard deVries · 2026
+</footer>
+
+</div>
+</body>
+</html>
