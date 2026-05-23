@@ -1,56 +1,56 @@
-# Issues — Circle Chase
+# Issues — Chase Tag
 
 ## Critical (Blockers)
 
-| ID | Description | Priority |
+| ID | Description | Status |
+|----|-------------|--------|
+| CC-001 | Game is unplayable on mobile — touch controls, viewport, layout broken | **OPEN** |
+| CC-002 | No consistent colour scheme or design language | Open |
+| CC-003 | Power-up orbs visually indistinct — need better colour/shape coding | Open |
+| CC-004 | Player ball markers need improvement — clearer identity | Open |
+| CC-005 | Hazard zones (slow/fast) not well defined visually | Open |
+
+## Resolved
+
+| ID | Description | Resolved |
 |----|-------------|----------|
-| CC-001 | Game name "Night Golf Chase" is bad — needs rebranding | High |
-| CC-002 | No consistent colour scheme or design language | High |
-| CC-003 | Hider/Seeker naming conventions not defined consistently | Medium |
-| CC-004 | Power-up orbs visually indistinct — need better colour/shape coding | High |
-| CC-005 | Player ball markers need improvement — clearer identity | Medium |
-| CC-006 | Hazard zones (slow/fast) not well defined visually | Medium |
-| CC-007 | AI copy in UI needs removal — simplify all text | Low |
+| CC-006 | Game name "Night Golf Chase" was bad | ✓ Renamed to "Chase Tag" |
+| CC-007 | No consistent naming for Hider/Seeker | ✓ Runner/Chaser |
+| CC-008 | Title inconsistency across files | ✓ Standardized |
+| CC-009 | AI-sounding text throughout UI | ✓ Removed |
+| CC-010 | Hazard labels were tiny text | ✓ Replaced with icons |
+| CC-011 | Typo "Collogation" in HelpManual | ✓ Fixed |
 
 ## High Priority
 
-| ID | Description | Priority |
-|----|-------------|----------|
-| CC-008 | No AI opponent — single-player mode needed | High |
-| CC-009 | Power-up balance (Superball too strong, Laser useless, Iron weak) | High |
-| CC-010 | No new power-ups (Cloak, Magnet) | High |
-| CC-011 | Fog of war too simple (fixed radius, free auto-sonar) | Medium |
-| CC-012 | No minimap — camera hides opponent | Medium |
-| CC-013 | Power-up orb can spawn off-screen | Medium |
+| ID | Description | Status |
+|----|-------------|--------|
+| CC-012 | No AI opponent — single-player mode needed | Open |
+| CC-013 | Power-up balance (Superball too strong, Laser useless, Iron weak) | Open |
+| CC-014 | No new power-ups (Cloak, Magnet) | Open |
+| CC-015 | Fog of war too simple (fixed radius, free auto-sonar) | Open |
+| CC-016 | No minimap — camera hides opponent | Open |
+| CC-017 | Power-up orb can spawn off-screen | Open |
 
 ## Medium Priority
 
-| ID | Description | Priority |
-|----|-------------|----------|
-| CC-014 | No colorblind mode | Medium |
-| CC-015 | Hazard labels tiny text, no icons | Medium |
-| CC-016 | Typo "Collogation" in HelpManual.tsx | Low |
-| CC-017 | Title inconsistency across files | Low |
-| CC-018 | Flat scoring — no risk/reward | Medium |
-| CC-019 | No map variety — fully random | Medium |
+| ID | Description | Status |
+|----|-------------|--------|
+| CC-018 | No colorblind mode | Open |
+| CC-019 | Flat scoring — no risk/reward | Open |
+| CC-020 | No map variety — fully random | Open |
+| CC-021 | No PWA support | Open |
+| CC-022 | No ARIA live regions | Open |
+| CC-023 | GameCanvas.tsx too large — needs modularization | Open |
+| CC-024 | No pre-rendered static background | Open |
 
-## Lower Priority / Backlog
+## Backlog
 
-| ID | Description | Priority |
-|----|-------------|----------|
-| CC-020 | No PWA support | Low |
-| CC-021 | No ARIA live regions | Medium |
-| CC-022 | GameCanvas.tsx too large (1700+ lines) — needs modularization | High |
-| CC-023 | No pre-rendered static background | Medium |
-| CC-024 | No FPS counter (debug) | Low |
-| CC-025 | No sound effects | Low |
-| CC-026 | No CI/CD pipeline | Low |
-| CC-027 | No automated tests | Medium |
-
-## Future Features
-
-| ID | Description | Priority |
-|----|-------------|----------|
+| ID | Description | Status |
+|----|-------------|--------|
+| CC-025 | No FPS counter (debug) | Backlog |
+| CC-026 | No sound effects | Backlog |
+| CC-027 | No automated tests | Backlog |
 | CC-F01 | Online multiplayer (WebRTC or server-based) | Backlog |
 | CC-F02 | Game mode variants (Time Attack, Endless) | Backlog |
 | CC-F03 | Map template system | Backlog |
@@ -66,16 +66,13 @@
 | — | Physics engine with sub-stepping | 2026-05-22 |
 | — | Slingshot controls | 2026-05-22 |
 | — | Procedural map generation | 2026-05-22 |
+| — | Turn-based gameplay, tag detection | 2026-05-22 |
+| — | Fog of War, sonar ping, particles | 2026-05-22 |
 | — | Power-up system | 2026-05-22 |
-| — | Fog of War | 2026-05-22 |
 | — | Sudden Death mode | 2026-05-22 |
-| — | Score tracking | 2026-05-22 |
 | — | Help manual | 2026-05-22 |
-| C-028 | DPI scaling (devicePixelRatio) | 2026-05-22 |
-| C-029 | Touch input safety (preventDefault) | 2026-05-22 |
-| C-030 | ShadowBlur reduction on particles | 2026-05-22 |
-| C-031 | Particle system cap (500 max) | 2026-05-22 |
-| C-032 | Constants extraction (src/constants.ts) | 2026-05-22 |
-| C-033 | Meta-progression scaffold | 2026-05-22 |
-| C-034 | App.tsx type errors fixed | 2026-05-22 |
-| C-035 | GitHub Pages deployment | 2026-05-22 |
+| C-028 | DPI scaling, touch safety, shadowBlur reduction | 2026-05-22 |
+| C-029 | Particle cap, constants extraction | 2026-05-22 |
+| C-030 | Meta-progression scaffold | 2026-05-22 |
+| C-031 | GitHub Pages deployment | 2026-05-22 |
+| C-032 | Rename to Chase Tag + remove AI text | 2026-05-23 |

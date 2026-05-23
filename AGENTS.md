@@ -1,4 +1,4 @@
-# AGENTS.md — Circle Chase
+# AGENTS.md — Chase Tag
 
 ## Project Overview
 

@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.3 — 2026-05-23
+
+### Rebrand & Text Cleanup
+
+**Renamed:**
+- "Neon Night Golf Chase" / "Night Golf Chase" → **"Chase Tag"**
+- "Hider" → **"Runner"**, "Seeker" → **"Chaser"** (consistent across all UI)
+
+**Removed all AI-sounding text:**
+- "CHAMPIONSHIP SLATE PROTOCOL ACTIVE" → "Ready to Play"
+- "CHASE INDEX" → "Round", "ELAPSED SCORE" → "Score"
+- "SHOT PORT" → "Turn:", "SUDDEN DEATH ACTIVEE" → "Sudden Death"
+- "ROLE ASSIGNMENT" → "Roles", "ENGAGE ROUND" → "Start Round"
+- "CHAMPION PORT DECIDED" → "Winner", "REPLAY SERIES" → "Rematch"
+- "PROCEED TO NEXT SEQUENCE" → "Next Round"
+- "PERK ACQUIRED: LASER SIGHT OPT-IN!" → "Laser Sight" (all power-ups simplified)
+- "PERK EXPIRED" → "Power-up expired"
+- "SAND SLOWDOWN" / "ICE GLIDE" → icons ⨳ / ❄️
+- Simplified help manual (removed "Collogation" typo, all jargon)
+- Simplified buttons: "START CHASE" → "Start Game", "3 RDS" → "3", etc.
+- Updated index.html title to "Chase Tag"
+
+**Files changed:** `index.html`, `MainMenu.tsx`, `MatchOverlay.tsx`, `HelpManual.tsx`, `GameCanvas.tsx`
+
+**Deployed:** GitHub Pages updated — https://bayarddevries.github.io/Chase-Tag/
+
 ## v1.2 — 2026-05-22
 
 ### Technical Foundation (Sprint 1)
