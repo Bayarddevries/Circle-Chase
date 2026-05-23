@@ -1,40 +1,45 @@
 # Circle Chase — Tasks
 
-## Active
+## Branding & Naming
+- [ ] Rename game — "Night Golf Chase" is bad; pick something better
+- [ ] Define consistent naming conventions for Hider/Seeker roles
+- [ ] Standardize title branding across index.html, MainMenu, and all UI
 
-### Gameplay
-- [ ] Add touch input support for mobile play
-- [ ] Add sound effects (bumper hits, tag, power-up pickup)
-- [ ] Add AI opponent mode (single player)
-- [ ] Add more visual particle effects
+## Visual Design
+- [ ] Establish consistent colour scheme / design language
+- [ ] Improve power-up orb visuals — better colour coding, distinct shapes per type
+- [ ] Improve player ball markers — clearer identity, better contrast
+- [ ] Redesign hazard zones — clearer slow/fast zone visuals with icons (⨳ sand, ❄️ ice)
+- [ ] Remove AI copy from UI — simplify all text labels
 
-### Polish
-- [ ] Add PWA support (offline play, installable)
-- [ ] Add gamepad/controller support
-- [ ] Add accessibility options (colorblind mode, reduced motion)
+## Gameplay
+- [ ] AI Opponent — single-player mode with difficulty levels (Easy/Med/Hard)
+- [ ] Power-up balance rework — Laser speed buff, Iron ice immunity, new Cloak/Magnet
+- [ ] Orb respawn timer (10s) if not collected
+- [ ] Fog of war rework — directional cone, sonar cooldown
+- [ ] Better define slow/fast zones with clearer visual language
 
-### Infrastructure
-- [ ] Set up GitHub Actions CI/CD for auto-deploy
-- [ ] Add unit tests for physics engine
-- [ ] Add E2E tests for game flow
+## Polish
+- [ ] Minimap in HUD
+- [ ] Colorblind mode — shape overlays + palette toggle
+- [ ] Fix typo "Collogation" in HelpManual.tsx
+- [ ] PWA support — installable, offline-capable
+- [ ] ARIA live regions for accessibility
+
+## Infrastructure
+- [ ] Set up GitHub Actions CI/CD for auto-deploy to GitHub Pages
+- [ ] Online multiplayer — WebRTC or server-based
 
 ## Completed
 - [x] Project scaffolded (React + TypeScript + Vite + TailwindCSS)
-- [x] Main menu with player name input and best-of selector
-- [x] Canvas-based physics engine with sub-stepping
-- [x] Slingshot controls (drag to aim, release to launch)
-- [x] Procedural map generation (bumpers, sand/ice hazards, power-up orb)
-- [x] Turn-based gameplay (Hider first, alternating)
-- [x] Tag detection and round completion
-- [x] Score tracking and leaderboard
-- [x] Round intro / role assignment screen
-- [x] Round over summary screen
-- [x] Match over / champion declaration screen
-- [x] Sudden death tie-breaker mode
+- [x] Main menu, canvas physics, slingshot controls
+- [x] Procedural map generation (bumpers, hazards, power-up orb)
+- [x] Turn-based gameplay, tag detection, score tracking
+- [x] Fog of War, sonar ping, particle effects, slow-mo
 - [x] Power-up system (laser, superball, iron, sonar)
-- [x] Fog of War (Hider hidden beyond 350px)
-- [x] Sonar ping system (Hider position leak every 3s)
-- [x] Particle effects (sparks, debris, shockwaves)
-- [x] Slow-motion on tag event
+- [x] Sudden Death mode, round/match flow screens
 - [x] Help manual modal
-- [x] Neon dark theme with amber/emerald accents
+- [x] DPI scaling, touch safety, shadowBlur reduction
+- [x] Particle cap (500), constants extraction
+- [x] Meta-progression scaffold (credits, shop, leaderboard, badges)
+- [x] GitHub Pages deployment workflow
