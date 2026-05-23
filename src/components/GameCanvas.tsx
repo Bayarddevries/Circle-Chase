@@ -583,14 +583,14 @@ export function GameCanvas({
             setPowerUpDuration(1); // 1 active shot
             
             const titles: Record<PowerUpType, string> = {
-              laser: 'Laser Sight Opt-In!',
-              superball: 'Superball Rebound Activator!',
-              iron: 'Iron Ball Anti-Sand Mass!',
-              sonar: 'Sonar Pulse Radar Activated!',
-              cloak: 'Cloak Displacement Engaged!',
-              magnet: 'Magnetic Attraction!',
+              laser: 'Laser Sight',
+              superball: 'Superball',
+              iron: 'Iron Ball',
+              sonar: 'Sonar Pulse',
+              cloak: 'Cloak',
+              magnet: 'Magnet',
             };
-            setFloatMessage(`PERK ACQUIRED: ${titles[orb.type].toUpperCase()}`);
+            setFloatMessage(titles[orb.type]);
 
             // Spawn bright items particles
             for (let i = 0; i < 20; i++) {
@@ -852,7 +852,7 @@ export function GameCanvas({
             const next = prev - 1;
             if (next <= 0) {
               setActivePowerUp(null);
-              setFloatMessage('PERK EXPIRED');
+              setFloatMessage('Power-up expired');
             }
             return next;
           });
@@ -1398,26 +1398,26 @@ export function GameCanvas({
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Drawn sand slowdown label text
+        // Sand icon
         ctx.fillStyle = '#d97706';
-        ctx.font = 'bold 9px monospace';
+        ctx.font = 'bold 14px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('SAND SLOWDOWN', haz.x, haz.y);
+        ctx.fillText('⨳', haz.x, haz.y + 5);
       } else if (haz.type === 'ice') {
         // Ice patch
-        ctx.fillStyle = 'rgba(186, 230, 253, 0.16)'; // Frosty Silver Blue
+        ctx.fillStyle = 'rgba(186, 230, 253, 0.16)';
         ctx.fill();
-        ctx.strokeStyle = '#38bdf8'; // Sky light outline
+        ctx.strokeStyle = '#38bdf8';
         ctx.lineWidth = 3;
         ctx.setLineDash([12, 4]);
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Label
+        // Ice icon
         ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 9px monospace';
+        ctx.font = 'bold 14px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('ICE GLIDE', haz.x, haz.y);
+        ctx.fillText('❄', haz.x, haz.y + 5);
       }
     }
 
@@ -1908,29 +1908,29 @@ export function GameCanvas({
         {/* Left Side: Game details */}
         <div className="flex items-center gap-4">
           <div className="flex flex-col">
-            <span className="text-zinc-500 text-[9px] uppercase tracking-wider">CHASE INDEX</span>
+            <span className="text-zinc-500 text-[9px] uppercase tracking-wider">Round</span>
             <span className="text-white font-sans font-bold uppercase tracking-widest flex items-center gap-1.5 leading-none">
-              <Swords className="w-4 h-4 text-emerald-400" /> RD {currentRound + 1}
+              <Swords className="w-4 h-4 text-emerald-400" /> {currentRound + 1}
             </span>
           </div>
 
           <div className="flex flex-col">
-            <span className="text-zinc-500 text-[9px] uppercase tracking-wider">ELAPSED SCORE</span>
+            <span className="text-zinc-500 text-[9px] uppercase tracking-wider">Score</span>
             <span className="text-emerald-400 font-sans font-black text-sm tracking-widest leading-none">
-              {turnsSurvived} TURNS
+              {turnsSurvived}
             </span>
           </div>
         </div>
 
-        {/* Center Side: Wholesome turn indicators */}
+        {/* Center: Turn indicator */}
         <div className="flex items-center gap-2">
           {isSuddenDeath ? (
             <div className="px-3 py-1 bg-fuchsia-950/40 border border-fuchsia-500/30 rounded-lg text-fuchsia-400 font-black animate-pulse leading-none text-[10px] tracking-widest uppercase">
-              SUDDEN DEATH ACTIVEE
+              Sudden Death
             </div>
           ) : (
             <div className="flex items-center gap-1 bg-black/60 border border-emerald-500/10 rounded-full px-3 py-1">
-              <span className="text-zinc-500 text-[9px] uppercase mr-1">SHOT PORT:</span>
+              <span className="text-zinc-500 text-[9px] uppercase mr-1">Turn:</span>
               {activeRole === 'hider' ? (
                 <span className="text-white font-sans font-bold flex items-center gap-1">
                   <span className="w-2 h-2 bg-white rounded-full animate-ping" /> {hiderName}
@@ -1944,7 +1944,7 @@ export function GameCanvas({
           )}
         </div>
 
-        {/* Right Side: Active power-up badge item */}
+        {/* Right: Power-up badge */}
         <div className="flex items-center gap-2">
           {activePowerUp && (
             <div className={`px-2.5 py-1 rounded border leading-none text-[9px] font-bold tracking-widest uppercase flex items-center gap-1.5 ${
@@ -1953,7 +1953,7 @@ export function GameCanvas({
               activePowerUp === 'iron' ? 'bg-yellow-950/20 text-yellow-400 border-yellow-500/20' :
               'bg-purple-950/30 text-purple-400 border-purple-500/20'
             }`}>
-              <Zap className="w-3 h-3 fill-current" /> {activePowerUp.toUpperCase()}
+              <Zap className="w-3 h-3 fill-current" /> {activePowerUp === 'laser' ? 'Laser' : activePowerUp === 'superball' ? 'Super' : activePowerUp === 'iron' ? 'Iron' : activePowerUp}
             </div>
           )}
 
@@ -1983,19 +1983,19 @@ export function GameCanvas({
         </div>
       )}
 
-      {/* Input Locking Visual Overlay Indicator */}
+      {/* Aim instruction */}
       {!ballsMoving && !aiThinking && (
         <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-neutral-950/90 border border-white/5 rounded-full text-[10px] text-zinc-400 font-mono tracking-widest shadow-xl pointer-events-none flex items-center gap-2">
           <Compass className="w-3.5 h-3.5 text-emerald-400 animate-spin" style={{ animationDuration: '6s' }} />
-          DRAG BACKWARD TO AIM FLING
+          Drag back to aim, release to launch
         </div>
       )}
 
-      {/* CPU AI Thinking Overlay */}
+      {/* CPU Thinking Overlay */}
       {aiThinking && config.isCpu && (
         <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 px-5 py-3 bg-emerald-950/40 border border-emerald-500/30 rounded-full text-xs text-emerald-400 font-mono font-bold tracking-widest shadow-xl shadow-emerald-500/10 pointer-events-none flex items-center gap-3 animate-pulse">
           <Cpu className="w-4 h-4 text-emerald-400" />
-          CPU THINKING...
+          CPU thinking...
         </div>
       )}
 

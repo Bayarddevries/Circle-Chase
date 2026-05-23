@@ -25,105 +25,102 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
         <div className="flex items-center gap-3 mb-6 border-b border-amber-500/20 pb-4">
           <HelpCircle className="w-7 h-7 text-amber-500 animate-pulse" />
           <h2 className="text-2xl font-bold tracking-widest text-amber-500 font-sans uppercase">
-            OPERATIONS MANUAL
+            How to Play
           </h2>
         </div>
 
-        {/* Explanation */}
         <div className="space-y-6 text-sm leading-relaxed text-neutral-300 font-sans">
           
-          {/* Phase 1: Game Loop */}
+          {/* Game Loop */}
           <div>
             <h3 className="flex items-center gap-2 text-amber-400 font-medium tracking-wider mb-2 text-base uppercase">
-              <RefreshCw className="w-4 h-4" /> 1. Turn-Based Evasion
+              <RefreshCw className="w-4 h-4" /> 1. Turns
             </h3>
             <p>
-              Two players share the same screen to play a high-tech game of hide-and-seek.
-              You alternate shoots. <span className="text-white font-semibold">Hider flings first</span>, then the <span className="text-orange-400 font-semibold">Seeker flings</span>.
-              A round continues until the Seeker tags the Hider. The Hider earns points for every turn they successfully survive. Once tagged, roles swap automatically.
+              Two players share the same screen. The <span className="text-white font-semibold">Runner</span> goes first, then the <span className="text-orange-400 font-semibold">Chaser</span>. Keep alternating until the Chaser tags the Runner. The Runner scores 1 point per turn survived. Then swap roles.
             </p>
           </div>
 
-          {/* Phase 2: Controls */}
+          {/* Controls */}
           <div>
             <h3 className="flex items-center gap-2 text-amber-400 font-medium tracking-wider mb-2 text-base uppercase">
-              <Compass className="w-4 h-4" /> 2. Touch & Hook Controls
+              <Compass className="w-4 h-4" /> 2. Controls
             </h3>
             <p>
-              Touch/Click and <span className="text-white font-semibold">drag backwards</span> from your circle to aim, then release to launch your ball into high-speed physics action. Power correlates to your drag distance.
-              The next turn starts <span className="text-amber-500 font-semibold font-bold">only when BOTH balls have come to a complete stop</span>.
+              Touch or click your ball and <span className="text-white font-semibold">drag backwards</span> to aim. Release to launch. Pull further for more power. The next turn starts <span className="text-amber-500 font-semibold">only when both balls have stopped</span>.
             </p>
           </div>
 
-          {/* Seeker Advantage & Terrains */}
+          {/* Roles */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             <div className="p-4 rounded-xl bg-orange-950/20 border border-orange-500/20">
               <h4 className="flex items-center gap-2 text-orange-400 font-semibold tracking-wider mb-2 uppercase">
-                <ShieldAlert className="w-4 h-4" /> Seeker's Instinct
+                <ShieldAlert className="w-4 h-4" /> Chaser
               </h4>
               <ul className="list-disc list-inside space-y-1 text-xs text-neutral-400">
-                <li><strong className="text-neutral-200">+50% speed:</strong> Heavy charge capability.</li>
-                <li><strong className="text-neutral-200">-15% friction:</strong> Slides further and faster.</li>
-                <li><strong className="text-neutral-200">Distance Veil:</strong> Hider is hidden in a dark Fog of War if beyond 350px.</li>
+                <li><strong className="text-neutral-200">+50% speed</strong> on launch</li>
+                <li><strong className="text-neutral-200">Slides further</strong> (less friction)</li>
+                <li><strong className="text-neutral-200">Fog of war:</strong> Runner is hidden beyond 350px</li>
               </ul>
             </div>
 
             <div className="p-4 rounded-xl bg-amber-950/25 border border-amber-500/20">
               <h4 className="flex items-center gap-2 text-amber-400 font-semibold tracking-wider mb-2 uppercase">
-                <Eye className="w-4 h-4" /> Hider's Covert Sonar
+                <Eye className="w-4 h-4" /> Runner
               </h4>
               <ul className="list-disc list-inside space-y-1 text-xs text-neutral-400">
-                <li><strong className="text-neutral-200">Sonar Pings:</strong> Map broadcasts an acoustic shockwave from Hider's location every 3 seconds, leaking their general position through the mist.</li>
-                <li><strong className="text-neutral-200">First Strike:</strong> Commences shooting first in every round.</li>
+                <li><strong className="text-neutral-200">Goes first</strong> every round</li>
+                <li><strong className="text-neutral-200">Hidden in fog</strong> when far from Chaser</li>
+                <li><strong className="text-neutral-200">Sonar pings</strong> leak position every 3 seconds</li>
               </ul>
             </div>
           </div>
 
-          {/* Grid of Terrains */}
+          {/* Hazards */}
           <div>
             <h3 className="text-amber-400 font-medium tracking-wider mb-2 text-base uppercase">
-              Terrain Grid Hazards
+              Hazards
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="p-3 bg-neutral-900 border border-yellow-500/20 rounded-lg">
-                <div className="text-yellow-400 font-semibold tracking-wider text-xs uppercase mb-1">Sand Traps (Slow)</div>
-                <div className="text-xs text-neutral-400">Reduces current speed by an extra <span className="text-yellow-500">8%</span> per frame upon entries. Avoid!</div>
+                <div className="text-yellow-400 font-semibold tracking-wider text-xs uppercase mb-1">Sand (Slow)</div>
+                <div className="text-xs text-neutral-400">Extra 8% speed loss per frame. Avoid!</div>
               </div>
               <div className="p-3 bg-neutral-900 border border-cyan-500/20 rounded-lg">
-                <div className="text-cyan-400 font-semibold tracking-wider text-xs uppercase mb-1">Ice Patches (Turbo)</div>
-                <div className="text-xs text-neutral-400">Glide effortlessly! Velocity loses only <span className="text-cyan-400">1%</span> per frame, generating infinite speed.</div>
+                <div className="text-cyan-400 font-semibold tracking-wider text-xs uppercase mb-1">Ice (Fast)</div>
+                <div className="text-xs text-neutral-400">Only 1% speed loss per frame. Slide far.</div>
               </div>
               <div className="p-3 bg-neutral-900 border border-amber-500/20 rounded-lg">
-                <div className="text-amber-400 font-semibold tracking-wider text-xs uppercase mb-1 font-bold">Chased Bumper</div>
-                <div className="text-xs text-neutral-400">Booster hazards of <span className="text-amber-400 font-bold">1.4x bounciness</span>. Hits supply sudden vertical launch velocity!</div>
+                <div className="text-amber-400 font-semibold tracking-wider text-xs uppercase mb-1">Bumpers</div>
+                <div className="text-xs text-neutral-400">1.4x bounce. Use them to change direction fast.</div>
               </div>
             </div>
           </div>
 
-          {/* Seeker Power-Up System */}
+          {/* Power-ups */}
           <div>
             <h3 className="flex items-center gap-2 text-amber-400 font-medium tracking-wider mb-2 text-base uppercase">
-              <Award className="w-4 h-4" /> Seeker Power-up Orbs
+              <Award className="w-4 h-4" /> Power-ups
             </h3>
             <p className="mb-3 text-xs text-neutral-400">
-              A glowing cyan Orb coordinates dynamically in neutral zones. Collogation gives the Seeker immediate, single-use, turn-exclusive technological advancements:
+              Glowing orbs spawn on the map. Touch one to pick it up. Only the Chaser can use them.
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="p-2.5 rounded bg-neutral-900 border border-blue-500/25">
-                <span className="text-xs font-semibold text-blue-400 uppercase block">1. Laser Sight</span>
-                <span className="text-xs text-zinc-400">Extends the slingshot predictive path trajectory by 2.5x for long range snipes.</span>
+                <span className="text-xs font-semibold text-blue-400 uppercase block">Laser Sight</span>
+                <span className="text-xs text-zinc-400">See 2.5x further along your aim line.</span>
               </div>
               <div className="p-2.5 rounded bg-neutral-900 border border-fuchsia-500/25">
-                <span className="text-xs font-semibold text-fuchsia-400 uppercase block">2. Superball</span>
-                <span className="text-xs text-zinc-400">Fling rebounds bounce off border walls and hazards with 2x intensity!</span>
+                <span className="text-xs font-semibold text-fuchsia-400 uppercase block">Superball</span>
+                <span className="text-xs text-zinc-400">2x bounce off walls and bumpers.</span>
               </div>
               <div className="p-2.5 rounded bg-neutral-900 border border-orange-500/25">
-                <span className="text-xs font-semibold text-orange-400 uppercase block">3. Iron Ball</span>
-                <span className="text-xs text-zinc-400">Gain massive virtual weight, plowing through slow sand completely unaffected.</span>
+                <span className="text-xs font-semibold text-orange-400 uppercase block">Iron Ball</span>
+                <span className="text-xs text-zinc-400">Ignore sand slowdown completely.</span>
               </div>
               <div className="p-2.5 rounded bg-neutral-900 border border-purple-500/25">
-                <span className="text-xs font-semibold text-purple-400 uppercase block">4. Sonar Pulse</span>
-                <span className="text-xs text-zinc-400">Fades the shrouds of War Fog, revealing the Hider's coordinate precisely!</span>
+                <span className="text-xs font-semibold text-purple-400 uppercase block">Sonar Pulse</span>
+                <span className="text-xs text-zinc-400">Reveal Runner position, removes fog.</span>
               </div>
             </div>
           </div>
@@ -137,7 +134,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
             id="btn-close-help-footer"
             className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-neutral-950 font-bold tracking-wider text-xs uppercase rounded transition-colors uppercase cursor-pointer"
           >
-            DISMISS MANUAL
+            Close
           </button>
         </div>
       </div>
