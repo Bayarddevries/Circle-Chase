@@ -146,6 +146,7 @@ import {
   drawSonarPings,
 } from '../game/sonar';
 import { screenToMap, calculateLaunch } from '../game/input';
+import { updateTrail, drawTrail, HIDER_TRAIL_COLOR, SEEKER_TRAIL_COLOR } from '../game/trails';
 
 interface GameCanvasProps {
   phase: GamePhase;
@@ -737,23 +738,9 @@ export function GameCanvas({
         orb.pulseScale = 1 + Math.sin(time * ORB_PULSE_SPEED) * ORB_PULSE_AMP;
       }
 
-      // --- Accumulate path tracking trails (once per physics frame) ---
-      const hTrailSpeed = Math.hypot(hider.vx, hider.vy);
-      const sTrailSpeed = Math.hypot(seeker.vx, seeker.vy);
-
-      if (hTrailSpeed > TRAIL_MIN_SPEED) {
-        hiderTrailRef.current.push({ x: hider.x, y: hider.y });
-        if (hiderTrailRef.current.length > TRAIL_MAX_POINTS) hiderTrailRef.current.shift();
-      } else {
-        if (hiderTrailRef.current.length > 0) hiderTrailRef.current.shift();
-      }
-
-      if (sTrailSpeed > TRAIL_MIN_SPEED) {
-        seekerTrailRef.current.push({ x: seeker.x, y: seeker.y });
-        if (seekerTrailRef.current.length > TRAIL_MAX_POINTS) seekerTrailRef.current.shift();
-      } else {
-        if (seekerTrailRef.current.length > 0) seekerTrailRef.current.shift();
-      }
+      // --- Accumulate ball trails ---
+      updateTrail(hiderTrailRef.current, hider.x, hider.y, hider.vx, hider.vy);
+      updateTrail(seekerTrailRef.current, seeker.x, seeker.y, seeker.vx, seeker.vy);
 
       // --- Propagate post-tag shockwave ripple ---
       updateShockwave(activeShockwaveRef.current);
@@ -1177,39 +1164,8 @@ export function GameCanvas({
     }
 
     // --- HIGH-END TRAILING PATHS ENGINE ---
-    // Draw Hider Trail (Sky/Cyan Platinum stardust)
-    const hTrail = hiderTrailRef.current;
-    if (hTrail.length > 2) {
-      ctx.save();
-      for (let i = 1; i < hTrail.length; i++) {
-        const ratio = i / hTrail.length;
-        ctx.beginPath();
-        ctx.moveTo(hTrail[i-1].x, hTrail[i-1].y);
-        ctx.lineTo(hTrail[i].x, hTrail[i].y);
-        ctx.strokeStyle = `rgba(186, 230, 253, ${ratio * 0.45})`; // ice path glow
-        ctx.lineWidth = hider.radius * 0.9 * ratio;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
-
-    // Draw Seeker Trail (Molten Amber gold firecomet)
-    const sTrail = seekerTrailRef.current;
-    if (sTrail.length > 2) {
-      ctx.save();
-      for (let i = 1; i < sTrail.length; i++) {
-        const ratio = i / sTrail.length;
-        ctx.beginPath();
-        ctx.moveTo(sTrail[i-1].x, sTrail[i-1].y);
-        ctx.lineTo(sTrail[i].x, sTrail[i].y);
-        ctx.strokeStyle = `rgba(217, 119, 6, ${ratio * 0.65})`; // sand-gold comet
-        ctx.lineWidth = seeker.radius * 0.95 * ratio;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
+    drawTrail(ctx, hiderTrailRef.current, HIDER_TRAIL_COLOR, hider.radius, 0.45, 0.9);
+    drawTrail(ctx, seekerTrailRef.current, SEEKER_TRAIL_COLOR, seeker.radius, 0.65, 0.95);
 
     // --- AIMING SLINGSHOT VECTOR LINE gradient DRAW ---
     if (isDraggingRef.current && !ballsMoving) {
