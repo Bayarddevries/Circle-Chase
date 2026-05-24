@@ -147,6 +147,7 @@ import {
 import { screenToMap, calculateLaunch } from '../game/input';
 import { updateTrail, drawTrail, HIDER_TRAIL_COLOR, SEEKER_TRAIL_COLOR } from '../game/trails';
 import { drawFogOfWar } from '../game/fog';
+import { generateMap as generateMapModule } from '../game/map';
 
 interface GameCanvasProps {
   phase: GamePhase;
@@ -266,160 +267,12 @@ export function GameCanvas({
 
   // Run procedural map generator when a round shifts
   const generateMap = () => {
-    // Reset player position coordinates cleared of starting boundaries
-    hiderBallRef.current = {
-      x: isSuddenDeath ? 300 : 450,
-      y: isSuddenDeath ? 450 : 750,
-      vx: 0,
-      vy: 0,
-      radius: ORB_RADIUS,
-      role: 'hider',
-      name: hiderName,
-    };
-
-    seekerBallRef.current = {
-      x: isSuddenDeath ? 900 : 1550,
-      y: isSuddenDeath ? 450 : 750,
-      vx: 0,
-      vy: 0,
-      radius: 24,
-      role: 'seeker',
-      name: seekerName,
-    };
-
-    // Bumpers
-    const newBumpers: NeonBumper[] = [];
-    const numBumpers = isSuddenDeath ? BUMPER_COUNT_SD : BUMPER_COUNT_NORMAL;
-    const colors = ['#ff0055', '#ff00aa', '#00f0ff', '#e0ffff'];
-
-    let tries = 0;
-    while (newBumpers.length < numBumpers && tries < 100) {
-      tries++;
-      let bx = BUMPER_SPAWN_CLEAR/2 + Math.random() * (mapWidth - BUMPER_SPAWN_CLEAR);
-      let by = BUMPER_SPAWN_CLEAR/2 + Math.random() * (mapHeight - BUMPER_SPAWN_CLEAR);
-      
-      // Bias early bumper placements near center-corridor so they show in starting views
-      if (tries < 40 && newBumpers.length < 3) {
-        bx = (mapWidth / 2) + (Math.random() - 0.5) * (mapWidth * 0.42);
-        by = (mapHeight / 2) + (Math.random() - 0.5) * (mapHeight * 0.42);
-      }
-      
-      // Clear from players spawns
-      const distH = Math.hypot(bx - hiderBallRef.current.x, by - hiderBallRef.current.y);
-      const distS = Math.hypot(bx - seekerBallRef.current.x, by - seekerBallRef.current.y);
-      
-      if (distH < BUMPER_SPAWN_CLEAR || distS < BUMPER_SPAWN_CLEAR) continue;
-
-      // Avoid bunching together
-      let tooClose = false;
-      for (const b of newBumpers) {
-        if (Math.hypot(bx - b.x, by - b.y) < BUMPER_MIN_SEP) tooClose = true;
-      }
-      if (tooClose) continue;
-
-      newBumpers.push({
-        id: `bumper-${newBumpers.length}`,
-        x: bx,
-        y: by,
-        radius: BUMPER_MIN_RADIUS + Math.random() * BUMPER_RADIUS_VAR,
-        color: colors[newBumpers.length % colors.length],
-        pulseTimer: 0,
-      });
-    }
-
-    bumpersRef.current = newBumpers;
-
-    // Sand and Ice Patches (Zero on sudden death map to intensify bounces)
-    const newHazards: HazardPatch[] = [];
-    if (!isSuddenDeath) {
-      const numSand = SAND_COUNT;
-      const numIce = ICE_COUNT;
-
-      // Add Sand
-      let sandCount = 0;
-      tries = 0;
-      while (sandCount < numSand && tries < 150) {
-        tries++;
-        const sx = HAZARD_SPAWN_CLEAR/2 + Math.random() * (mapWidth - HAZARD_SPAWN_CLEAR);
-        const sy = HAZARD_SPAWN_CLEAR/2 + Math.random() * (mapHeight - HAZARD_SPAWN_CLEAR);
-        
-        const distH = Math.hypot(sx - hiderBallRef.current.x, sy - hiderBallRef.current.y);
-        const distS = Math.hypot(sx - seekerBallRef.current.x, sy - seekerBallRef.current.y);
-        if (distH < HAZARD_SPAWN_CLEAR || distS < HAZARD_SPAWN_CLEAR) continue;
-
-        let overlap = false;
-        for (const b of bumpersRef.current) {
-          if (Math.hypot(sx - b.x, sy - b.y) < b.radius + HAZARD_BUMPER_CLEAR) overlap = true;
-        }
-        for (const h of newHazards) {
-          if (Math.hypot(sx - h.x, sy - h.y) < HAZARD_MIN_SEP) overlap = true;
-        }
-        if (overlap) continue;
-
-        newHazards.push({
-          id: `sand-${sandCount}`,
-          x: sx,
-          y: sy,
-          radius: SAND_MIN_RADIUS + Math.random() * SAND_RADIUS_VAR,
-          type: 'sand',
-        });
-        sandCount++;
-      }
-
-      // Add Ice
-      let iceCount = 0;
-      tries = 0;
-      while (iceCount < numIce && tries < 150) {
-        tries++;
-        const ix = 200 + Math.random() * (mapWidth - 400);
-        const iy = 200 + Math.random() * (mapHeight - 400);
-
-        const distH = Math.hypot(ix - hiderBallRef.current.x, iy - hiderBallRef.current.y);
-        const distS = Math.hypot(ix - seekerBallRef.current.x, iy - seekerBallRef.current.y);
-        if (distH < HAZARD_SPAWN_CLEAR || distS < HAZARD_SPAWN_CLEAR) continue;
-
-        let overlap = false;
-        for (const b of bumpersRef.current) {
-          if (Math.hypot(ix - b.x, iy - b.y) < b.radius + 100) overlap = true;
-        }
-        for (const h of newHazards) {
-          if (Math.hypot(ix - h.x, iy - h.y) < 200) overlap = true;
-        }
-        if (overlap) continue;
-
-        newHazards.push({
-          id: `ice-${iceCount}`,
-          x: ix,
-          y: iy,
-          radius: ICE_MIN_RADIUS + Math.random() * ICE_RADIUS_VAR,
-          type: 'ice',
-        });
-        iceCount++;
-      }
-    }
-
-    hazardsRef.current = newHazards;
-
-    // Power-Up Orb location (randomized middle-zone position)
-    if (!isSuddenDeath) {
-      const ox = (mapWidth / 2) - 150 + Math.random() * 300;
-      const oy = (mapHeight / 2) - 150 + Math.random() * 300;
-      
-      const pTypes: PowerUpType[] = ['laser', 'superball', 'iron', 'sonar'];
-      const randomType = pTypes[Math.floor(Math.random() * pTypes.length)];
-
-      orbRef.current = {
-        x: ox,
-        y: oy,
-        radius: ORB_RADIUS,
-        type: randomType,
-        active: true,
-        pulseScale: 1,
-      };
-    } else {
-      // Deactivate items on Sudden death
-      orbRef.current.active = false;
-    }
+    const map = generateMapModule(isSuddenDeath, hiderName, seekerName);
+    hiderBallRef.current = map.hider;
+    seekerBallRef.current = map.seeker;
+    bumpersRef.current = map.bumpers;
+    hazardsRef.current = map.hazards;
+    orbRef.current = map.orb;
 
     // Reset systems
     particlesRef.current = [];
