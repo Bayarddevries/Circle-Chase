@@ -150,6 +150,7 @@ import { drawFogOfWar } from '../game/fog';
 import { generateMap as generateMapModule } from '../game/map';
 import { drawMinimap, getDefaultConfig } from '../game/minimap';
 import { updateOrbPulse, drawOrb } from '../game/powerups';
+import { drawHazards, drawBumpers, drawShockwave, drawHiderBall, drawSeekerBall } from '../game/renderer';
 
 interface GameCanvasProps {
   phase: GamePhase;
@@ -894,42 +895,7 @@ export function GameCanvas({
     ctx.shadowBlur = 0; // reset
 
     // --- DRAW TERRAIN HAZARDS ---
-    for (const haz of hazards) {
-      ctx.beginPath();
-      ctx.arc(haz.x, haz.y, haz.radius, 0, Math.PI * 2);
-      
-      if (haz.type === 'sand') {
-        // Sand trap
-        ctx.fillStyle = 'rgba(63, 29, 11, 0.32)'; // Sienna deep shade
-        ctx.fill();
-        ctx.strokeStyle = '#d97706'; // Gold outline
-        ctx.lineWidth = 3;
-        ctx.setLineDash([8, 8]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Drawn sand slowdown label text
-        ctx.fillStyle = '#d97706';
-        ctx.font = 'bold 9px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('SAND SLOWDOWN', haz.x, haz.y);
-      } else if (haz.type === 'ice') {
-        // Ice patch
-        ctx.fillStyle = 'rgba(186, 230, 253, 0.16)'; // Frosty Silver Blue
-        ctx.fill();
-        ctx.strokeStyle = '#38bdf8'; // Sky light outline
-        ctx.lineWidth = 3;
-        ctx.setLineDash([12, 4]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Label
-        ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 9px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('ICE GLIDE', haz.x, haz.y);
-      }
-    }
+    drawHazards(ctx, hazards);
 
     // --- DRAW POWER-UP ORB ---
     drawOrb(ctx, orb, isSuddenDeath);
@@ -938,55 +904,10 @@ export function GameCanvas({
     drawSonarPings(ctx, pings);
 
     // --- DRAW NEON STATIC BUMPERS ---
-    for (const b of bumpers) {
-      ctx.save();
-      const currentRadius = b.radius + (b.pulseTimer > 0 ? b.pulseTimer * 0.5 : 0);
-      
-      // Warm amber base
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, currentRadius, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(217, 119, 6, 0.08)';
-      ctx.fill();
+    drawBumpers(ctx, bumpers);
 
-      // Pulse glows (Sand-Gold/Sienna core indicators)
-      ctx.lineWidth = b.pulseTimer > 0 ? 5.5 : 3.5;
-      const bumperColor = b.color === '#ff0055' || b.color === '#ff00aa' ? '#ea580c' : '#f59e0b';
-      ctx.strokeStyle = bumperColor;
-      ctx.shadowBlur = b.pulseTimer > 0 ? 25 : 12;
-      ctx.shadowColor = bumperColor;
-      ctx.stroke();
-
-      // Core details
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, currentRadius * 0.5, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      // Static cross indicator
-      ctx.beginPath();
-      ctx.moveTo(b.x - 8, b.y); ctx.lineTo(b.x + 8, b.y);
-      ctx.moveTo(b.x, b.y - 8); ctx.lineTo(b.x, b.y + 8);
-      ctx.strokeStyle = bumperColor;
-      ctx.stroke();
-
-      ctx.restore();
-    }
-
-    // --- DRAW EXPANDING POST-TAG SHOCKWAVE ---
-    if (activeShockwaveRef.current && activeShockwaveRef.current.active) {
-      const sw = activeShockwaveRef.current;
-      const alpha = Math.max(0, 1 - (sw.r / sw.maxR));
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(sw.x, sw.y, sw.r, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(217, 119, 6, ${alpha})`; // Rich sand-gold ripple
-      ctx.lineWidth = 8 * alpha;
-      ctx.shadowBlur = 25;
-      ctx.shadowColor = '#d97706';
-      ctx.stroke();
-      ctx.restore();
-    }
+    // --- DRAW SHOCKWAVE ---
+    drawShockwave(ctx, activeShockwaveRef.current);
 
     // --- HIGH-END TRAILING PATHS ENGINE ---
     drawTrail(ctx, hiderTrailRef.current, HIDER_TRAIL_COLOR, hider.radius, 0.45, 0.9);
@@ -1034,103 +955,15 @@ export function GameCanvas({
     // --- DRAW PARTICLES ---
     drawParticles(ctx, particles);
 
-    // --- DRAW HIDER BALL (Radiant White/Cyan Glow) ---
-    // Rule: Hide if distance is greater than 350px and not Seeker active Radar, and turn === seeker
+    // --- DRAW HIDER BALL ---
     const shroudDistance = Math.hypot(hider.x - seeker.x, hider.y - seeker.y);
     const shroudEnabled = shroudDistance > FOG_RADIUS && activeRole === 'seeker' && !isSuddenDeath && (activePowerUp !== 'sonar');
-
     if (!shroudEnabled && !hiderExplodedRef.current) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(hider.x, hider.y, hider.radius, 0, Math.PI * 2);
-      ctx.fillStyle = '#f8fafc'; // Pearl Silver-White
-      ctx.fill();
-      ctx.lineWidth = 4.5;
-      ctx.strokeStyle = '#38bdf8'; // Cyan glowing outline
-      ctx.shadowBlur = 18;
-      ctx.shadowColor = '#38bdf8';
-      ctx.stroke();
-
-      // Mini hider letter
-      ctx.shadowBlur = 0;
-      ctx.font = 'bold 12px monospace';
-      ctx.fillStyle = '#0f172a'; // slate dark
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('H', hider.x, hider.y);
-
-      // Colorblind shape overlay — square for Hider
-      if (config.colorblindMode) {
-        const s = hider.radius * 0.7;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(hider.x - s, hider.y - s, s * 2, s * 2);
-      }
-
-      // Turn halo marker ring if Hider's turn
-      if (activeRole === 'hider' && !ballsMoving) {
-        ctx.beginPath();
-        ctx.arc(hider.x, hider.y, hider.radius + 12, 0, Math.PI * 2);
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 2.5;
-        ctx.setLineDash([4, 4]);
-        ctx.stroke();
-      }
-      ctx.restore();
+      drawHiderBall(ctx, hider, config.colorblindMode, activeRole === 'hider', ballsMoving);
     }
 
-    // --- DRAW SEEKER BALL (Molten Gold and Copper) ---
-    ctx.save();
-
-    // Colorblind shape overlay — triangle for Seeker
-    if (config.colorblindMode) {
-      ctx.beginPath();
-      for (let i = 0; i < 3; i++) {
-        const angle = (i / 3) * Math.PI * 2 - Math.PI / 2;
-        const sxCoord = seeker.x + Math.cos(angle) * (seeker.radius + 6.5);
-        const syCoord = seeker.y + Math.sin(angle) * (seeker.radius + 6.5);
-        if (i === 0) {
-          ctx.moveTo(sxCoord, syCoord);
-        } else {
-          ctx.lineTo(sxCoord, syCoord);
-        }
-      }
-      ctx.closePath();
-      ctx.strokeStyle = '#f97316';
-      ctx.lineWidth = 3.5;
-      ctx.shadowBlur = 14;
-      ctx.shadowColor = '#d97706';
-      ctx.stroke();
-    }
-
-    ctx.beginPath();
-    ctx.arc(seeker.x, seeker.y, seeker.radius, 0, Math.PI * 2);
-    ctx.fillStyle = '#d97706'; // Rich Amber Gold
-    ctx.fill();
-    ctx.lineWidth = 4.5;
-    ctx.strokeStyle = '#ea580c'; // Solar orange rim
-    ctx.shadowBlur = 18;
-    ctx.shadowColor = '#d97706';
-    ctx.stroke();
-
-    // Text "S" inside
-    ctx.shadowBlur = 0;
-    ctx.font = 'bold 12px monospace';
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('S', seeker.x, seeker.y);
-
-    // Turn halo indicator
-    if (activeRole === 'seeker' && !ballsMoving) {
-      ctx.beginPath();
-      ctx.arc(seeker.x, seeker.y, seeker.radius + 12, 0, Math.PI * 2);
-      ctx.strokeStyle = '#d97706';
-      ctx.lineWidth = 2.5;
-      ctx.setLineDash([4, 4]);
-      ctx.stroke();
-    }
-    ctx.restore();
+    // --- DRAW SEEKER BALL ---
+    drawSeekerBall(ctx, seeker, config.colorblindMode, activeRole === 'seeker', ballsMoving);
 
     // --- DRAW FOG OF WAR SHROUD ---
     if (activeRole === 'seeker' && !isSuddenDeath && activePowerUp !== 'sonar') {
