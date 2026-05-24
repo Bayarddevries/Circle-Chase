@@ -149,6 +149,7 @@ import { updateTrail, drawTrail, HIDER_TRAIL_COLOR, SEEKER_TRAIL_COLOR } from '.
 import { drawFogOfWar } from '../game/fog';
 import { generateMap as generateMapModule } from '../game/map';
 import { drawMinimap, getDefaultConfig } from '../game/minimap';
+import { updateOrbPulse, drawOrb } from '../game/powerups';
 
 interface GameCanvasProps {
   phase: GamePhase;
@@ -587,10 +588,8 @@ export function GameCanvas({
         if (b.pulseTimer > 0) b.pulseTimer--;
       }
 
-      // Update orb pulse float scale
-      if (orb.active) {
-        orb.pulseScale = 1 + Math.sin(time * ORB_PULSE_SPEED) * ORB_PULSE_AMP;
-      }
+      // Update orb pulse
+      updateOrbPulse(orb, time);
 
       // --- Accumulate ball trails ---
       updateTrail(hiderTrailRef.current, hider.x, hider.y, hider.vx, hider.vy);
@@ -932,36 +931,8 @@ export function GameCanvas({
       }
     }
 
-    // --- DRAW POWER-UP ITEM ORB ---
-    if (orb.active && !isSuddenDeath) {
-      ctx.save();
-      ctx.shadowBlur = 16;
-      ctx.shadowColor = '#22d3ee';
-      
-      // Outer pulse ring
-      ctx.beginPath();
-      ctx.arc(orb.x, orb.y, orb.radius * orb.pulseScale, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(34, 211, 238, 0.45)';
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-
-      // Inner glowing core
-      ctx.beginPath();
-      ctx.arc(orb.x, orb.y, orb.radius * 0.65, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
-      ctx.fill();
-      ctx.strokeStyle = '#22d3ee';
-      ctx.lineWidth = 3.5;
-      ctx.stroke();
-
-      // Mini text tag
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#22d3ee';
-      ctx.font = '9px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(orb.type.toUpperCase(), orb.x, orb.y - orb.radius - 8);
-      ctx.restore();
-    }
+    // --- DRAW POWER-UP ORB ---
+    drawOrb(ctx, orb, isSuddenDeath);
 
     // --- DRAW SONAR PINGS ---
     drawSonarPings(ctx, pings);
