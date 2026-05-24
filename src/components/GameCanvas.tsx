@@ -145,6 +145,7 @@ import {
   maybeSpawnSonarPing,
   drawSonarPings,
 } from '../game/sonar';
+import { screenToMap, calculateLaunch } from '../game/input';
 
 interface GameCanvasProps {
   phase: GamePhase;
@@ -1529,21 +1530,7 @@ export function GameCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-
-    // Transform viewport screen click coordinates to map space coordinates
-    const sx = clientX - rect.left;
-    const sy = clientY - rect.top;
-
-    // Convert to target coordinates with scale translation
-    // Mouse coords: (sx, sy). We need to transform these using current camera scale/zoom
-    const cam = cameraRef.current;
-    const cw = canvas.width;
-    const ch = canvas.height;
-
-    // Inverse matrix formulas:
-    // (sx - cw/2) / zoom + cam.x = mapX
-    const mapX = (sx - cw / 2) / cam.zoom + cam.x;
-    const mapY = (sy - ch / 2) / cam.zoom + cam.y;
+    const { mapX, mapY } = screenToMap(clientX, clientY, rect, canvas.width, canvas.height, cameraRef.current);
 
     const activeBall = activeRole === 'hider' ? hiderBallRef.current : seekerBallRef.current;
     const dist = Math.hypot(mapX - activeBall.x, mapY - activeBall.y);
@@ -1562,17 +1549,7 @@ export function GameCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-
-    const sx = clientX - rect.left;
-    const sy = clientY - rect.top;
-
-    const cam = cameraRef.current;
-    const cw = canvas.width;
-    const ch = canvas.height;
-
-    const mapX = (sx - cw / 2) / cam.zoom + cam.x;
-    const mapY = (sy - ch / 2) / cam.zoom + cam.y;
-
+    const { mapX, mapY } = screenToMap(clientX, clientY, rect, canvas.width, canvas.height, cameraRef.current);
     dragCurrentRef.current = { x: mapX, y: mapY };
   };
 
@@ -1582,27 +1559,12 @@ export function GameCanvas({
 
     // Trigger sling fling launch!
     const activeBall = activeRole === 'hider' ? hiderBallRef.current : seekerBallRef.current;
-    
-    // Drag opposite direction vector formula
-    const dx = activeBall.x - dragCurrentRef.current.x;
-    const dy = activeBall.y - dragCurrentRef.current.y;
-    const dist = Math.hypot(dx, dy);
 
-    if (dist < MIN_DRAG_DIST) return; // ignore static tiny drags to avoid false releases
+    const launch = calculateLaunch(activeBall.x, activeBall.y, dragCurrentRef.current.x, dragCurrentRef.current.y, activeRole);
+    if (!launch) return;
 
-    const maxDragVec = MAX_DRAG;
-    const dragPower = Math.min(1.0, dist / maxDragVec);
-
-    // Max speeds limit. Seeker receives +50% velocity boost
-    const baseVMax = HIDER_BASE_SPEED;
-    const seekerVMax = HIDER_BASE_SPEED * SEEKER_SPEED_MULT;
-    const currentLimit = activeRole === 'seeker' ? seekerVMax : baseVMax;
-
-    const launchSpeed = currentLimit * dragPower;
-
-    // Apply impulse physics
-    activeBall.vx = (dx / dist) * launchSpeed;
-    activeBall.vy = (dy / dist) * launchSpeed;
+    activeBall.vx = launch.vx;
+    activeBall.vy = launch.vy;
 
     // Launch sparks particles
     particlesRef.current.push(
