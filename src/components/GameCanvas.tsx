@@ -125,6 +125,15 @@ import {
   Dribbble,
   Cpu,
 } from 'lucide-react';
+import {
+  updateParticles,
+  updateShockwave,
+  drawParticles,
+  spawnTagParticles,
+  spawnBumperParticles,
+  spawnOrbParticles,
+  spawnLaunchParticles,
+} from '../game/particles';
 
 interface GameCanvasProps {
   phase: GamePhase;
@@ -553,18 +562,7 @@ export function GameCanvas({
                 shakeAmtRef.current = Math.min(shakeAmtRef.current + SHAKE_BUMPER_ADD, SHAKE_MAX);
 
                 // Create bumper spark particles
-                for (let i = 0; i < BUMPER_PARTICLES; i++) {
-                  particlesRef.current.push({
-                    x: b.x + nx * b.radius,
-                    y: b.y + ny * b.radius,
-                    vx: nx * 3 + (Math.random() - 0.5) * 4,
-                    vy: ny * 3 + (Math.random() - 0.5) * 4,
-                    radius: 3 + Math.random() * 3,
-                    color: b.color,
-                    alpha: 1,
-                    decay: 0.03 + Math.random() * 0.03,
-                  });
-                }
+                particlesRef.current.push(...spawnBumperParticles(b.x, b.y, b.radius, nx, ny, b.color));
               }
             }
           }
@@ -601,21 +599,8 @@ export function GameCanvas({
             };
             setFloatMessage(`PERK ACQUIRED: ${titles[orb.type].toUpperCase()}`);
 
-            // Spawn bright items particles
-            for (let i = 0; i < 20; i++) {
-              const ang = Math.random() * Math.PI * 2;
-              const sp = 2 + Math.random() * 6;
-              particlesRef.current.push({
-                x: orb.x,
-                y: orb.y,
-                vx: Math.cos(ang) * sp,
-                vy: Math.sin(ang) * sp,
-                radius: 3 + Math.random() * 3,
-                color: '#00ffff',
-                alpha: 1,
-                decay: 0.02 + Math.random() * 0.02,
-              });
-            }
+            // Spawn bright orb collect particles
+            particlesRef.current.push(...spawnOrbParticles(orb.x, orb.y));
           }
         }
       }
@@ -716,60 +701,9 @@ export function GameCanvas({
       }
 
       // Update Particle debris FX
-      const particles = particlesRef.current;
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        
-        // Particles move relative to slow motion scale so they look realistic but responsive
-        const pSpeedScale = Math.max(0.2, slowMotionRef.current);
-        p.x += p.vx * pSpeedScale;
-        p.y += p.vy * pSpeedScale;
+      updateParticles(particlesRef.current, slowMotionRef.current, mapWidth, mapHeight);
 
-        // Apply physical gravity to massive heavy fragments
-        if (p.heavy) {
-          p.vy += PARTICLE_GRAVITY * pSpeedScale;
-        }
-
-        // Spin rotation increments
-        if (p.spin !== undefined && p.angle !== undefined) {
-          p.angle += p.spin * pSpeedScale;
-        }
-
-        // Elastic boundary wall reflections for physical shards
-        if (p.type === 'debris' || p.type === 'glass') {
-          const bounceRest = PARTICLE_BOUNCE_REST;
-          
-          if (p.x - p.radius < 0) {
-            p.x = p.radius;
-            p.vx = -p.vx * bounceRest;
-            if (p.spin !== undefined) p.spin = -p.spin * 0.8;
-          } else if (p.x + p.radius > mapWidth) {
-            p.x = mapWidth - p.radius;
-            p.vx = -p.vx * bounceRest;
-            if (p.spin !== undefined) p.spin = -p.spin * 0.8;
-          }
-
-          if (p.y - p.radius < 0) {
-            p.y = p.radius;
-            p.vy = -p.vy * bounceRest;
-            if (p.spin !== undefined) p.spin = -p.spin * 0.8;
-          } else if (p.y + p.radius > mapHeight) {
-            p.y = mapHeight - p.radius;
-            p.vy = -p.vy * bounceRest;
-            if (p.spin !== undefined) p.spin = -p.spin * 0.8;
-          }
-        }
-
-        // Debris survives longer during slow motion
-        const decayMultiplier = slowMotionRef.current < 1.0 ? 0.55 : 1.0;
-        p.alpha -= p.decay * decayMultiplier;
-
-        if (p.alpha <= 0 || p.radius <= 0) {
-          particles.splice(i, 1);
-        }
-      }
-
-      // Update Sonar Radar Wave emissions
+      // Update sonar shockwave
       const pings = sonarPingsRef.current;
       for (let i = pings.length - 1; i >= 0; i--) {
         const ping = pings[i];
@@ -901,66 +835,7 @@ export function GameCanvas({
         active: true,
       };
 
-      const ringParts: Particle[] = [];
-
-      // 1. Core combustion sparks (65 glowing fire elements)
-      const count = TAG_SPARKS;
-      for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
-        const speed = 8 + Math.random() * 26;
-        ringParts.push({
-          x: centerTagX,
-          y: centerTagY,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          radius: 2 + Math.random() * 5,
-          color: i % 3 === 0 ? '#ea580c' : (i % 3 === 1 ? '#d97706' : '#ffffff'), // Solar Orange, Rich Amber Gold, White flash
-          alpha: 1.0,
-          decay: 0.012 + Math.random() * 0.01,
-          type: 'spark',
-        });
-      }
-
-      // 2. Physical heavy bouncing shards representing the shattered Hider (35 sky blue cyan slabs)
-      for (let i = 0; i < TAG_DEBRIS; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = 7 + Math.random() * 24;
-        ringParts.push({
-          x: h.x,
-          y: h.y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          radius: 4.5 + Math.random() * 8.5,
-          color: i % 2 === 0 ? '#38bdf8' : '#ffffff', // Sky Blue glow & silver-white chrome highlights
-          alpha: 1.0,
-          decay: 0.0035 + Math.random() * 0.004, // slides and decays very slowly
-          type: 'debris',
-          angle: Math.random() * Math.PI * 2,
-          spin: (Math.random() - 0.5) * 0.45,
-          heavy: true, // gravity bound
-        });
-      }
-
-      // 3. Delicate glass fragments bursting out (25 neon ice-blue shards)
-      for (let i = 0; i < TAG_GLASS; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = 12 + Math.random() * 30;
-        ringParts.push({
-          x: centerTagX,
-          y: centerTagY,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          radius: 3 + Math.random() * 5.5,
-          color: '#e0f2fe', // Bright iceberg highlight
-          alpha: 1.0,
-          decay: 0.005 + Math.random() * 0.006,
-          type: 'glass',
-          angle: Math.random() * Math.PI * 2,
-          spin: (Math.random() - 0.5) * 0.65,
-        });
-      }
-
-      particlesRef.current = ringParts;
+      particlesRef.current = spawnTagParticles(h.x, h.y, s.x, s.y);
 
       // Force extreme Rocket League slow-mo recoil physics: blast player balls outwards!
       const recoilAngle = Math.atan2(h.y - s.y, h.x - s.x);
@@ -1404,52 +1279,7 @@ export function GameCanvas({
     }
 
     // --- DRAW PARTICLES ---
-    for (const p of particles) {
-      ctx.save();
-      ctx.globalAlpha = p.alpha;
-      ctx.shadowBlur = p.type === 'debris' || p.type === 'glass' ? 14 : 8;
-      ctx.shadowColor = p.color;
-
-      if ((p.type === 'debris' || p.type === 'glass') && p.angle !== undefined) {
-        // Render 3D irregular rotating shards (Rocket League particle shards!)
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.angle);
-        ctx.fillStyle = p.color;
-
-        ctx.beginPath();
-        if (p.type === 'glass') {
-          // Sharp glass lance shard
-          ctx.moveTo(-p.radius, 0);
-          ctx.lineTo(0, -p.radius * 1.6);
-          ctx.lineTo(p.radius, 0);
-          ctx.lineTo(0, p.radius * 0.9);
-        } else {
-          // Chunk heavy polygon slab debris
-          ctx.moveTo(-p.radius, -p.radius * 0.6);
-          ctx.lineTo(p.radius * 0.8, -p.radius * 1.3);
-          ctx.lineTo(p.radius, p.radius);
-          ctx.lineTo(-p.radius * 0.6, p.radius * 0.8);
-        }
-        ctx.closePath();
-        ctx.fill();
-
-        // High gloss 3D light highlight reflection strip
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.moveTo(-p.radius * 0.4, 0);
-        ctx.lineTo(p.radius * 0.4, 0);
-        ctx.stroke();
-
-      } else {
-        // Fast dynamic circular sparks
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = p.color;
-        ctx.fill();
-      }
-      ctx.restore();
-    }
+    drawParticles(ctx, particles);
 
     // --- DRAW HIDER BALL (Radiant White/Cyan Glow) ---
     // Rule: Hide if distance is greater than 350px and not Seeker active Radar, and turn === seeker
@@ -1803,19 +1633,10 @@ export function GameCanvas({
     activeBall.vx = (dx / dist) * launchSpeed;
     activeBall.vy = (dy / dist) * launchSpeed;
 
-    // Launch sparks particle
-    for (let i = 0; i < LAUNCH_SPARKS; i++) {
-      particlesRef.current.push({
-        x: activeBall.x,
-        y: activeBall.y,
-        vx: -activeBall.vx * 0.35 + (Math.random() - 0.5) * 5,
-        vy: -activeBall.vy * 0.35 + (Math.random() - 0.5) * 5,
-        radius: 2.5 + Math.random() * 3.5,
-        color: activeRole === 'seeker' ? '#ffaa00' : '#ffffff',
-        alpha: 0.9,
-        decay: 0.02 + Math.random() * 0.03,
-      });
-    }
+    // Launch sparks particles
+    particlesRef.current.push(
+      ...spawnLaunchParticles(activeBall.x, activeBall.y, activeBall.vx, activeBall.vy, activeRole === 'seeker'),
+    );
   };
 
   // Resize listener
