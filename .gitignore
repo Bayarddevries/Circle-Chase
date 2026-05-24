@@ -1,8 +1,26 @@
+# Dependencies
 node_modules/
-build/
 dist/
-coverage/
+.cache/
+
+# Environment
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+
+# Misc
 .DS_Store
 *.log
-.env*
-!.env.example
+
+# Bun
+bun.lock
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
