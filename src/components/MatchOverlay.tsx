@@ -17,10 +17,6 @@ interface MatchOverlayProps {
   onReturnToMenu: () => void;
   isP1Turn: boolean;
   activeRole: PlayerRole;
-  creditsEarned?: number;
-  totalTurnsSurvived?: number;
-  averageSurvival?: number;
-  totalPowerUpsCollected?: number;
 }
 
 export function MatchOverlay({
@@ -38,20 +34,18 @@ export function MatchOverlay({
   onReturnToMenu,
   isP1Turn,
   activeRole,
-  creditsEarned,
-  totalTurnsSurvived,
-  averageSurvival,
-  totalPowerUpsCollected,
 }: MatchOverlayProps) {
   if (phase === 'playing' || phase === 'tag_freeze') return null;
 
   const isSuddenDeath = phase === 'sudden_death_intro';
 
+  // Find general winner
   const isMatchOver = phase === 'match_over';
   let matchWinnerName = '';
   let matchWinnerScore = 0;
   let matchLoserName = '';
   let matchLoserScore = 0;
+  let isTie = p1TotalScore === p2TotalScore;
 
   if (isMatchOver) {
     if (p1TotalScore > p2TotalScore) {
@@ -74,7 +68,7 @@ export function MatchOverlay({
         {/* Glow behind */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-emerald-500/5 blur-[80px] -z-10 pointer-events-none" />
 
-        {/* Round Intro */}
+        {/* Phase 1: Round Intro / Side Swap */}
         {phase === 'round_intro' && (
           <div className="space-y-6">
             <div className="flex flex-col items-center">
@@ -82,43 +76,44 @@ export function MatchOverlay({
                 Round {currentRound + 1} of {config.bestOfRounds}
               </span>
               <h2 className="text-3xl md:text-4xl font-extrabold tracking-widest text-white uppercase font-sans">
-                Roles
+                ROLE ASSIGNMENT
               </h2>
               <p className="text-xs text-neutral-500 tracking-[1.5px] mt-1 font-mono uppercase">
-                Pass the device to the right player
+                Prepare to swap device controls
               </p>
             </div>
 
+            {/* Asymmetric Role Display Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               <div className="p-5 bg-zinc-900 border border-zinc-200/5 rounded-2xl flex flex-col items-center space-y-2 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/2 pointer-events-none" />
-                <span className="text-[10px] text-zinc-500 font-mono tracking-widest uppercase">Runner</span>
+                <span className="text-[10px] text-zinc-500 font-mono tracking-widest uppercase">THE ELUSIVE</span>
                 <span className="text-lg font-bold text-white tracking-wide">{currentHider.name}</span>
                 <span className="text-xs font-black px-3 py-1 bg-white text-black rounded-lg uppercase tracking-widest leading-none mt-2">
-                  Run
+                  Hider
                 </span>
                 <p className="text-zinc-500 text-[10px] leading-relaxed pt-2">
-                  Go first. Stay hidden. Survive as long as you can.
+                  Launch first to escape. Hide in the Fog of War. Stay clear of the Seeker's path.
                 </p>
               </div>
 
               <div className="p-5 bg-zinc-900 border border-orange-500/10 rounded-2xl flex flex-col items-center space-y-2 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent to-orange-500/2 pointer-events-none" />
-                <span className="text-[10px] text-orange-500/60 font-mono tracking-widest uppercase">Chaser</span>
+                <span className="text-[10px] text-orange-500/60 font-mono tracking-widest uppercase">THE HUNTER</span>
                 <span className="text-lg font-bold text-white tracking-wide">{currentSeeker.name}</span>
                 <span className="text-xs font-black px-3 py-1 bg-[#ff6600] text-black rounded-lg uppercase tracking-widest leading-none mt-2 shadow-lg shadow-orange-500/20">
-                  Chase
+                  Seeker
                 </span>
                 <p className="text-zinc-500 text-[10px] leading-relaxed pt-2">
-                  Faster and slipperier. Use power-ups to catch the Runner.
+                  Gets +50% speed, -15% less friction, and a Laser Sight power-up availability on map.
                 </p>
               </div>
             </div>
 
             <div className="p-4 bg-emerald-950/20 border border-emerald-500/10 rounded-xl text-left text-xs space-y-1">
-              <span className="text-emerald-400 font-bold tracking-widest text-[10px] uppercase block font-mono">Rules:</span>
+              <span className="text-emerald-400 font-bold tracking-widest text-[10px] uppercase block font-mono">Mission Guidelines:</span>
               <p className="text-neutral-400">
-                Drag back from your ball to aim, release to launch. Runner goes first each turn. Score 1 point per turn survived. Tagged? Roles swap.
+                Each player executes slingshot maneuvers. Hider gains 1 survival score for each turn completed before being tagged. Swipe backwards from your indicator to aim!
               </p>
             </div>
 
@@ -127,32 +122,33 @@ export function MatchOverlay({
               id="btn-intro-start"
               className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-black tracking-[4px] uppercase text-xs rounded-xl shadow-lg shadow-emerald-500/15 cursor-pointer transition-transform hover:scale-[1.01]"
             >
-              Start Round {currentRound + 1}
+              ENGAGE ROUND {currentRound + 1}
             </button>
           </div>
         )}
 
-        {/* Sudden Death */}
+        {/* Phase 2: Sudden Death Intro */}
         {isSuddenDeath && (
           <div className="space-y-6">
             <div className="flex flex-col items-center">
               <AlertOctagon className="w-16 h-16 text-fuchsia-500 animate-bounce mb-3" />
               <h2 className="text-3xl md:text-4xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 to-rose-500 uppercase font-sans">
-                Sudden Death
+                SUDDEN DEATH
               </h2>
               <p className="text-xs text-neutral-500 tracking-[2px] mt-1 font-mono uppercase">
-                Tie: {p1TotalScore} - {p2TotalScore}
+                DRAW PROTOCOL INITIATED (TIE: {p1TotalScore} - {p2TotalScore})
               </p>
             </div>
 
             <div className="p-5 bg-neutral-900 border border-fuchsia-500/30 rounded-2xl space-y-4 text-left">
               <div className="text-sm font-semibold text-fuchsia-400 uppercase tracking-widest text-center border-b border-fuchsia-500/20 pb-2">
-                Final Round
+                CRITICAL INSTRUCTIONS
               </div>
               <ul className="space-y-2 text-xs text-neutral-300 list-disc list-inside">
-                <li>Smaller map, more bumpers.</li>
-                <li><strong className="text-white">No fog:</strong> Chaser can always see the Runner.</li>
-                <li><strong className="text-fuchsia-400">First tag wins.</strong></li>
+                <li>Map area is restricted to a compact size.</li>
+                <li>High-density bumpers deployed.</li>
+                <li><strong className="text-white">Zero Fog of War:</strong> All positions are constantly revealed to Seeker.</li>
+                <li><strong className="text-fuchsia-400">Survival Condition:</strong> First player to score a tag wins the game instantly!</li>
               </ul>
             </div>
 
@@ -161,27 +157,28 @@ export function MatchOverlay({
               id="btn-sdeath-start"
               className="w-full py-4 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-black tracking-[4px] uppercase text-xs rounded-xl shadow-lg shadow-fuchsia-500/20 cursor-pointer transition-transform"
             >
-              Go
+              LAUNCH FINAL DEATHMATCH
             </button>
           </div>
         )}
 
-        {/* Round Over */}
+        {/* Phase 3: Round Over */}
         {phase === 'round_over' && roundRecord && (
           <div className="space-y-6">
             <div className="flex flex-col items-center">
               <span className="px-3 py-1 bg-red-950/40 border border-red-500/20 rounded-full text-[10px] tracking-[4px] text-red-400 font-mono uppercase mb-4">
-                Tagged!
+                TAG CONFIRMED
               </span>
               <h2 className="text-3xl md:text-4xl font-extrabold tracking-widest text-white uppercase font-sans">
-                Round {roundRecord.roundIndex + 1} Over
+                ROUND {roundRecord.roundIndex + 1} RESULT
               </h2>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            {/* Quick Summary metrics */}
+            <div className="grid grid-cols-2 gap-4">
               <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl">
                 <span className="text-[10px] text-neutral-500 font-mono uppercase tracking-wider block mb-1">
-                  Turns Survived
+                  TAGGED IN TURN
                 </span>
                 <span className="text-3xl font-black text-rose-500 tracking-wider">
                   {roundRecord.turnsSurvived}
@@ -189,36 +186,29 @@ export function MatchOverlay({
               </div>
               <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col justify-center">
                 <span className="text-[10px] text-neutral-500 font-mono uppercase tracking-wider block mb-1">
-                  Score
+                  SURVIVAL BONUS
                 </span>
                 <span className="text-xl font-bold text-emerald-400 tracking-wider font-sans">
-                  +{roundRecord.turnsSurvived} pts
-                </span>
-              </div>
-              <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col justify-center">
-                <span className="text-[10px] text-neutral-500 font-mono uppercase tracking-wider block mb-1">
-                  Credits
-                </span>
-                <span className="text-2xl font-bold text-amber-400 tracking-wider font-sans">
-                  +{creditsEarned ?? 0}
+                  +{roundRecord.turnsSurvived} PTS
                 </span>
               </div>
             </div>
 
+            {/* Score updates */}
             <div className="p-4 bg-neutral-900 border border-emerald-500/10 rounded-xl space-y-3">
               <span className="text-[10px] font-mono tracking-widest text-emerald-400 uppercase font-semibold block text-left">
-                Scoreboard
+                UPDATED LEADERBOARD
               </span>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-neutral-300 font-semibold">{config.p1Name}</span>
+                <span className="text-neutral-300 font-semibold">{config.p1Name} (Pilot Alpha)</span>
                 <span className="font-mono font-bold text-white text-lg bg-neutral-950 px-3 py-0.5 rounded border border-white/5">
-                  {p1TotalScore} pts
+                  {p1TotalScore} PTS
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-neutral-300 font-semibold">{config.p2Name}</span>
+                <span className="text-neutral-300 font-semibold">{config.p2Name} (Pilot Beta)</span>
                 <span className="font-mono font-bold text-white text-lg bg-neutral-950 px-3 py-0.5 rounded border border-white/5">
-                  {p2TotalScore} pts
+                  {p2TotalScore} PTS
                 </span>
               </div>
             </div>
@@ -228,93 +218,75 @@ export function MatchOverlay({
               id="btn-round-next"
               className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-black tracking-[4px] uppercase text-xs rounded-xl shadow-lg shadow-emerald-500/15 cursor-pointer transition-transform"
             >
-              Next Round
+              PROCEED TO NEXT SEQUENCE
             </button>
           </div>
         )}
 
-        {/* Match Over */}
+        {/* Phase 4: Match Over / Game Summary */}
         {phase === 'match_over' && (
           <div className="space-y-6">
             <div className="flex flex-col items-center">
               <Trophy className="w-14 h-14 text-yellow-400 animate-pulse mb-3" />
               <span className="text-[10px] tracking-[4px] font-mono font-semibold text-yellow-400 uppercase">
-                Winner
+                CHAMPION PORT DECIDED
               </span>
               <h2 className="text-3xl md:text-5xl font-black text-white tracking-widest uppercase font-sans mt-2">
-                {matchWinnerName}!
+                {matchWinnerName} WINS!
               </h2>
             </div>
 
+            {/* Score comparison visual */}
             <div className="p-6 bg-zinc-900/60 border border-yellow-500/10 rounded-2xl flex items-center justify-around">
               <div>
-                <span className="text-[10px] font-mono tracking-wider text-yellow-400 font-semibold block uppercase">Winner</span>
+                <span className="text-[10px] font-mono tracking-wider text-yellow-400 font-semibold block uppercase">CHAMPION</span>
                 <span className="text-lg font-bold text-white truncate max-w-[150px] block">{matchWinnerName}</span>
                 <span className="text-3xl font-black text-yellow-400 font-mono">{matchWinnerScore}</span>
               </div>
-              <div className="text-neutral-600 font-mono font-black text-xl">vs</div>
+              <div className="text-neutral-600 font-mono font-black text-xl">VS</div>
               <div>
-                <span className="text-[10px] font-mono tracking-wider text-neutral-500 block uppercase">Runner-up</span>
+                <span className="text-[10px] font-mono tracking-wider text-neutral-500 block uppercase">RUNNER-UP</span>
                 <span className="text-lg font-semibold text-neutral-400 truncate max-w-[150px] block">{matchLoserName}</span>
                 <span className="text-2xl font-bold text-neutral-500 font-mono">{matchLoserScore}</span>
               </div>
             </div>
 
+            {/* Matches scorecard index */}
             <div className="space-y-2 text-left">
-              <span className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase block">Round History</span>
+              <span className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase block">Round Logs Histology</span>
               <div className="max-h-36 overflow-y-auto border border-neutral-800 rounded-lg text-xs divide-y divide-neutral-900">
                 {history.map((record, idx) => (
                   <div key={idx} className="p-2.5 flex justify-between items-center bg-neutral-950/40">
                     <div>
                       <span className="font-semibold text-neutral-300 block">Round {record.roundIndex + 1}</span>
                       <span className="text-[10px] text-neutral-500">
-                        {record.hiderName} vs {record.seekerName}
+                        {record.hiderName} (H) escaped {record.seekerName} (S)
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="font-mono text-emerald-400 font-bold block">{record.turnsSurvived} turns</span>
+                      <span className="font-mono text-emerald-400 font-bold block">+{record.turnsSurvived} Turns</span>
+                      <span className="text-[10px] text-neutral-500">Hider Score Saved</span>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {(totalTurnsSurvived !== undefined || totalPowerUpsCollected !== undefined) && (
-              <div className="p-4 bg-neutral-900 border border-amber-500/10 rounded-xl">
-                <span className="text-[10px] font-mono tracking-widest text-amber-400 uppercase font-semibold block text-left mb-3">
-                  Stats
-                </span>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-2xl font-black text-white font-mono">{totalTurnsSurvived ?? 0}</div>
-                    <div className="text-[10px] text-neutral-500 uppercase tracking-wider">Total Turns</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-black text-white font-mono">{averageSurvival !== undefined ? averageSurvival.toFixed(1) : '0'}</div>
-                    <div className="text-[10px] text-neutral-500 uppercase tracking-wider">Avg Survival</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-black text-white font-mono">{totalPowerUpsCollected ?? 0}</div>
-                    <div className="text-[10px] text-neutral-500 uppercase tracking-wider">Power-ups</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
+            {/* Option menus */}
             <div className="flex gap-3 pt-2">
               <button
                 onClick={onRestartGame}
                 id="btn-match-replay"
                 className="flex-1 py-3 bg-neutral-900 hover:bg-neutral-850 text-neutral-200 border border-neutral-700/20 font-bold tracking-wider text-xs uppercase rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
-                <RotateCcw className="w-4 h-4 text-emerald-400" /> Rematch
+                <RotateCcw className="w-4 h-4 text-emerald-400" /> REPLAY SERIES
               </button>
               <button
                 onClick={onReturnToMenu}
                 id="btn-match-home"
                 className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-black tracking-widest text-xs uppercase rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
-                <Home className="w-4 h-4" /> Menu
+                <Home className="w-4 h-4" /> MAIN TERMINAL
               </button>
             </div>
           </div>

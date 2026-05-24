@@ -3,17 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useCallback } from 'react';
-import { GamePhase, MatchConfig, RoundRecord, Unlocks, RoundMeta, PlayerRole, AIDifficulty } from './types';
+import React, { useState } from 'react';
+import { GamePhase, MatchConfig, RoundRecord, PlayerRole } from './types';
 import { MainMenu } from './components/MainMenu';
 import { GameCanvas } from './components/GameCanvas';
 import { MatchOverlay } from './components/MatchOverlay';
 import { HelpModal } from './components/HelpManual';
-import { ShopModal } from './components/ShopModal';
-import { LeaderboardModal } from './components/LeaderboardModal';
-import { ProfileModal } from './components/ProfileModal';
-import { Trophy, HelpCircle, RefreshCw, Store, BarChart3, User } from 'lucide-react';
-import { useMetaProgression } from './hooks/useMetaProgression';
+import { Trophy, HelpCircle, RefreshCw } from 'lucide-react';
 
 export default function App() {
   const [phase, setPhase] = useState<GamePhase>('menu');
@@ -27,24 +23,12 @@ export default function App() {
   const [history, setHistory] = useState<RoundRecord[]>([]);
   const [p1Score, setP1Score] = useState<number>(0);
   const [p2Score, setP2Score] = useState<number>(0);
-
+  
   const [isSuddenDeath, setIsSuddenDeath] = useState<boolean>(false);
   const [helpOpen, setHelpOpen] = useState<boolean>(false);
-  const [shopOpen, setShopOpen] = useState<boolean>(false);
-  const [leaderboardOpen, setLeaderboardOpen] = useState<boolean>(false);
-  const [profileOpen, setProfileOpen] = useState<boolean>(false);
   const [activeRoundRecord, setActiveRoundRecord] = useState<RoundRecord | null>(null);
-  const [lastRoundCredits, setLastRoundCredits] = useState<number>(0);
 
-  // Meta-progression
-  const { meta, awardRound, purchase, isOwned, setMeta } = useMetaProgression();
-
-  // Shop
-  const handlePurchase = useCallback((category: keyof Unlocks, itemId: string, cost: number): boolean => {
-    return purchase(category, itemId, cost);
-  }, [purchase]);
-
-  // Initialize or reset a match
+  // Initialize or Reset a match
   const handleStartGame = (newConfig: MatchConfig) => {
     setConfig(newConfig);
     setCurrentRound(0);
@@ -53,54 +37,7 @@ export default function App() {
     setP2Score(0);
     setIsSuddenDeath(false);
     setActiveRoundRecord(null);
-    setPhase('round_intro');
-  };
-
-  // Modified round completion to incorporate credit awarding
-  const handleRoundComplete = (turns: number, suddenDeathWinnerRole?: PlayerRole, roundMeta?: RoundMeta) => {
-    // Update game scores bounds
-    const p1IsHider = currentRound % 2 === 0;
-
-    // Award credit points
-    if (roundMeta) {
-      // Determine Hider is the player who earned the turns
-      if (p1IsHider) {
-        setP1Score(prev => {
-          const newScore = prev + turns;
-          return newScore;
-        });
-      } else {
-        setP2Score(prev => prev + turns);
-      }
-
-      // Persist round record to history
-      const hiderName = p1IsHider ? config.p1Name : config.p2Name;
-      const seekerName = p1IsHider ? config.p2Name : config.p1Name;
-      const newRecord: RoundRecord = {
-        roundIndex: currentRound,
-        p1Role: p1IsHider ? 'hider' : 'seeker',
-        p2Role: p1IsHider ? 'seeker' : 'hider',
-        turnsSurvived: turns,
-        roundWinner: hiderName,
-        hiderName,
-        seekerName,
-      };
-      setHistory(prev => [...prev, newRecord]);
-      setActiveRoundRecord(newRecord);
-
-      // Award meta-progression credits and update leaderboard
-      const creditEarned = awardRound(roundMeta, p1IsHider ? config.p1Name : config.p2Name, true);
-      setLastRoundCredits(creditEarned);
-      // Note: If it's sudden death, the winner might be seeker, but the Hider still earned turns, so treat them as Hider for meta.
-      // If Seeker got a quick tag, that's already tracked in roundMeta.tagTurn.
-
-      setMeta(prev => ({ ...prev })); // force refresh if needed
-      setPhase('round_over');
-      return;
-    }
-
-    // Fallback if no roundMeta (shouldn't happen)
-    setPhase('round_over');
+    setPhase('round_intro'); // Show role assignments first
   };
 
   const handleNextRound = () => {
@@ -108,7 +45,10 @@ export default function App() {
       setPhase('playing');
     } else if (phase === 'round_over') {
       const nextRnd = currentRound + 1;
+      
+      // Determine if match series limit is completed
       if (nextRnd >= config.bestOfRounds) {
+        // Evaluate for true ties
         if (p1Score === p2Score) {
           setIsSuddenDeath(true);
           setPhase('sudden_death_intro');
@@ -116,10 +56,68 @@ export default function App() {
           setPhase('match_over');
         }
       } else {
+        // Alternate next normal round
         setCurrentRound(nextRnd);
         setPhase('round_intro');
       }
     }
+  };
+
+  // Callback when Seeker tags Hider
+  const handleRoundComplete = (turns: number, suddenDeathWinnerRole?: PlayerRole) => {
+    if (isSuddenDeath) {
+      // Sudden death handles direct, quick override.
+      // Who was seeker in sudden death?
+      // P1 was Seeker if round index alternates, or based on who scored the tag
+      // Let's declare who scored the tag as the winner instantly!
+      // In sudden death, the seeker role tags the hider.
+      // Let's look at who was Seeker in this final sudden death showdown:
+      // P1 is seeker in sudden death if config.bestOfRounds%2 !== 0 or we simple declare p1/p2 winner based on assignment
+      const suddenDeathSeekerIsP1 = (config.bestOfRounds % 2 !== 0); 
+      
+      if (suddenDeathWinnerRole === 'seeker') {
+        if (suddenDeathSeekerIsP1) {
+          setP1Score(prev => prev + 100); // Massive boost to ensure victory
+        } else {
+          setP2Score(prev => prev + 100);
+        }
+      } else {
+        // Hider won
+        if (suddenDeathSeekerIsP1) {
+          setP2Score(prev => prev + 100);
+        } else {
+          setP1Score(prev => prev + 100);
+        }
+      }
+      setPhase('match_over');
+      return;
+    }
+
+    const p1IsHider = currentRound % 2 === 0;
+    const hiderName = p1IsHider ? config.p1Name : config.p2Name;
+    const seekerName = p1IsHider ? config.p2Name : config.p1Name;
+
+    // Award turns as survival score to Hider
+    if (p1IsHider) {
+      setP1Score(prev => prev + turns);
+    } else {
+      setP2Score(prev => prev + turns);
+    }
+
+    // Capture round metrics
+    const newRecord: RoundRecord = {
+      roundIndex: currentRound,
+      p1Role: p1IsHider ? 'hider' : 'seeker',
+      p2Role: p1IsHider ? 'seeker' : 'hider',
+      turnsSurvived: turns,
+      roundWinner: hiderName, // Hider achieves points
+      hiderName,
+      seekerName,
+    };
+
+    setHistory(prev => [...prev, newRecord]);
+    setActiveRoundRecord(newRecord);
+    setPhase('round_over');
   };
 
   const handleRestartGame = () => {
@@ -130,6 +128,7 @@ export default function App() {
     setPhase('menu');
   };
 
+  // Determine current players as Hider vs Seeker info
   const p1IsHider = currentRound % 2 === 0;
   const currentHider = {
     name: p1IsHider ? config.p1Name : config.p2Name,
@@ -140,9 +139,6 @@ export default function App() {
     isP1: !p1IsHider,
   };
 
-  // Get active unlock selections for balls (both players share the same unlocked skin)
-  const activeSkin = Object.keys(meta.unlocks.ballSkins).find(k => k !== 'default' && meta.unlocks.ballSkins[k]) || 'default';
-
   return (
     <div className="min-h-screen bg-[#020502] text-neutral-200 font-sans antialiased overflow-x-hidden selection:bg-emerald-500/30 selection:text-white">
       {/* 1. Main configuration terminal */}
@@ -150,14 +146,11 @@ export default function App() {
         <MainMenu 
           onStartGame={handleStartGame} 
           onOpenHelp={() => setHelpOpen(true)} 
-          onOpenShop={() => setShopOpen(true)}
-          onOpenLeaderboard={() => setLeaderboardOpen(true)}
-          onOpenProfile={() => setProfileOpen(true)}
         />
       )}
 
       {/* 2. Active playing canvas screens */}
-      {(phase === 'playing' || phase === 'round_over' || phase === 'round_intro' || phase === 'sudden_death_intro' || phase === 'match_over') && (
+      {(phase === 'playing' || phase === 'round_over' || phase === 'round_intro' || phase === 'sudden_death_intro' || phase === 'match_over') && phase !== 'menu' && (
         <div className="w-full h-screen flex flex-col justify-between">
           <GameCanvas
             phase={phase}
@@ -167,7 +160,6 @@ export default function App() {
             onRoundComplete={handleRoundComplete}
             onOpenHelp={() => setHelpOpen(true)}
             onExitGame={handleReturnToMenu}
-            unlocks={meta.unlocks}
           />
 
           {/* Sub-structural backdrop transitions overlay modal */}
@@ -186,32 +178,14 @@ export default function App() {
             onReturnToMenu={handleReturnToMenu}
             isP1Turn={phase === 'playing' ? (currentRound % 2 === 0) : true}
             activeRole={currentRound % 2 === 0 ? 'hider' : 'seeker'}
-            creditsEarned={phase === 'round_over' ? lastRoundCredits : undefined}
-            totalTurnsSurvived={meta.totalTurnsSurvived}
-            averageSurvival={meta.totalRoundsPlayed > 0 ? Math.round(meta.totalTurnsSurvived / meta.totalRoundsPlayed) : 0}
-            totalPowerUpsCollected={meta.totalPowerUpsCollected}
           />
         </div>
       )}
 
-      {/* 3. Global overlay modals */}
-      <HelpModal isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
-      <ShopModal
-        isOpen={shopOpen}
-        onClose={() => setShopOpen(false)}
-        credits={meta.credits}
-        unlocks={meta.unlocks}
-        onPurchase={handlePurchase}
-      />
-      <LeaderboardModal
-        isOpen={leaderboardOpen}
-        onClose={() => setLeaderboardOpen(false)}
-        entries={meta.leaderboard}
-      />
-      <ProfileModal
-        isOpen={profileOpen}
-        onClose={() => setProfileOpen(false)}
-        meta={meta}
+      {/* 3. Global Operations Manual Help Screen overlay */}
+      <HelpModal 
+        isOpen={helpOpen} 
+        onClose={() => setHelpOpen(false)} 
       />
     </div>
   );

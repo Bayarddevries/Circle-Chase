@@ -5,9 +5,7 @@
 
 export type PlayerRole = 'hider' | 'seeker';
 
-export type PowerUpType = 'laser' | 'superball' | 'iron' | 'sonar' | 'cloak' | 'magnet';
-
-export type AIDifficulty = 'easy' | 'medium' | 'hard';
+export type PowerUpType = 'laser' | 'superball' | 'iron' | 'sonar';
 
 export type GamePhase = 
   | 'menu' 
@@ -97,58 +95,5 @@ export interface RoundRecord {
 export interface MatchConfig {
   p1Name: string;
   p2Name: string;
-  bestOfRounds: number;
-  isCpu?: boolean;
-  difficulty?: AIDifficulty;
-  colorblindMode?: boolean;
-}
-
-// --- Meta-Progression types ---
-
-export interface Unlocks {
-  ballSkins: Record<string, boolean>;
-  trailColors: Record<string, boolean>;
-  bumperThemes: Record<string, boolean>;
-  mapBackgrounds: Record<string, boolean>;
-}
-
-export interface LeaderboardEntry {
-  name: string;
-  role: string;
-  turns: number;
-  date: string;
-}
-
-export interface Badge {
-  id: string;
-  name: string;
-  description: string;
-  earned: boolean;
-}
-
-export interface MetaState {
-  credits: number;
-  totalTurnsSurvived: number;
-  totalRoundsPlayed: number;
-  totalPowerUpsCollected: number;
-  totalBumperHits: number;
-  quickTags: number;
-  unlocks: Unlocks;
-  leaderboard: LeaderboardEntry[];
-  badges: Badge[];
-}
-
-export interface ShopItem {
-  id: string;
-  category: 'ballSkins' | 'trailColors' | 'bumperThemes' | 'mapBackgrounds';
-  label: string;
-  cost: number;
-  hex?: string;
-}
-
-export interface RoundMeta {
-  turnsSurvived: number;
-  powerUpCollected: boolean;
-  bumperHits: number;
-  tagTurn: number;
+  bestOfRounds: number; // E.g., 3, 5, 7. First to win more than half or highest total score.
 }
