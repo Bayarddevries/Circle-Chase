@@ -45,8 +45,6 @@ import {
   SONAR_MAX_RADIUS,
   SONAR_START_RADIUS,
   FOG_RADIUS,
-  FOG_ALPHA,
-  FOG_EDGE_ALPHA,
   BUMPER_COUNT_NORMAL,
   BUMPER_COUNT_SD,
   BUMPER_MIN_RADIUS,
@@ -147,6 +145,7 @@ import {
 } from '../game/sonar';
 import { screenToMap, calculateLaunch } from '../game/input';
 import { updateTrail, drawTrail, HIDER_TRAIL_COLOR, SEEKER_TRAIL_COLOR } from '../game/trails';
+import { drawFogOfWar } from '../game/fog';
 
 interface GameCanvasProps {
   phase: GamePhase;
@@ -1307,33 +1306,9 @@ export function GameCanvas({
     }
     ctx.restore();
 
-    // --- DRAW FOG OF WAR SHROUD (Premium compositing effect) ---
+    // --- DRAW FOG OF WAR SHROUD ---
     if (activeRole === 'seeker' && !isSuddenDeath && activePowerUp !== 'sonar') {
-      ctx.save();
-      
-      // Let's create an offscreen backing layer manually inside canvas context state to avoid clearing grid lines!
-      // 1. Draw solid dark overlay everywhere except inside Seeker visual center
-      ctx.fillStyle = `rgba(6, 8, 12, ${FOG_ALPHA})`;
-      
-      ctx.beginPath();
-      // Outer rect
-      ctx.rect(0, 0, mapWidth, mapHeight);
-      // Inner circle (opposite direction to subtract)
-      const revealRadius = 350;
-      ctx.arc(seeker.x, seeker.y, revealRadius, 0, Math.PI * 2, true);
-      ctx.closePath();
-      ctx.fill(); // Paints everywhere except the circle!
-
-      // Draw faint boundary line around the Fog of War threshold
-      ctx.beginPath();
-      ctx.arc(seeker.x, seeker.y, revealRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(217, 119, 6, ${FOG_EDGE_ALPHA})`;
-      ctx.lineWidth = 4;
-      ctx.setLineDash([6, 6]);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      ctx.restore();
+      drawFogOfWar(ctx, seeker.x, seeker.y, mapWidth, mapHeight);
     }
 
     restoreCameraTransform(ctx); // Restore camera matrices
