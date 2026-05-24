@@ -151,6 +151,7 @@ import { generateMap as generateMapModule } from '../game/map';
 import { drawMinimap, getDefaultConfig } from '../game/minimap';
 import { updateOrbPulse, drawOrb } from '../game/powerups';
 import { drawHazards, drawBumpers, drawShockwave, drawHiderBall, drawSeekerBall } from '../game/renderer';
+import { physicsStep } from '../game/physics';
 
 interface GameCanvasProps {
   phase: GamePhase;
@@ -330,134 +331,26 @@ export function GameCanvas({
     };
 
     // Sub-stepping engine for exact physical calculations (5 steps per frame)
-    const physicsStep = (time: number) => {
-      const hider = hiderBallRef.current;
-      const seeker = seekerBallRef.current;
-      const bumpers = bumpersRef.current;
-      const hazards = hazardsRef.current;
-      const orb = orbRef.current;
-
-      const subStepsCount = SUBSTEPS;
-      const speedScale = slowMotionRef.current;
-
-      for (let s = 0; s < subStepsCount; s++) {
-        // Move players by 1/5th increment scaled by current slow-motion factor
-        hider.x += (hider.vx / subStepsCount) * speedScale;
-        hider.y += (hider.vy / subStepsCount) * speedScale;
-
-        seeker.x += (seeker.vx / subStepsCount) * speedScale;
-        seeker.y += (seeker.vy / subStepsCount) * speedScale;
-
-        // --- Boundary collisions & clamp updates ---
-        // Normal border restitution = 0.60
-        // If Seeker has Superball powerup, Seeker gets 1.0 bounciness off border walls
-        const isExploding = slowMotionRef.current < 1.0;
-        const hiderRest = isExploding ? BOUNCE_REST_SLOWMO : BOUNCE_REST_NORMAL;
-        const seekerRest = isExploding ? BOUNCE_REST_SLOWMO : ((activePowerUp === 'superball') ? BOUNCE_REST_SUPERBALL : BOUNCE_REST_NORMAL);
-
-        // Hider Borders
-        if (hider.x - hider.radius < 0) {
-          hider.x = hider.radius;
-          hider.vx = -hider.vx * hiderRest;
-        } else if (hider.x + hider.radius > mapWidth) {
-          hider.x = mapWidth - hider.radius;
-          hider.vx = -hider.vx * hiderRest;
-        }
-
-        if (hider.y - hider.radius < 0) {
-          hider.y = hider.radius;
-          hider.vy = -hider.vy * hiderRest;
-        } else if (hider.y + hider.radius > mapHeight) {
-          hider.y = mapHeight - hider.radius;
-          hider.vy = -hider.vy * hiderRest;
-        }
-
-        // Seeker Borders
-        if (seeker.x - seeker.radius < 0) {
-          seeker.x = seeker.radius;
-          seeker.vx = -seeker.vx * seekerRest;
-        } else if (seeker.x + seeker.radius > mapWidth) {
-          seeker.x = mapWidth - seeker.radius;
-          seeker.vx = -seeker.vx * seekerRest;
-        }
-
-        if (seeker.y - seeker.radius < 0) {
-          seeker.y = seeker.radius;
-          seeker.vy = -seeker.vy * seekerRest;
-        } else if (seeker.y + seeker.radius > mapHeight) {
-          seeker.y = mapHeight - seeker.radius;
-          seeker.vy = -seeker.vy * seekerRest;
-        }
-
-        // --- Bumper Collisions ---
-        const handleBumperCollision = (ball: PlayerBall, isSeeker: boolean) => {
-          for (const b of bumpers) {
-            const dist = Math.hypot(ball.x - b.x, ball.y - b.y);
-            const rSum = ball.radius + b.radius;
-            if (dist < rSum) {
-              // Resolve overlap
-              const nx = (ball.x - b.x) / dist;
-              const ny = (ball.y - b.y) / dist;
-              ball.x = b.x + nx * rSum;
-              ball.y = b.y + ny * rSum;
-
-              // Collision velocity reflection
-              const vn = ball.vx * nx + ball.vy * ny;
-              if (vn < 0) {
-                // Base bumper restitution = 1.40
-                // If seeker has superball active, bounciness is 2x!
-                let e = BUMPER_REST;
-                if (isSeeker && activePowerUp === 'superball') {
-                  e = BUMPER_REST_SUPERBALL;
-                }
-                
-                // Reflection formula
-                ball.vx = ball.vx - (1 + e) * vn * nx;
-                ball.vy = ball.vy - (1 + e) * vn * ny;
-                
-                // Deliver small static speed kick to ensure rapid launch
-                const currentSpeed = Math.hypot(ball.vx, ball.vy);
-                const boostFactor = (isSeeker && activePowerUp === 'superball') ? BUMPER_BOOST_SUPERBALL : BUMPER_BOOST_NORMAL;
-                if (currentSpeed < BUMPER_MIN_SPEED) {
-                  ball.vx = nx * BUMPER_KICK_SPEED * boostFactor;
-                  ball.vy = ny * BUMPER_KICK_SPEED * boostFactor;
-                } else {
-                  ball.vx *= boostFactor;
-                  ball.vy *= boostFactor;
-                }
-
-                // Trigger pulse animation and screenshake
-                b.pulseTimer = BUMPER_PULSE_DURATION;
-                shakeAmtRef.current = Math.min(shakeAmtRef.current + SHAKE_BUMPER_ADD, SHAKE_MAX);
-
-                // Create bumper spark particles
-                particlesRef.current.push(...spawnBumperParticles(b.x, b.y, b.radius, nx, ny, b.color));
-              }
-            }
-          }
-        };
-
-        handleBumperCollision(hider, false);
-        handleBumperCollision(seeker, true);
-
-        // --- Tag detection (Seeker collides with Hider) ---
-        const distToTag = Math.hypot(seeker.x - hider.x, seeker.y - hider.y);
-        const tagRadiusSum = hider.radius + seeker.radius;
-        if (distToTag < tagRadiusSum) {
-          // TAG CONFIRMED! Freeze and blast particles
-          triggerTagEvent();
-          return; // Stop physics immediately
-        }
-
-        // --- Seeker Power-Up Orb pickup ---
-        if (orb.active) {
-          const distToOrb = Math.hypot(seeker.x - orb.x, seeker.y - orb.y);
-          if (distToOrb < seeker.radius + orb.radius) {
-            orb.active = false;
-            // Absorb powerup
-            setActivePowerUp(orb.type);
-            setPowerUpDuration(1); // 1 active shot
-            
+    const physicsStepLocal = (_time: number) => {
+      physicsStep(
+        {
+          hider: hiderBallRef.current,
+          seeker: seekerBallRef.current,
+          bumpers: bumpersRef.current,
+          hazards: hazardsRef.current,
+          orb: orbRef.current,
+          slowMotionRef,
+          activePowerUp,
+          shakeAmtRef,
+          particlesRef,
+          mapWidth,
+          mapHeight,
+        },
+        {
+          onTag: triggerTagEvent,
+          onOrbCollect: (orbType: PowerUpType) => {
+            setActivePowerUp(orbType);
+            setPowerUpDuration(1);
             const titles: Record<PowerUpType, string> = {
               laser: 'Laser Sight Opt-In!',
               superball: 'Superball Rebound Activator!',
@@ -466,96 +359,14 @@ export function GameCanvas({
               cloak: 'Cloak Invisibility Active!',
               magnet: 'Magnet Pull Engaged!',
             };
-            setFloatMessage(`PERK ACQUIRED: ${titles[orb.type].toUpperCase()}`);
-
-            // Spawn bright orb collect particles
-            particlesRef.current.push(...spawnOrbParticles(orb.x, orb.y));
-          }
-        }
-      }
-
-      // --- Apply Friction deceleration (once per frame, after substepping) ---
-      const applyFriction = (ball: PlayerBall, isSeeker: boolean) => {
-        // Base friction deceleration rates
-        // Seeker receives a -15% less friction boost
-        let baseFriction = FRICTION_BASE;
-        if (isSeeker) {
-          baseFriction = FRICTION_SEEKER;
-        }
-
-        // Suspend friction heavily during explosive slow motion tag events
-        if (slowMotionRef.current < 1.0) {
-          baseFriction = FRICTION_SLOWMO;
-        }
-
-        let enteredSand = false;
-        let enteredIce = false;
-
-        // Check hazard zones
-        for (const hp of hazards) {
-          const d = Math.hypot(ball.x - hp.x, ball.y - hp.y);
-          if (d < hp.radius + ball.radius) {
-            if (hp.type === 'sand') {
-              enteredSand = true;
-            } else if (hp.type === 'ice') {
-              enteredIce = true;
-            }
-          }
-        }
-
-        if (enteredSand) {
-          // Sand trap slow penalty: EXTRA 8% reduction.
-          // Unless seeker has the Iron Ball powerup active!
-          // Sand trap does not slow down balls during slow-motion rocket league explosions
-          if (slowMotionRef.current < 1.0) {
-            ball.vx *= baseFriction;
-            ball.vy *= baseFriction;
-          } else if (isSeeker && activePowerUp === 'iron') {
-            // Iron ball travels unaffected! Draw trails
-            ball.vx *= baseFriction;
-            ball.vy *= baseFriction;
-            
-            // spawn sandy dusty trails
-            if (Math.hypot(ball.vx, ball.vy) > 1 && Math.random() < 0.3) {
-              particlesRef.current.push({
-                x: ball.x,
-                y: ball.y,
-                vx: (Math.random() - 0.5) * 2,
-                vy: (Math.random() - 0.5) * 2,
-                radius: 2,
-                color: '#ca8a04',
-                alpha: 0.6,
-                decay: 0.05,
-              });
-            }
-          } else {
-            // Unprotected slow
-            ball.vx *= baseFriction * FRICTION_SAND_MULT;
-            ball.vy *= baseFriction * FRICTION_SAND_MULT;
-          }
-        } else if (enteredIce) {
-          // Ice patches reduces velocity by only 1% per frame, bypassing base floor
-          ball.vx *= FRICTION_ICE;
-          ball.vy *= FRICTION_ICE;
-        } else {
-          // Standard felt deceleration
-          ball.vx *= baseFriction;
-          ball.vy *= baseFriction;
-        }
-
-        // Stop completely if extremely slow to toggle next turn, except during active tags
-        if (Math.hypot(ball.vx, ball.vy) < STOP_THRESHOLD && slowMotionRef.current >= 1.0) {
-          ball.vx = 0;
-          ball.vy = 0;
-        }
-      };
-
-      applyFriction(hider, false);
-      applyFriction(seeker, true);
+            setFloatMessage(`PERK ACQUIRED: ${titles[orbType].toUpperCase()}`);
+          },
+        },
+      );
 
       // Check if balls have come to rest
-      const hSpeed = Math.hypot(hider.vx, hider.vy);
-      const sSpeed = Math.hypot(seeker.vx, seeker.vy);
+      const hSpeed = Math.hypot(hiderBallRef.current.vx, hiderBallRef.current.vy);
+      const sSpeed = Math.hypot(seekerBallRef.current.vx, seekerBallRef.current.vy);
       const isMoving = hSpeed > 0 || sSpeed > 0;
 
       if (isMoving && !ballsMoving) {
