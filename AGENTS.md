@@ -154,18 +154,24 @@ No environment variables needed for local dev.
 - CPU opponent + difficulty selector in MainMenu
 - All magic numbers replaced with constants
 
-### Phase 1 — Refactor GameCanvas (Next)
-Break the 1900+ line monolith into focused modules:
-- `useMapGeneration` — bumper/hazard/orb placement
-- `usePhysics` — movement, collisions, friction, bouncing
-- `useSlingshot` — drag, aim, launch, max speed calculation
-- `useCamera` — viewport, zoom, shake, follow
-- `usePowerUp` — state machine for active power-ups
-- `useParticles` — spawn, update, render (with GPU array buffers optional)
-- `useSonar` — ping generation and expansion
-- `useTrails` — trail rendering per ball
+### Phase 1 — Refactor GameCanvas (IN PROGRESS)
+Break the 1900+ line monolith into focused modules. Pure refactor, NO behavior changes.
 
-Each hook returns only what the component needs. Reduces cognitive load, improves testability, enables independent optimization.
+**Extracted modules (6 done, 5 remaining):**
+- `src/game/particles.ts` (283 lines) — updateParticles, drawParticles, spawnTag/Bumper/Orb/Launch ✓
+- `src/game/camera.ts` (47 lines) — updateCamera, applyCameraTransform, restoreCameraTransform ✓
+- `src/game/sonar.ts` (76 lines) — updateSonarPings, maybeSpawnSonarPing, drawSonarPings ✓
+- `src/game/input.ts` (65 lines) — screenToMap, calculateLaunch ✓
+- `src/game/trails.ts` (61 lines) — updateTrail, drawTrail ✓
+- `src/game/fog.ts` (39 lines) — drawFogOfWar ✓
+- `src/game/map.ts` — procedural generation (pending)
+- `src/game/minimap.ts` — minimap HUD (pending)
+- `src/game/powerups.ts` — orb collection, pulse, drawing (pending)
+- `src/game/renderer.ts` — ball/bumper/hazard drawing (pending, largest)
+- `src/game/physics.ts` — substepping, collisions, friction (pending, do last)
+
+**Progress:** GameCanvas 1951 → 1636 lines (-315). 6/11 modules done.
+**Gate: GameCanvas ~200 lines, build passes, deploy, verify.**
 
 ### Phase 2 — AI Opponent
 Implement the actual AI behavior using the existing config:
@@ -244,4 +250,4 @@ git push origin main
 
 ---
 
-**Last updated:** 2026-02-15 (Phase 0 complete)
+**Last updated:** 2026-02-15 (Phase 0 complete, Phase 1 in progress — 6/11 modules extracted)
