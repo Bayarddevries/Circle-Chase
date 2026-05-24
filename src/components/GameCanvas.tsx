@@ -148,6 +148,7 @@ import { screenToMap, calculateLaunch } from '../game/input';
 import { updateTrail, drawTrail, HIDER_TRAIL_COLOR, SEEKER_TRAIL_COLOR } from '../game/trails';
 import { drawFogOfWar } from '../game/fog';
 import { generateMap as generateMapModule } from '../game/map';
+import { drawMinimap, getDefaultConfig } from '../game/minimap';
 
 interface GameCanvasProps {
   phase: GamePhase;
@@ -1169,144 +1170,19 @@ export function GameCanvas({
 
     // ==========================================
     // --- DRAW HUD TACTICAL MINIMAP OVERLAY ---
-    // ==========================================
-    ctx.save();
-    
-    // Position minimap at the top-right corner of the canvas viewport
-    const miniW = 190;
-    const miniH = 142; // maintaining golden aspect ratio (~4:3 match for standard 2000x1500 layout)
-    const padding = 16;
-    const miniX = w - miniW - padding;
-    const miniY = padding;
-
-    // 1. Semi-translucent cyber background card
-    ctx.fillStyle = 'rgba(7, 10, 15, 0.78)';
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)'; // Glowing teal frame border
-    ctx.lineWidth = 1.8;
-    
-    ctx.beginPath();
-    if (ctx.roundRect) {
-      ctx.roundRect(miniX, miniY, miniW, miniH, 12);
-    } else {
-      ctx.rect(miniX, miniY, miniW, miniH);
-    }
-    ctx.fill();
-    ctx.stroke();
-
-    // 2. Map projection scale factors
-    const scaleX = miniW / mapWidth;
-    const scaleY = miniH / mapHeight;
-    const mapToMiniX = (mx: number) => miniX + mx * scaleX;
-    const mapToMiniY = (my: number) => miniY + my * scaleY;
-
-    // 3. Draw grid inside the minimap
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.04)';
-    ctx.lineWidth = 0.8;
-    const miniGridSize = 200 * scaleX; // larger step size
-    for (let gx = miniX; gx < miniX + miniW; gx += miniGridSize) {
-      ctx.beginPath();
-      ctx.moveTo(gx, miniY);
-      ctx.lineTo(gx, miniY + miniH);
-      ctx.stroke();
-    }
-    for (let gy = miniY; gy < miniY + miniH; gy += miniGridSize) {
-      ctx.beginPath();
-      ctx.moveTo(miniX, gy);
-      ctx.lineTo(miniX + miniW, gy);
-      ctx.stroke();
-    }
-
-    // 4. Draw terrain hazard zones
-    for (const haz of hazards) {
-      const hx = mapToMiniX(haz.x);
-      const hy = mapToMiniY(haz.y);
-      const hr = haz.radius * scaleX;
-      ctx.beginPath();
-      ctx.arc(hx, hy, hr, 0, Math.PI * 2);
-      ctx.fillStyle = haz.type === 'sand' ? 'rgba(217, 119, 6, 0.16)' : 'rgba(56, 189, 248, 0.14)';
-      ctx.fill();
-    }
-
-    // 5. Draw interactive bumpers
-    for (const bump of bumpers) {
-      const bx = mapToMiniX(bump.x);
-      const by = mapToMiniY(bump.y);
-      const br = bump.radius * scaleX;
-      ctx.beginPath();
-      ctx.arc(bx, by, br, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
-      ctx.fill();
-    }
-
-    // 6. Draw active power-up orb
-    if (orb && orb.active && !isSuddenDeath) {
-      const ox = mapToMiniX(orb.x);
-      const oy = mapToMiniY(orb.y);
-      ctx.beginPath();
-      ctx.arc(ox, oy, 3.5, 0, Math.PI * 2);
-      ctx.fillStyle = '#22d3ee'; // luminous cyan
-      ctx.shadowBlur = 5;
-      ctx.shadowColor = '#22d3ee';
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    }
-
-    // 7. Draw Player Seeker (Vivid Orange Triangle)
-    const sx = mapToMiniX(seeker.x);
-    const sy = mapToMiniY(seeker.y);
-    
-    ctx.beginPath();
-    for (let i = 0; i < 3; i++) {
-      const angle = (i / 3) * Math.PI * 2 - Math.PI / 2;
-      const tx = sx + Math.cos(angle) * 5.5;
-      const ty = sy + Math.sin(angle) * 5.5;
-      if (i === 0) {
-        ctx.moveTo(tx, ty);
-      } else {
-        ctx.lineTo(tx, ty);
-      }
-    }
-    ctx.closePath();
-    ctx.fillStyle = '#f97316';
-    ctx.fill();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 0.8;
-    ctx.stroke();
-
-    // 8. Draw Player Hider (Radiant Circle - hidden if shroud is active)
-    if (!shroudEnabled && !hiderExplodedRef.current) {
-      const hx = mapToMiniX(hider.x);
-      const hy = mapToMiniY(hider.y);
-      ctx.beginPath();
-      ctx.arc(hx, hy, 4.2, 0, Math.PI * 2);
-      ctx.fillStyle = '#38bdf8';
-      ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
-    }
-
-    // 9. Render Holographic Monospace Details & HUD Status
-    ctx.font = 'bold 8px monospace';
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.6)';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText('TACTICAL RADAR', miniX + 10, miniY + 10);
-
-    // Live blink turn status light
-    ctx.beginPath();
-    const indX = miniX + miniW - 12;
-    const indY = miniY + 14;
-    ctx.arc(indX, indY, 3, 0, Math.PI * 2);
-    ctx.fillStyle = activeRole === 'hider' ? '#38bdf8' : '#f97316';
-    ctx.fill();
-
-    ctx.restore();
+    drawMinimap(
+      ctx,
+      getDefaultConfig(w, h, mapWidth, mapHeight),
+      hider.x, hider.y,
+      seeker.x, seeker.y,
+      hazards, bumpers,
+      orb.x, orb.y, orb.active,
+      isSuddenDeath,
+      shroudEnabled,
+      hiderExplodedRef.current,
+      activeRole,
+    );
   };
-
-  // --- Helpers for Ice & coordination labelings ---
-  const ixCoord = (x: number) => x;
-  const iyCoord = (y: number) => y;
 
   // --- TOUCH / MOUSE CONTROLS MAPPINGS ---
   const handleStart = (clientX: number, clientY: number) => {
