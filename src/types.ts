@@ -5,7 +5,9 @@
 
 export type PlayerRole = 'hider' | 'seeker';
 
-export type PowerUpType = 'laser' | 'superball' | 'iron' | 'sonar';
+export type PowerUpType = 'laser' | 'superball' | 'iron' | 'sonar' | 'cloak' | 'magnet';
+
+export type AIDifficulty = 'easy' | 'medium' | 'hard';
 
 export type GamePhase = 
   | 'menu' 
@@ -92,8 +94,29 @@ export interface RoundRecord {
   seekerName: string;
 }
 
+export interface RoundMeta {
+  turnsSurvived: number;
+  powerUpCollected: boolean;
+  bumperHits: number;
+  tagTurn: number;
+}
+
+export interface ScoreBreakdown {
+  base: number;
+  distanceBonus: number;
+  quickTagBonus: number;
+  comboBonus: number;
+  nearMissBonus: number;
+  powerUpBonus: number;
+  streakBonus: number;
+  total: number;
+}
+
 export interface MatchConfig {
   p1Name: string;
   p2Name: string;
   bestOfRounds: number; // E.g., 3, 5, 7. First to win more than half or highest total score.
+  isCpu?: boolean;
+  difficulty?: AIDifficulty;
+  colorblindMode?: boolean;
 }

@@ -1,29 +1,129 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { 
-  PlayerRole, 
-  GamePhase, 
-  MatchConfig, 
-  PlayerBall, 
-  NeonBumper, 
-  HazardPatch, 
-  PowerUpOrb, 
-  Particle, 
-  SonarPing, 
-  PowerUpType, 
-  RoundRecord 
+import {
+  PlayerRole,
+  GamePhase,
+  MatchConfig,
+  PlayerBall,
+  NeonBumper,
+  HazardPatch,
+  PowerUpOrb,
+  Particle,
+  SonarPing,
+  PowerUpType,
+  RoundRecord,
+  RoundMeta
 } from '../types';
-import { 
-  Zap, 
-  Target, 
-  Flame, 
-  Eye, 
-  Compass, 
-  VolumeX, 
-  HelpCircle, 
-  Swords, 
-  Trophy, 
+import {
+  MAP_WIDTH,
+  MAP_HEIGHT,
+  SD_MAP_WIDTH,
+  SD_MAP_HEIGHT,
+  HIDER_RADIUS,
+  SEEKER_RADIUS,
+  SUBSTEPS,
+  FRICTION_BASE,
+  FRICTION_SEEKER,
+  FRICTION_SLOWMO,
+  FRICTION_SAND_MULT,
+  FRICTION_ICE,
+  STOP_THRESHOLD,
+  BOUNCE_REST_NORMAL,
+  BOUNCE_REST_SLOWMO,
+  BOUNCE_REST_SUPERBALL,
+  BUMPER_REST,
+  BUMPER_REST_SUPERBALL,
+  BUMPER_BOOST_NORMAL,
+  BUMPER_BOOST_SUPERBALL,
+  BUMPER_MIN_SPEED,
+  BUMPER_KICK_SPEED,
+  MAX_DRAG,
+  MIN_DRAG_DIST,
+  TOUCH_TARGET_PAD,
+  LAUNCH_SPARKS,
+  SONAR_INTERVAL,
+  SONAR_SPEED,
+  SONAR_MAX_RADIUS,
+  SONAR_START_RADIUS,
+  FOG_RADIUS,
+  FOG_ALPHA,
+  FOG_EDGE_ALPHA,
+  BUMPER_COUNT_NORMAL,
+  BUMPER_COUNT_SD,
+  BUMPER_MIN_RADIUS,
+  BUMPER_RADIUS_VAR,
+  BUMPER_SPAWN_CLEAR,
+  BUMPER_MIN_SEP,
+  BUMPER_PULSE_DURATION,
+  BUMPER_PARTICLES,
+  SAND_COUNT,
+  ICE_COUNT,
+  SAND_MIN_RADIUS,
+  SAND_RADIUS_VAR,
+  ICE_MIN_RADIUS,
+  ICE_RADIUS_VAR,
+  HAZARD_SPAWN_CLEAR,
+  HAZARD_MIN_SEP,
+  HAZARD_BUMPER_CLEAR,
+  ORB_RADIUS,
+  ORB_SPAWN_RANGE,
+  ORB_PULSE_SPEED,
+  ORB_PULSE_AMP,
+  ORB_RESPAWN_TIME,
+  ORB_COLLECT_PARTICLES,
+  CLOAK_DURATION,
+  MAGNET_DURATION,
+  MAGNET_PULL_STRENGTH,
+  LASER_SPEED_MULT,
+  TAG_SPARKS,
+  TAG_DEBRIS,
+  TAG_GLASS,
+  TAG_SHOCKWAVE_MAX_R,
+  TAG_SHOCKWAVE_SPEED,
+  TAG_RECOIL_HIDER,
+  TAG_RECOIL_SEEKER,
+  TAG_FREEZE_TIME,
+  PARTICLE_MAX,
+  PARTICLE_BOUNCE_REST,
+  PARTICLE_GRAVITY,
+  TRAIL_MAX_POINTS,
+  TRAIL_MIN_SPEED,
+  CAM_LERP_POS,
+  CAM_LERP_ZOOM,
+  CAM_ZOOM_REST_CLOSE,
+  CAM_ZOOM_REST_FAR,
+  CAM_ZOOM_MOVING,
+  CAM_ZOOM_MIN,
+  CAM_ZOOM_MAX,
+  CAM_ZOOM_SUDDEN_DEATH,
+  CAM_SD_X,
+  CAM_SD_Y,
+  PROXIMITY_ZOOM_THRESHOLD,
+  PROXIMITY_ZOOM_BOOST,
+  SHAKE_DECAY,
+  SHAKE_TAG_AMOUNT,
+  SHAKE_BUMPER_ADD,
+  SHAKE_MAX,
+  SLOWMO_TAG_SPEED,
+  SLOWMO_RECOVERY,
+  HIDER_BASE_SPEED,
+  SEEKER_SPEED_MULT,
+  AI_EASY_ERROR,
+  AI_THINK_DELAY,
+  FLOAT_MESSAGE_DURATION,
+} from '../constants';
+import {
+  Zap,
+  Target,
+  Flame,
+  Eye,
+  Compass,
+  VolumeX,
+  HelpCircle,
+  Swords,
+  Trophy,
   Grid3X3,
-  Dribbble
+  Dribbble,
+  Cpu,
 } from 'lucide-react';
 
 interface GameCanvasProps {
@@ -46,7 +146,21 @@ export function GameCanvas({
   onExitGame,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  
+
+  // Round meta tracking (for scoring combos + future features)
+  const roundMetaRef = useRef<RoundMeta>({
+    turnsSurvived: 0,
+    powerUpCollected: false,
+    bumperHits: 0,
+    tagTurn: 0,
+  });
+  const currentTurnNumberRef = useRef<number>(0); // which turn we're on (for quick tag detection)
+  const totalDistanceRef = useRef<number>(0);       // accumulated distance for avg
+  const distanceSamplesRef = useRef<number>(0);     // number of distance samples
+  const minDistanceRef = useRef<number>(Infinity);  // closest approach this seeker turn
+  const comboCountRef = useRef<number>(0);          // consecutive bumper hits
+  const nearMissTriggeredRef = useRef<boolean>(false);
+
   // Game state parameters
   const [activeRole, setActiveRole] = useState<PlayerRole>('hider');
   const [turnsSurvived, setTurnsSurvived] = useState<number>(0);
@@ -64,8 +178,8 @@ export function GameCanvas({
   const seekerName = p1IsHider ? config.p2Name : config.p1Name;
 
   // Map limits
-  const mapWidth = isSuddenDeath ? 1200 : 2000;
-  const mapHeight = isSuddenDeath ? 900 : 1500;
+  const mapWidth = isSuddenDeath ? SD_MAP_WIDTH : MAP_WIDTH;
+  const mapHeight = isSuddenDeath ? SD_MAP_HEIGHT : MAP_HEIGHT;
 
   // Core physics references to prevent React re-renders of high-frequency coordinates
   const hiderBallRef = useRef<PlayerBall>({
@@ -73,7 +187,7 @@ export function GameCanvas({
     y: 750,
     vx: 0,
     vy: 0,
-    radius: 20,
+    radius: HIDER_RADIUS,
     role: 'hider',
     name: hiderName,
   });
@@ -83,7 +197,7 @@ export function GameCanvas({
     y: 750,
     vx: 0,
     vy: 0,
-    radius: 24, // Seeker is slightly larger and heavier
+    radius: SEEKER_RADIUS, // Seeker is slightly larger and heavier
     role: 'seeker',
     name: seekerName,
   });
@@ -136,7 +250,7 @@ export function GameCanvas({
       y: isSuddenDeath ? 450 : 750,
       vx: 0,
       vy: 0,
-      radius: 20,
+      radius: ORB_RADIUS,
       role: 'hider',
       name: hiderName,
     };
@@ -153,14 +267,14 @@ export function GameCanvas({
 
     // Bumpers
     const newBumpers: NeonBumper[] = [];
-    const numBumpers = isSuddenDeath ? 8 : 6;
+    const numBumpers = isSuddenDeath ? BUMPER_COUNT_SD : BUMPER_COUNT_NORMAL;
     const colors = ['#ff0055', '#ff00aa', '#00f0ff', '#e0ffff'];
 
     let tries = 0;
     while (newBumpers.length < numBumpers && tries < 100) {
       tries++;
-      let bx = 150 + Math.random() * (mapWidth - 300);
-      let by = 150 + Math.random() * (mapHeight - 300);
+      let bx = BUMPER_SPAWN_CLEAR/2 + Math.random() * (mapWidth - BUMPER_SPAWN_CLEAR);
+      let by = BUMPER_SPAWN_CLEAR/2 + Math.random() * (mapHeight - BUMPER_SPAWN_CLEAR);
       
       // Bias early bumper placements near center-corridor so they show in starting views
       if (tries < 40 && newBumpers.length < 3) {
@@ -172,12 +286,12 @@ export function GameCanvas({
       const distH = Math.hypot(bx - hiderBallRef.current.x, by - hiderBallRef.current.y);
       const distS = Math.hypot(bx - seekerBallRef.current.x, by - seekerBallRef.current.y);
       
-      if (distH < 180 || distS < 180) continue;
+      if (distH < BUMPER_SPAWN_CLEAR || distS < BUMPER_SPAWN_CLEAR) continue;
 
       // Avoid bunching together
       let tooClose = false;
       for (const b of newBumpers) {
-        if (Math.hypot(bx - b.x, by - b.y) < 140) tooClose = true;
+        if (Math.hypot(bx - b.x, by - b.y) < BUMPER_MIN_SEP) tooClose = true;
       }
       if (tooClose) continue;
 
@@ -185,7 +299,7 @@ export function GameCanvas({
         id: `bumper-${newBumpers.length}`,
         x: bx,
         y: by,
-        radius: 42 + Math.random() * 15,
+        radius: BUMPER_MIN_RADIUS + Math.random() * BUMPER_RADIUS_VAR,
         color: colors[newBumpers.length % colors.length],
         pulseTimer: 0,
       });
@@ -196,27 +310,27 @@ export function GameCanvas({
     // Sand and Ice Patches (Zero on sudden death map to intensify bounces)
     const newHazards: HazardPatch[] = [];
     if (!isSuddenDeath) {
-      const numSand = 4;
-      const numIce = 4;
+      const numSand = SAND_COUNT;
+      const numIce = ICE_COUNT;
 
       // Add Sand
       let sandCount = 0;
       tries = 0;
       while (sandCount < numSand && tries < 150) {
         tries++;
-        const sx = 200 + Math.random() * (mapWidth - 400);
-        const sy = 200 + Math.random() * (mapHeight - 400);
+        const sx = HAZARD_SPAWN_CLEAR/2 + Math.random() * (mapWidth - HAZARD_SPAWN_CLEAR);
+        const sy = HAZARD_SPAWN_CLEAR/2 + Math.random() * (mapHeight - HAZARD_SPAWN_CLEAR);
         
         const distH = Math.hypot(sx - hiderBallRef.current.x, sy - hiderBallRef.current.y);
         const distS = Math.hypot(sx - seekerBallRef.current.x, sy - seekerBallRef.current.y);
-        if (distH < 220 || distS < 220) continue;
+        if (distH < HAZARD_SPAWN_CLEAR || distS < HAZARD_SPAWN_CLEAR) continue;
 
         let overlap = false;
         for (const b of bumpersRef.current) {
-          if (Math.hypot(sx - b.x, sy - b.y) < b.radius + 100) overlap = true;
+          if (Math.hypot(sx - b.x, sy - b.y) < b.radius + HAZARD_BUMPER_CLEAR) overlap = true;
         }
         for (const h of newHazards) {
-          if (Math.hypot(sx - h.x, sy - h.y) < 200) overlap = true;
+          if (Math.hypot(sx - h.x, sy - h.y) < HAZARD_MIN_SEP) overlap = true;
         }
         if (overlap) continue;
 
@@ -224,7 +338,7 @@ export function GameCanvas({
           id: `sand-${sandCount}`,
           x: sx,
           y: sy,
-          radius: 120 + Math.random() * 50,
+          radius: SAND_MIN_RADIUS + Math.random() * SAND_RADIUS_VAR,
           type: 'sand',
         });
         sandCount++;
@@ -240,7 +354,7 @@ export function GameCanvas({
 
         const distH = Math.hypot(ix - hiderBallRef.current.x, iy - hiderBallRef.current.y);
         const distS = Math.hypot(ix - seekerBallRef.current.x, iy - seekerBallRef.current.y);
-        if (distH < 220 || distS < 220) continue;
+        if (distH < HAZARD_SPAWN_CLEAR || distS < HAZARD_SPAWN_CLEAR) continue;
 
         let overlap = false;
         for (const b of bumpersRef.current) {
@@ -255,7 +369,7 @@ export function GameCanvas({
           id: `ice-${iceCount}`,
           x: ix,
           y: iy,
-          radius: 110 + Math.random() * 45,
+          radius: ICE_MIN_RADIUS + Math.random() * ICE_RADIUS_VAR,
           type: 'ice',
         });
         iceCount++;
@@ -275,7 +389,7 @@ export function GameCanvas({
       orbRef.current = {
         x: ox,
         y: oy,
-        radius: 20,
+        radius: ORB_RADIUS,
         type: randomType,
         active: true,
         pulseScale: 1,
@@ -312,7 +426,7 @@ export function GameCanvas({
     if (floatMessage) {
       const tid = setTimeout(() => {
         setFloatMessage(null);
-      }, 2500);
+      }, FLOAT_MESSAGE_DURATION);
       return () => clearTimeout(tid);
     }
   }, [floatMessage]);
@@ -325,7 +439,7 @@ export function GameCanvas({
     let lastTime = performance.now();
 
     const loop = (time: number) => {
-      const delta = Math.min(25, time - lastTime);
+      const delta = Math.min(DELTA_CAP, time - lastTime);
       lastTime = time;
 
       // Update positions & physics with substepping
@@ -345,7 +459,7 @@ export function GameCanvas({
       const hazards = hazardsRef.current;
       const orb = orbRef.current;
 
-      const subStepsCount = 5;
+      const subStepsCount = SUBSTEPS;
       const speedScale = slowMotionRef.current;
 
       for (let s = 0; s < subStepsCount; s++) {
@@ -360,8 +474,8 @@ export function GameCanvas({
         // Normal border restitution = 0.60
         // If Seeker has Superball powerup, Seeker gets 1.0 bounciness off border walls
         const isExploding = slowMotionRef.current < 1.0;
-        const hiderRest = isExploding ? 0.93 : 0.65;
-        const seekerRest = isExploding ? 0.93 : ((activePowerUp === 'superball') ? 1.0 : 0.65);
+        const hiderRest = isExploding ? BOUNCE_REST_SLOWMO : BOUNCE_REST_NORMAL;
+        const seekerRest = isExploding ? BOUNCE_REST_SLOWMO : ((activePowerUp === 'superball') ? BOUNCE_REST_SUPERBALL : BOUNCE_REST_NORMAL);
 
         // Hider Borders
         if (hider.x - hider.radius < 0) {
@@ -414,9 +528,9 @@ export function GameCanvas({
               if (vn < 0) {
                 // Base bumper restitution = 1.40
                 // If seeker has superball active, bounciness is 2x!
-                let e = 1.4;
+                let e = BUMPER_REST;
                 if (isSeeker && activePowerUp === 'superball') {
-                  e = 3.0; // explosive rebounds!
+                  e = BUMPER_REST_SUPERBALL;
                 }
                 
                 // Reflection formula
@@ -425,21 +539,21 @@ export function GameCanvas({
                 
                 // Deliver small static speed kick to ensure rapid launch
                 const currentSpeed = Math.hypot(ball.vx, ball.vy);
-                const boostFactor = (isSeeker && activePowerUp === 'superball') ? 1.6 : 1.25;
-                if (currentSpeed < 4) {
-                  ball.vx = nx * 8 * boostFactor;
-                  ball.vy = ny * 8 * boostFactor;
+                const boostFactor = (isSeeker && activePowerUp === 'superball') ? BUMPER_BOOST_SUPERBALL : BUMPER_BOOST_NORMAL;
+                if (currentSpeed < BUMPER_MIN_SPEED) {
+                  ball.vx = nx * BUMPER_KICK_SPEED * boostFactor;
+                  ball.vy = ny * BUMPER_KICK_SPEED * boostFactor;
                 } else {
                   ball.vx *= boostFactor;
                   ball.vy *= boostFactor;
                 }
 
                 // Trigger pulse animation and screenshake
-                b.pulseTimer = 15;
-                shakeAmtRef.current = Math.min(shakeAmtRef.current + 8, 15);
+                b.pulseTimer = BUMPER_PULSE_DURATION;
+                shakeAmtRef.current = Math.min(shakeAmtRef.current + SHAKE_BUMPER_ADD, SHAKE_MAX);
 
                 // Create bumper spark particles
-                for (let i = 0; i < 6; i++) {
+                for (let i = 0; i < BUMPER_PARTICLES; i++) {
                   particlesRef.current.push({
                     x: b.x + nx * b.radius,
                     y: b.y + ny * b.radius,
@@ -481,7 +595,9 @@ export function GameCanvas({
               laser: 'Laser Sight Opt-In!',
               superball: 'Superball Rebound Activator!',
               iron: 'Iron Ball Anti-Sand Mass!',
-              sonar: 'Sonar Pulse Radar Activated!'
+              sonar: 'Sonar Pulse Radar Activated!',
+              cloak: 'Cloak Invisibility Active!',
+              magnet: 'Magnet Pull Engaged!',
             };
             setFloatMessage(`PERK ACQUIRED: ${titles[orb.type].toUpperCase()}`);
 
@@ -508,14 +624,14 @@ export function GameCanvas({
       const applyFriction = (ball: PlayerBall, isSeeker: boolean) => {
         // Base friction deceleration rates
         // Seeker receives a -15% less friction boost
-        let baseFriction = 0.982; // Felt resistance
+        let baseFriction = FRICTION_BASE;
         if (isSeeker) {
-          baseFriction = 0.9855; // Glide more easily
+          baseFriction = FRICTION_SEEKER;
         }
 
         // Suspend friction heavily during explosive slow motion tag events
         if (slowMotionRef.current < 1.0) {
-          baseFriction = 0.997;
+          baseFriction = FRICTION_SLOWMO;
         }
 
         let enteredSand = false;
@@ -560,13 +676,13 @@ export function GameCanvas({
             }
           } else {
             // Unprotected slow
-            ball.vx *= baseFriction * 0.92;
-            ball.vy *= baseFriction * 0.92;
+            ball.vx *= baseFriction * FRICTION_SAND_MULT;
+            ball.vy *= baseFriction * FRICTION_SAND_MULT;
           }
         } else if (enteredIce) {
           // Ice patches reduces velocity by only 1% per frame, bypassing base floor
-          ball.vx *= 0.99;
-          ball.vy *= 0.99;
+          ball.vx *= FRICTION_ICE;
+          ball.vy *= FRICTION_ICE;
         } else {
           // Standard felt deceleration
           ball.vx *= baseFriction;
@@ -574,7 +690,7 @@ export function GameCanvas({
         }
 
         // Stop completely if extremely slow to toggle next turn, except during active tags
-        if (Math.hypot(ball.vx, ball.vy) < 0.08 && slowMotionRef.current >= 1.0) {
+        if (Math.hypot(ball.vx, ball.vy) < STOP_THRESHOLD && slowMotionRef.current >= 1.0) {
           ball.vx = 0;
           ball.vy = 0;
         }
@@ -611,7 +727,7 @@ export function GameCanvas({
 
         // Apply physical gravity to massive heavy fragments
         if (p.heavy) {
-          p.vy += 0.22 * pSpeedScale; // fall acceleration
+          p.vy += PARTICLE_GRAVITY * pSpeedScale;
         }
 
         // Spin rotation increments
@@ -621,7 +737,7 @@ export function GameCanvas({
 
         // Elastic boundary wall reflections for physical shards
         if (p.type === 'debris' || p.type === 'glass') {
-          const bounceRest = 0.74; // Elastic restitution
+          const bounceRest = PARTICLE_BOUNCE_REST;
           
           if (p.x - p.radius < 0) {
             p.x = p.radius;
@@ -666,7 +782,7 @@ export function GameCanvas({
 
       // Auto Sonar Ping generator every 3 seconds for Hidden players
       const now = performance.now();
-      if (now - lastPingTimeRef.current > 3000) {
+      if (now - lastPingTimeRef.current > SONAR_INTERVAL) {
         lastPingTimeRef.current = now;
         // Only if Seeker can't easily see Hider (Fog of war is active in seeker turn)
         const d = Math.hypot(hider.x - seeker.x, hider.y - seeker.y);
@@ -676,10 +792,10 @@ export function GameCanvas({
           sonarPingsRef.current.push({
             x: hider.x,
             y: hider.y,
-            radius: 5,
-            maxRadius: 280,
+            radius: SONAR_START_RADIUS,
+            maxRadius: SONAR_MAX_RADIUS,
             alpha: 1,
-            speed: 3,
+            speed: SONAR_SPEED,
           });
         }
       }
@@ -691,30 +807,30 @@ export function GameCanvas({
 
       // Update orb pulse float scale
       if (orb.active) {
-        orb.pulseScale = 1 + Math.sin(time * 0.006) * 0.12;
+        orb.pulseScale = 1 + Math.sin(time * ORB_PULSE_SPEED) * ORB_PULSE_AMP;
       }
 
       // --- Accumulate path tracking trails (once per physics frame) ---
       const hTrailSpeed = Math.hypot(hider.vx, hider.vy);
       const sTrailSpeed = Math.hypot(seeker.vx, seeker.vy);
 
-      if (hTrailSpeed > 0.05) {
+      if (hTrailSpeed > TRAIL_MIN_SPEED) {
         hiderTrailRef.current.push({ x: hider.x, y: hider.y });
-        if (hiderTrailRef.current.length > 25) hiderTrailRef.current.shift();
+        if (hiderTrailRef.current.length > TRAIL_MAX_POINTS) hiderTrailRef.current.shift();
       } else {
         if (hiderTrailRef.current.length > 0) hiderTrailRef.current.shift();
       }
 
-      if (sTrailSpeed > 0.05) {
+      if (sTrailSpeed > TRAIL_MIN_SPEED) {
         seekerTrailRef.current.push({ x: seeker.x, y: seeker.y });
-        if (seekerTrailRef.current.length > 25) seekerTrailRef.current.shift();
+        if (seekerTrailRef.current.length > TRAIL_MAX_POINTS) seekerTrailRef.current.shift();
       } else {
         if (seekerTrailRef.current.length > 0) seekerTrailRef.current.shift();
       }
 
       // --- Propagate post-tag shockwave ripple ---
       if (activeShockwaveRef.current && activeShockwaveRef.current.active) {
-        activeShockwaveRef.current.r += 6.5; 
+        activeShockwaveRef.current.r += TAG_SHOCKWAVE_SPEED; 
         if (activeShockwaveRef.current.r >= activeShockwaveRef.current.maxR) {
           activeShockwaveRef.current.active = false;
         }
@@ -722,14 +838,14 @@ export function GameCanvas({
 
       // --- Decelerate camera screen-shake vibration ---
       if (shakeAmtRef.current > 0.05) {
-        shakeAmtRef.current *= 0.935;
+        shakeAmtRef.current *= SHAKE_DECAY;
       } else {
         shakeAmtRef.current = 0;
       }
 
       // --- Recover slow-motion timeline dampening back to normal ---
       if (slowMotionRef.current < 1.0) {
-        slowMotionRef.current += 0.009;
+        slowMotionRef.current += SLOWMO_RECOVERY;
         if (slowMotionRef.current > 1.0) slowMotionRef.current = 1.0;
       }
     };
@@ -770,8 +886,8 @@ export function GameCanvas({
       hiderExplodedRef.current = true;
 
       // Tag confirmed! Apply intense screen shake and engage dramatic slow-motion
-      shakeAmtRef.current = 42; // Very dramatic screen rattle
-      slowMotionRef.current = 0.025; // High-tension 2.5% slow speed
+      shakeAmtRef.current = SHAKE_TAG_AMOUNT;
+      slowMotionRef.current = SLOWMO_TAG_SPEED;
 
       const centerTagX = (h.x + s.x) / 2;
       const centerTagY = (h.y + s.y) / 2;
@@ -781,14 +897,14 @@ export function GameCanvas({
         x: centerTagX,
         y: centerTagY,
         r: 15,
-        maxR: 640,
+        maxR: TAG_SHOCKWAVE_MAX_R,
         active: true,
       };
 
       const ringParts: Particle[] = [];
 
       // 1. Core combustion sparks (65 glowing fire elements)
-      const count = 65;
+      const count = TAG_SPARKS;
       for (let i = 0; i < count; i++) {
         const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
         const speed = 8 + Math.random() * 26;
@@ -806,7 +922,7 @@ export function GameCanvas({
       }
 
       // 2. Physical heavy bouncing shards representing the shattered Hider (35 sky blue cyan slabs)
-      for (let i = 0; i < 35; i++) {
+      for (let i = 0; i < TAG_DEBRIS; i++) {
         const angle = Math.random() * Math.PI * 2;
         const speed = 7 + Math.random() * 24;
         ringParts.push({
@@ -826,7 +942,7 @@ export function GameCanvas({
       }
 
       // 3. Delicate glass fragments bursting out (25 neon ice-blue shards)
-      for (let i = 0; i < 25; i++) {
+      for (let i = 0; i < TAG_GLASS; i++) {
         const angle = Math.random() * Math.PI * 2;
         const speed = 12 + Math.random() * 30;
         ringParts.push({
@@ -850,10 +966,10 @@ export function GameCanvas({
       const recoilAngle = Math.atan2(h.y - s.y, h.x - s.x);
       
       // Highly boosted recoil speeds so they glide super far and bounce off walls in slow motion
-      h.vx = Math.cos(recoilAngle) * 200;
-      h.vy = Math.sin(recoilAngle) * 200;
-      s.vx = -Math.cos(recoilAngle) * 145;
-      s.vy = -Math.sin(recoilAngle) * 145;
+      h.vx = Math.cos(recoilAngle) * TAG_RECOIL_HIDER;
+      h.vy = Math.sin(recoilAngle) * TAG_RECOIL_HIDER;
+      s.vx = -Math.cos(recoilAngle) * TAG_RECOIL_SEEKER;
+      s.vy = -Math.sin(recoilAngle) * TAG_RECOIL_SEEKER;
 
       // Conclude round in 1.45 seconds to showcase the slow-mo kinetic bounces and shockwave
       setTimeout(() => {
@@ -866,7 +982,7 @@ export function GameCanvas({
         } else {
           onRoundComplete(turnsSurvived);
         }
-      }, 1450);
+      }, TAG_FREEZE_TIME);
     };
 
     animFrame = requestAnimationFrame(loop);
@@ -888,11 +1004,11 @@ export function GameCanvas({
     const dist = Math.hypot(dx, dy);
     if (dist < 10) return [];
 
-    const baseMaxDrag = 160;
+    const baseMaxDrag = MAX_DRAG;
     const dragPower = Math.min(1.0, dist / baseMaxDrag);
     
     // Scale vectors linearly according to slingshot power
-    const vMax = activeRole === 'seeker' ? 22 : 15;
+    const vMax = activeRole === 'seeker' ? HIDER_BASE_SPEED * SEEKER_SPEED_MULT : HIDER_BASE_SPEED;
     const launchSpeed = vMax * dragPower;
     
     const vx = (dx / dist) * launchSpeed;
@@ -991,24 +1107,24 @@ export function GameCanvas({
     if (hMoving && sMoving) {
       targetCamX = (hider.x + seeker.x) / 2;
       targetCamY = (hider.y + seeker.y) / 2;
-      const normalZoom = Math.max(0.42, Math.min(1.0, (window.innerWidth - 100) / (dBetween + 200)));
+      const normalZoom = Math.max(CAM_ZOOM_MIN, Math.min(CAM_ZOOM_MAX, (window.innerWidth - 100) / (dBetween + 200)));
       
       // Proximity Tension Zoom: Magnifies significantly as Seeker narrows down onto Hider
-      if (dBetween < 420) {
-        const proximityRatio = Math.max(0, (420 - dBetween) / 420);
+      if (dBetween < PROXIMITY_ZOOM_THRESHOLD) {
+        const proximityRatio = Math.max(0, (PROXIMITY_ZOOM_THRESHOLD - dBetween) / PROXIMITY_ZOOM_THRESHOLD);
         // Elevate zoom dramatically peaking up to 1.95x when on top of each other!
-        targetZoom = normalZoom + proximityRatio * 1.05;
+        targetZoom = normalZoom + proximityRatio * PROXIMITY_ZOOM_BOOST;
       } else {
         targetZoom = normalZoom;
       }
     } else if (hMoving) {
       targetCamX = hider.x;
       targetCamY = hider.y;
-      targetZoom = 1.05;
+      targetZoom = CAM_ZOOM_MOVING;
     } else if (sMoving) {
       targetCamX = seeker.x;
       targetCamY = seeker.y;
-      targetZoom = 1.05;
+      targetZoom = CAM_ZOOM_MOVING;
     } else {
       // Resting turn layout: Zoom in heavily if they are close, otherwise normal focus
       const activeObj = activeRole === 'hider' ? hider : seeker;
@@ -1016,23 +1132,23 @@ export function GameCanvas({
       targetCamY = activeObj.y;
       
       if (dBetween < 260) {
-        targetZoom = 1.55; // Intensified tense focus
+        targetZoom = CAM_ZOOM_REST_CLOSE;
       } else {
-        targetZoom = 1.15;
+        targetZoom = CAM_ZOOM_REST_FAR;
       }
     }
 
     // Sudden death camera override
     if (isSuddenDeath) {
-      targetCamX = 600;
-      targetCamY = 450;
-      targetZoom = 0.72; // Full map override
+      targetCamX = CAM_SD_X;
+      targetCamY = CAM_SD_Y;
+      targetZoom = CAM_ZOOM_SUDDEN_DEATH;
     }
 
     // Apply LERP smoothly over coordinates
-    cameraRef.current.x += (targetCamX - cameraRef.current.x) * 0.08;
-    cameraRef.current.y += (targetCamY - cameraRef.current.y) * 0.08;
-    cameraRef.current.zoom += (targetZoom - cameraRef.current.zoom) * 0.05;
+    cameraRef.current.x += (targetCamX - cameraRef.current.x) * CAM_LERP_POS;
+    cameraRef.current.y += (targetCamY - cameraRef.current.y) * CAM_LERP_POS;
+    cameraRef.current.zoom += (targetZoom - cameraRef.current.zoom) * CAM_LERP_ZOOM;
 
     const cam = cameraRef.current;
 
@@ -1338,7 +1454,7 @@ export function GameCanvas({
     // --- DRAW HIDER BALL (Radiant White/Cyan Glow) ---
     // Rule: Hide if distance is greater than 350px and not Seeker active Radar, and turn === seeker
     const shroudDistance = Math.hypot(hider.x - seeker.x, hider.y - seeker.y);
-    const shroudEnabled = shroudDistance > 350 && activeRole === 'seeker' && !isSuddenDeath && (activePowerUp !== 'sonar');
+    const shroudEnabled = shroudDistance > FOG_RADIUS && activeRole === 'seeker' && !isSuddenDeath && (activePowerUp !== 'sonar');
 
     if (!shroudEnabled && !hiderExplodedRef.current) {
       ctx.save();
@@ -1360,6 +1476,14 @@ export function GameCanvas({
       ctx.textBaseline = 'middle';
       ctx.fillText('H', hider.x, hider.y);
 
+      // Colorblind shape overlay — square for Hider
+      if (config.colorblindMode) {
+        const s = hider.radius * 0.7;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(hider.x - s, hider.y - s, s * 2, s * 2);
+      }
+
       // Turn halo marker ring if Hider's turn
       if (activeRole === 'hider' && !ballsMoving) {
         ctx.beginPath();
@@ -1375,24 +1499,26 @@ export function GameCanvas({
     // --- DRAW SEEKER BALL (Molten Gold and Copper) ---
     ctx.save();
 
-    // Draw glowing triangular shape cue for colorblind compatibility (Predator Trinity Shield)
-    ctx.beginPath();
-    for (let i = 0; i < 3; i++) {
-      const angle = (i / 3) * Math.PI * 2 - Math.PI / 2; // point upwards
-      const sxCoord = seeker.x + Math.cos(angle) * (seeker.radius + 6.5);
-      const syCoord = seeker.y + Math.sin(angle) * (seeker.radius + 6.5);
-      if (i === 0) {
-        ctx.moveTo(sxCoord, syCoord);
-      } else {
-        ctx.lineTo(sxCoord, syCoord);
+    // Colorblind shape overlay — triangle for Seeker
+    if (config.colorblindMode) {
+      ctx.beginPath();
+      for (let i = 0; i < 3; i++) {
+        const angle = (i / 3) * Math.PI * 2 - Math.PI / 2;
+        const sxCoord = seeker.x + Math.cos(angle) * (seeker.radius + 6.5);
+        const syCoord = seeker.y + Math.sin(angle) * (seeker.radius + 6.5);
+        if (i === 0) {
+          ctx.moveTo(sxCoord, syCoord);
+        } else {
+          ctx.lineTo(sxCoord, syCoord);
+        }
       }
+      ctx.closePath();
+      ctx.strokeStyle = '#f97316';
+      ctx.lineWidth = 3.5;
+      ctx.shadowBlur = 14;
+      ctx.shadowColor = '#d97706';
+      ctx.stroke();
     }
-    ctx.closePath();
-    ctx.strokeStyle = '#f97316'; // Vivid orange
-    ctx.lineWidth = 3.5;
-    ctx.shadowBlur = 14;
-    ctx.shadowColor = '#d97706';
-    ctx.stroke();
 
     ctx.beginPath();
     ctx.arc(seeker.x, seeker.y, seeker.radius, 0, Math.PI * 2);
@@ -1429,7 +1555,7 @@ export function GameCanvas({
       
       // Let's create an offscreen backing layer manually inside canvas context state to avoid clearing grid lines!
       // 1. Draw solid dark overlay everywhere except inside Seeker visual center
-      ctx.fillStyle = 'rgba(6, 8, 12, 0.95)'; // Deep charcoal slate mist
+      ctx.fillStyle = `rgba(6, 8, 12, ${FOG_ALPHA})`;
       
       ctx.beginPath();
       // Outer rect
@@ -1443,7 +1569,7 @@ export function GameCanvas({
       // Draw faint boundary line around the Fog of War threshold
       ctx.beginPath();
       ctx.arc(seeker.x, seeker.y, revealRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(217, 119, 6, 0.22)'; // Soft gold dashed veil edge
+      ctx.strokeStyle = `rgba(217, 119, 6, ${FOG_EDGE_ALPHA})`;
       ctx.lineWidth = 4;
       ctx.setLineDash([6, 6]);
       ctx.stroke();
@@ -1622,7 +1748,7 @@ export function GameCanvas({
     const dist = Math.hypot(mapX - activeBall.x, mapY - activeBall.y);
 
     // Increase touch target bounding circle offset slightly for mobile ease: radius + 40px
-    if (dist < activeBall.radius + 50) {
+    if (dist < activeBall.radius + TOUCH_TARGET_PAD) {
       isDraggingRef.current = true;
       dragStartRef.current = { x: activeBall.x, y: activeBall.y };
       dragCurrentRef.current = { x: mapX, y: mapY };
@@ -1661,14 +1787,14 @@ export function GameCanvas({
     const dy = activeBall.y - dragCurrentRef.current.y;
     const dist = Math.hypot(dx, dy);
 
-    if (dist < 12) return; // ignore static tiny drags to avoid false releases
+    if (dist < MIN_DRAG_DIST) return; // ignore static tiny drags to avoid false releases
 
-    const maxDragVec = 160;
+    const maxDragVec = MAX_DRAG;
     const dragPower = Math.min(1.0, dist / maxDragVec);
 
     // Max speeds limit. Seeker receives +50% velocity boost
-    const baseVMax = 15;
-    const seekerVMax = baseVMax * 1.5; // seeker gets 22.5 max speed
+    const baseVMax = HIDER_BASE_SPEED;
+    const seekerVMax = HIDER_BASE_SPEED * SEEKER_SPEED_MULT;
     const currentLimit = activeRole === 'seeker' ? seekerVMax : baseVMax;
 
     const launchSpeed = currentLimit * dragPower;
@@ -1678,7 +1804,7 @@ export function GameCanvas({
     activeBall.vy = (dy / dist) * launchSpeed;
 
     // Launch sparks particle
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < LAUNCH_SPARKS; i++) {
       particlesRef.current.push({
         x: activeBall.x,
         y: activeBall.y,
