@@ -134,6 +134,12 @@ import {
   spawnOrbParticles,
   spawnLaunchParticles,
 } from '../game/particles';
+import {
+  updateCamera,
+  applyCameraTransform,
+  restoreCameraTransform,
+  Camera,
+} from '../game/camera';
 
 interface GameCanvasProps {
   phase: GamePhase;
@@ -234,7 +240,7 @@ export function GameCanvas({
   const dragCurrentRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   
   // Camera variables with LERP tracking
-  const cameraRef = useRef({
+  const cameraRef = useRef<Camera>({
     x: 1000,
     y: 750,
     zoom: 0.8,
@@ -1020,14 +1026,11 @@ export function GameCanvas({
       targetZoom = CAM_ZOOM_SUDDEN_DEATH;
     }
 
-    // Apply LERP smoothly over coordinates
-    cameraRef.current.x += (targetCamX - cameraRef.current.x) * CAM_LERP_POS;
-    cameraRef.current.y += (targetCamY - cameraRef.current.y) * CAM_LERP_POS;
-    cameraRef.current.zoom += (targetZoom - cameraRef.current.zoom) * CAM_LERP_ZOOM;
-
+    // Apply camera LERP
+    updateCamera(cameraRef.current, targetCamX, targetCamY, targetZoom);
     const cam = cameraRef.current;
 
-    // Calculate Screen shake random offsets
+    // Calculate screen shake offsets
     let shakeX = 0;
     let shakeY = 0;
     if (shakeAmtRef.current > 0.1) {
@@ -1035,11 +1038,8 @@ export function GameCanvas({
       shakeY = (Math.random() - 0.5) * shakeAmtRef.current;
     }
 
-    // Apply viewport matrices translations with screen shake offset
-    ctx.save();
-    ctx.translate(w / 2, h / 2);
-    ctx.scale(cam.zoom, cam.zoom);
-    ctx.translate(-cam.x + shakeX, -cam.y + shakeY);
+    // Apply viewport transform with shake
+    applyCameraTransform(ctx, cam, shakeX, shakeY, w, h);
 
     // --- DRAW MAP INNER FLOOR ---
     ctx.fillStyle = '#080a0f'; // Luxurious cinematic deep charcoal slate space floor
@@ -1408,7 +1408,7 @@ export function GameCanvas({
       ctx.restore();
     }
 
-    ctx.restore(); // Restore camera matrices scales
+    restoreCameraTransform(ctx); // Restore camera matrices
 
     // ==========================================
     // --- DRAW HUD TACTICAL MINIMAP OVERLAY ---
