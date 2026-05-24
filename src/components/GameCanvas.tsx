@@ -140,6 +140,11 @@ import {
   restoreCameraTransform,
   Camera,
 } from '../game/camera';
+import {
+  updateSonarPings,
+  maybeSpawnSonarPing,
+  drawSonarPings,
+} from '../game/sonar';
 
 interface GameCanvasProps {
   phase: GamePhase;
@@ -709,36 +714,17 @@ export function GameCanvas({
       // Update Particle debris FX
       updateParticles(particlesRef.current, slowMotionRef.current, mapWidth, mapHeight);
 
-      // Update sonar shockwave
-      const pings = sonarPingsRef.current;
-      for (let i = pings.length - 1; i >= 0; i--) {
-        const ping = pings[i];
-        ping.radius += ping.speed;
-        ping.alpha = Math.max(0, 1 - (ping.radius / ping.maxRadius));
-        if (ping.radius >= ping.maxRadius) {
-          pings.splice(i, 1);
-        }
-      }
-
-      // Auto Sonar Ping generator every 3 seconds for Hidden players
-      const now = performance.now();
-      if (now - lastPingTimeRef.current > SONAR_INTERVAL) {
-        lastPingTimeRef.current = now;
-        // Only if Seeker can't easily see Hider (Fog of war is active in seeker turn)
-        const d = Math.hypot(hider.x - seeker.x, hider.y - seeker.y);
-        const inFog = d > 350;
-        
-        if (inFog && activeRole === 'seeker' && !isSuddenDeath) {
-          sonarPingsRef.current.push({
-            x: hider.x,
-            y: hider.y,
-            radius: SONAR_START_RADIUS,
-            maxRadius: SONAR_MAX_RADIUS,
-            alpha: 1,
-            speed: SONAR_SPEED,
-          });
-        }
-      }
+      // Update sonar pings
+      updateSonarPings(sonarPingsRef.current);
+      lastPingTimeRef.current = maybeSpawnSonarPing(
+        sonarPingsRef.current,
+        lastPingTimeRef.current,
+        performance.now(),
+        hider.x, hider.y,
+        seeker.x, seeker.y,
+        activeRole,
+        isSuddenDeath,
+      );
 
       // Update bumper pulse glows
       for (const b of bumpers) {
@@ -769,12 +755,7 @@ export function GameCanvas({
       }
 
       // --- Propagate post-tag shockwave ripple ---
-      if (activeShockwaveRef.current && activeShockwaveRef.current.active) {
-        activeShockwaveRef.current.r += TAG_SHOCKWAVE_SPEED; 
-        if (activeShockwaveRef.current.r >= activeShockwaveRef.current.maxR) {
-          activeShockwaveRef.current.active = false;
-        }
-      }
+      updateShockwave(activeShockwaveRef.current);
 
       // --- Decelerate camera screen-shake vibration ---
       if (shakeAmtRef.current > 0.05) {
@@ -1140,18 +1121,8 @@ export function GameCanvas({
       ctx.restore();
     }
 
-    // --- DRAW SECTIONS OF SONAR PING SENSORS ---
-    for (const ping of pings) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(ping.x, ping.y, ping.radius, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(34, 211, 238, ${ping.alpha})`;
-      ctx.lineWidth = 2.5;
-      ctx.shadowBlur = 12;
-      ctx.shadowColor = '#22d3ee';
-      ctx.stroke();
-      ctx.restore();
-    }
+    // --- DRAW SONAR PINGS ---
+    drawSonarPings(ctx, pings);
 
     // --- DRAW NEON STATIC BUMPERS ---
     for (const b of bumpers) {
