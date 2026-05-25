@@ -396,16 +396,16 @@ export function GameCanvas({
       );
 
       // Update bumper pulse glows
-      for (const b of bumpers) {
+      for (const b of bumpersRef.current) {
         if (b.pulseTimer > 0) b.pulseTimer--;
       }
 
       // Update orb pulse
-      updateOrbPulse(orb, time);
+      updateOrbPulse(orbRef.current, time);
 
       // --- Accumulate ball trails ---
-      updateTrail(hiderTrailRef.current, hider.x, hider.y, hider.vx, hider.vy);
-      updateTrail(seekerTrailRef.current, seeker.x, seeker.y, seeker.vx, seeker.vy);
+      updateTrail(hiderTrailRef.current, hiderBallRef.current.x, hiderBallRef.current.y, hiderBallRef.current.vx, hiderBallRef.current.vy);
+      updateTrail(seekerTrailRef.current, seekerBallRef.current.x, seekerBallRef.current.y, seekerBallRef.current.vx, seekerBallRef.current.vy);
 
       // --- Propagate post-tag shockwave ripple ---
       updateShockwave(activeShockwaveRef.current);
