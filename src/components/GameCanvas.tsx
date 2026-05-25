@@ -333,6 +333,9 @@ export function GameCanvas({
   useEffect(() => {
     if (phase !== 'playing') return;
 
+    // Initialize error buffer so it's always queryable (even when no errors)
+    (window as any).__gameLoopErrors = [];
+
     let animFrame: number;
     let lastTime = performance.now();
 
@@ -600,8 +603,8 @@ export function GameCanvas({
           stack: e instanceof Error ? e.stack : undefined,
           time: performance.now(),
         });
-        // Still try to keep the loop alive by re-requesting the frame
-        // (the error likely killed this frame's render, but next frame might recover)
+        // Keep loop alive despite error — next frame might recover
+        animFrame = requestAnimationFrame(wrappedLoop);
       }
     };
 
