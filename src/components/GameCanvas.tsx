@@ -863,7 +863,7 @@ export function GameCanvas({
   }, []);
 
   return (
-    <div className="relative flex flex-col h-screen select-none overflow-hidden bg-[#020502]">
+    <div className="relative flex flex-col flex-1 select-none overflow-hidden bg-[#020502]">
       
       {/* Top Banner HUD display */}
       <div className="w-full bg-neutral-950/80 backdrop-blur-md border-b border-emerald-500/25 px-4 py-3 flex justify-between items-center z-10 font-mono text-[11px] h-14 shrink-0 shadow-lg">
