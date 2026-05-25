@@ -279,6 +279,8 @@ export function GameCanvas({
   // AI opponent state
   const aiStateRef = useRef<AimingState>(resetAIAiming());
   const cpuFiredThisTurnRef = useRef<boolean>(false);
+  const cpuHiderFiredThisTurnRef = useRef<boolean>(false);
+  const roundStartTimeRef = useRef<number>(0);
 
   // Run procedural map generator when a round shifts
   const generateMap = () => {
@@ -306,6 +308,8 @@ export function GameCanvas({
     // Reset AI state for new round
     aiStateRef.current = resetAIAiming();
     cpuFiredThisTurnRef.current = false;
+    cpuHiderFiredThisTurnRef.current = false;
+    roundStartTimeRef.current = performance.now();
   };
 
   // Build the map on mount & phase variations
@@ -395,9 +399,10 @@ export function GameCanvas({
         toggleTurnFlow();
       }
 
-      // --- AI opponent logic ---
+      // --- AI opponent logic (CPU controls Seeker when P1=Hider) ---
       if (
         config.isCpu &&
+        p1IsHider &&
         activeRole === 'seeker' &&
         !isMoving &&
         !ballsMoving &&
@@ -432,6 +437,32 @@ export function GameCanvas({
           // Reset AI state for next turn
           aiStateRef.current = resetAIAiming();
         }
+      }
+
+      // --- CPU auto-fires as Hider (when P2=CPU controls Hider on odd rounds) ---
+      if (
+        config.isCpu &&
+        !p1IsHider &&
+        activeRole === 'hider' &&
+        !isMoving &&
+        !ballsMoving &&
+        !cpuHiderFiredThisTurnRef.current
+      ) {
+        // Launch Hider in a random-ish direction at 60% power
+        const angle = (Math.random() - 0.5) * Math.PI; // random upward direction
+        const power = HIDER_BASE_SPEED * 0.6;
+        hiderBallRef.current.vx = Math.cos(angle) * power;
+        hiderBallRef.current.vy = Math.sin(angle) * power;
+        cpuHiderFiredThisTurnRef.current = true;
+        particlesRef.current.push(
+          ...spawnLaunchParticles(
+            hiderBallRef.current.x,
+            hiderBallRef.current.y,
+            hiderBallRef.current.vx,
+            hiderBallRef.current.vy,
+            false,
+          ),
+        );
       }
 
       // Update Particle debris FX
@@ -492,6 +523,8 @@ export function GameCanvas({
         // Seeker flings and misses!
         // Swap back to Hider
         setActiveRole('hider');
+        cpuHiderFiredThisTurnRef.current = false;
+        roundStartTimeRef.current = performance.now();
 
         // Check if Seeker consumed their active single-use powerup
         if (activePowerUp) {
@@ -556,7 +589,23 @@ export function GameCanvas({
       }, TAG_FREEZE_TIME);
     };
 
-    animFrame = requestAnimationFrame(loop);
+    // Wrap game loop in error catcher for debug visibility
+    const wrappedLoop = (time: number) => {
+      try {
+        loop(time);
+      } catch (e) {
+        const errs = ((window as any).__gameLoopErrors ??= []);
+        errs.push({
+          message: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined,
+          time: performance.now(),
+        });
+        // Still try to keep the loop alive by re-requesting the frame
+        // (the error likely killed this frame's render, but next frame might recover)
+      }
+    };
+
+    animFrame = requestAnimationFrame(wrappedLoop);
     return () => {
       cancelAnimationFrame(animFrame);
     };

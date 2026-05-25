@@ -145,44 +145,41 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
             </span>
           </button>
 
-          {/* CPU Opponent */}
-          <button
-            type="button"
-            onClick={() => setIsCpu(!isCpu)}
-            className={`w-full py-2 px-3 border rounded-xl text-xs font-mono tracking-widest transition-all flex items-center justify-between ${
-              isCpu
-                ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                : 'bg-neutral-900/60 text-neutral-400 border-amber-500/10 hover:border-amber-500/30'
-            }`}
-          >
-            <span>CPU OPPONENT</span>
-            <span className={`w-8 h-4 rounded-full transition-colors ${isCpu ? 'bg-amber-500' : 'bg-neutral-700'}`}>
-              <span className={`block w-4 h-4 rounded-full bg-white transition-transform ${isCpu ? 'translate-x-4' : 'translate-x-0'}`} />
-            </span>
-          </button>
-
-          {/* Difficulty selector (only when CPU is on) */}
-          {isCpu && (
-            <div className="space-y-2">
-              <label className="block text-[10px] tracking-widest text-neutral-400 uppercase font-mono font-medium">Difficulty</label>
-              <div className="grid grid-cols-3 gap-2">
+          {/* CPU Opponent + Inline Difficulty */}
+          <div className={`w-full border rounded-xl transition-all ${
+            isCpu
+              ? 'bg-amber-500/10 border-amber-500/30'
+              : 'bg-neutral-900/60 border-amber-500/10'
+          }`}>
+            <div className="flex items-center justify-between px-3 py-2">
+              <span className="text-xs font-mono tracking-widest text-neutral-400">CPU OPPONENT</span>
+              <button
+                type="button"
+                onClick={() => setIsCpu(!isCpu)}
+                className={`w-8 h-4 rounded-full transition-colors ${isCpu ? 'bg-amber-500' : 'bg-neutral-700'}`}
+              >
+                <span className={`block w-4 h-4 rounded-full bg-white transition-transform ${isCpu ? 'translate-x-4' : 'translate-x-0'}`} />
+              </button>
+            </div>
+            {isCpu && (
+              <div className="flex gap-1.5 px-3 pb-2 pt-0 border-t border-amber-500/10 mt-0">
                 {(['easy', 'medium', 'hard'] as const).map((d) => (
                   <button
                     key={d}
                     type="button"
                     onClick={() => setDifficulty(d)}
-                    className={`py-2 border rounded-xl font-mono text-xs font-bold tracking-widest transition-all ${
+                    className={`flex-1 py-1.5 rounded-lg font-mono text-[10px] font-bold tracking-widest transition-all ${
                       difficulty === d
-                        ? 'bg-amber-500 text-neutral-950 border-amber-400'
-                        : 'bg-neutral-900/60 text-neutral-400 border-amber-500/10 hover:border-amber-500/30'
+                        ? 'bg-amber-500 text-neutral-950'
+                        : 'bg-neutral-800/60 text-neutral-400 hover:bg-neutral-700 hover:text-white'
                     }`}
                   >
-                    {d.toUpperCase()}
+                    {d === 'easy' ? 'EASY' : d === 'medium' ? 'MED' : 'HARD'}
                   </button>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Action Buttons */}

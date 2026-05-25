@@ -1,8 +1,7 @@
 name: Deploy
 
 on:
-  push:
-    branches: [main, gh-pages, 'feature/**']
+  workflow_dispatch:
 
 permissions:
   contents: write
