@@ -5,8 +5,9 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   const isGithubPages = process.env.GITHUB_PAGES === 'true';
+  const customBase = process.env.BASE_PATH;
   return {
-    base: isGithubPages ? '/Circle-Chase/' : '/',
+    base: customBase || (isGithubPages ? '/Circle-Chase/' : '/'),
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

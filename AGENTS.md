@@ -124,15 +124,22 @@ These are cleared at round start and used when the round over screen appears (se
 
 ## Deployment
 
-**GitHub Pages:** https://bayarddevries.github.io/Circle-Chase/
+### Production (main branch)
+**URL:** https://bayarddevries.github.io/Circle-Chase/
 
-### Pipeline
-- Main branch pushes trigger GitHub Actions workflow `.github/workflows/pages.yml`
-- Workflow runs `npm install` (no lock file), then `npm run build` with `GITHUB_PAGES=true`
-- vite.config.ts: `base: isGithubPages ? '/Circle-Chase/' : '/'`
-- Built files (`index.html`, `assets/`) are automatically deployed to `gh-pages` branch by GitHub
+- Push to `main` → GitHub Actions builds → deploys via `deploy-pages` artifact API to GitHub Pages
+- Workflow: `.github/workflows/pages.yml`
+- Build: `GITHUB_PAGES=true npm run build`
+- vite.config.ts: `base: '/Circle-Chase/'` when `GITHUB_PAGES=true`
+- **Never push unverified changes to main.** It's the live game.
 
-**Important:** If GitHub Pages starts serving old content, the workflow may have been deleted. Restore `.github/workflows/pages.yml` from commit history and ensure `vite.config.ts` has the `GITHUB_PAGES` conditional base path. Then push to main to redeploy.
+### Branch Previews (feature branches)
+**URL pattern:** https://bayarddevries.github.io/Circle-Chase/preview/<branch-name>/
+
+- Push any `feature/*` branch → GitHub Actions builds → deploys to `gh-pages/preview/<branch-name>/`
+- Build uses `BASE_PATH=/Circle-Chase/preview/<branch-name>/` so assets resolve correctly
+- No external services needed — all on GitHub
+- Preview directories on gh-pages are never cleaned up automatically; old ones can be manually deleted if needed
 
 ### Local Development
 ```bash
@@ -141,7 +148,16 @@ npm run dev   # http://localhost:3000
 npm run build # outputs to dist/
 ```
 
-No environment variables needed for local dev.
+No environment variables needed for local dev. Preview builds locally with:
+```bash
+GITHUB_PAGES=true npm run build   # production build
+BASE_PATH=/Circle-Chase/preview/my-feature/ npm run build   # preview build
+```
+
+### Troubleshooting
+- If live site serves old content: check the workflow file exists and `vite.config.ts` has the `GITHUB_PAGES` conditional base path
+- `gh-pages` branch must stay intact — it serves both production (root) and previews (`/preview/*`)
+- If staged deletions appear on gh-pages: `git checkout main`, do NOT commit deletions from gh-pages branch
 
 ---
 
@@ -154,10 +170,15 @@ No environment variables needed for local dev.
 - CPU opponent + difficulty selector in MainMenu
 - All magic numbers replaced with constants
 
-### Phase 1 — Refactor GameCanvas (IN PROGRESS)
+### Phase 1 — Refactor GameCanvas ✓ (Complete)
 Break the 1900+ line monolith into focused modules. Pure refactor, NO behavior changes.
 
-**Extracted modules (6 done, 5 remaining):**
+**All 11 modules extracted:**
+- `src/game/particles.ts`, `camera.ts`, `sonar.ts`, `input.ts`, `trails.ts`, `fog.ts`, `map.ts`, `minimap.ts`, `powerups.ts`, `renderer.ts`, `physics.ts`
+
+**Progress:** GameCanvas 1951 → 981 lines (-970). All modules extracted, build passes, deployed, verified.
+
+### Phase 2 — AI Opponent (NEXT)
 - `src/game/particles.ts` (283 lines) — updateParticles, drawParticles, spawnTag/Bumper/Orb/Launch ✓
 - `src/game/camera.ts` (47 lines) — updateCamera, applyCameraTransform, restoreCameraTransform ✓
 - `src/game/sonar.ts` (76 lines) — updateSonarPings, maybeSpawnSonarPing, drawSonarPings ✓
