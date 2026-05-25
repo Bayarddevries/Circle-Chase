@@ -28,7 +28,7 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#07090e] text-neutral-200 flex flex-col justify-between p-6 overflow-hidden md:p-12">
+    <div className="relative min-h-screen bg-[#07090e] text-neutral-200 flex flex-col justify-between p-6 overflow-y-auto md:p-12">
       {/* Decorative Cinematic Amber Halos */}
       <div className="absolute top-[-10%] left-[-10%] w-[45%] h-[45%] rounded-full bg-amber-600/5 blur-[140px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[45%] h-[45%] rounded-full bg-yellow-600/5 blur-[140px] pointer-events-none" />
@@ -45,28 +45,32 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
       {/* Header with Title and Cyber Creds */}
       <div className="w-full max-w-4xl mx-auto flex flex-col items-center mt-6 relative z-10">
         <div className="flex items-center gap-2 px-3 py-1 bg-amber-950/20 border border-amber-500/20 rounded-full text-[9px] tracking-[4px] text-amber-500 font-mono uppercase mb-4 shadow-lg shadow-amber-500/5">
-          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" /> CHAMPIONSHIP SLATE PROTOCOL ACTIVE
+          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" /> TURN TAG
         </div>
 
         <h1 className="text-4xl md:text-6xl font-black text-center tracking-[8px] font-sans text-transparent bg-clip-text bg-gradient-to-b from-white via-amber-100 to-amber-500 uppercase select-none drop-shadow-2xl">
-          Night Golf Chase
+          Turn Tag
         </h1>
         <p className="text-xs md:text-sm text-neutral-400 tracking-[4px] font-mono mt-3 uppercase text-center max-w-lg">
-          Turn-Based Cinematic Physics Evasion & Evocative Stealth Drift
+          Turn-Based Tag 'Em Up
         </p>
       </div>
 
       {/* Configuration Form Card */}
       <form onSubmit={handleSubmit} className="w-full max-w-md mx-auto my-auto relative z-10 bg-[#0c0e14]/90 backdrop-blur-md border border-amber-500/15 rounded-2xl shadow-2xl p-6 md:p-8 space-y-6">
         <h2 className="flex items-center gap-2 text-[10px] tracking-[3px] font-mono uppercase text-amber-500 font-bold border-b border-amber-500/10 pb-3">
-          <Settings className="w-4 h-4 text-amber-500" /> CHALLENGE REGISTRY
+          <Settings className="w-4 h-4 text-amber-500" /> MATCH SETUP
         </h2>
+
+        <p className="text-[10px] text-neutral-500 tracking-wider font-mono -mt-2">
+          Enter names for each player
+        </p>
 
         {/* Name Registration Input Grid */}
         <div className="space-y-4">
           <div className="space-y-1.5">
             <label className="block text-[10px] tracking-widest text-neutral-400 uppercase font-mono font-medium">
-              Pilot Alpha (Hider Starting)
+              Runner
             </label>
             <div className="relative">
               <input
@@ -76,7 +80,7 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
                 value={p1Name}
                 onChange={(e) => setP1Name(e.target.value)}
                 className="w-full bg-[#050609] border border-amber-500/10 focus:border-amber-400/40 outline-none rounded-lg px-4 py-3 text-sm tracking-widest font-semibold focus:ring-1 focus:ring-amber-400/10 text-amber-200 transition-all font-sans"
-                placeholder="PILOT ALPHA"
+                placeholder="Runner name"
               />
               <Users className="absolute right-3.5 top-3.5 w-4 h-4 text-amber-500/20" />
             </div>
@@ -84,7 +88,7 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
 
           <div className="space-y-1.5">
             <label className="block text-[10px] tracking-widest text-neutral-400 uppercase font-mono font-medium">
-              Pilot Beta (Seeker Starting)
+              Chaser
             </label>
             <div className="relative">
               <input
@@ -94,7 +98,7 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
                 value={p2Name}
                 onChange={(e) => setP2Name(e.target.value)}
                 className="w-full bg-[#050609] border border-amber-500/10 focus:border-amber-400/40 outline-none rounded-lg px-4 py-3 text-sm tracking-widest font-semibold focus:ring-1 focus:ring-amber-400/10 text-amber-200 transition-all font-sans"
-                placeholder="PILOT BETA"
+                placeholder="Chaser name"
               />
               <Users className="absolute right-3.5 top-3.5 w-4 h-4 text-amber-500/20" />
             </div>
@@ -104,7 +108,7 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
         {/* Series Length Selector */}
         <div className="space-y-2">
           <label className="block text-[10px] tracking-widest text-neutral-400 uppercase font-mono font-medium">
-            Match Series Duration
+            Best of
           </label>
           <div className="grid grid-cols-3 gap-2">
             {[3, 5, 7].map((rounds) => (
@@ -119,7 +123,7 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
                     : 'bg-neutral-900/60 text-neutral-400 border-amber-500/10 hover:border-amber-500/30 hover:text-white'
                 }`}
               >
-                {rounds} RDS
+                {rounds}
               </button>
             ))}
           </div>
@@ -139,7 +143,7 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
                 : 'bg-neutral-900/60 text-neutral-400 border-amber-500/10 hover:border-amber-500/30'
             }`}
           >
-            <span>COLORBLIND MODE</span>
+            <span>COLORBLIND</span>
             <span className={`w-8 h-4 rounded-full transition-colors ${colorblindMode ? 'bg-emerald-500' : 'bg-neutral-700'}`}>
               <span className={`block w-4 h-4 rounded-full bg-white transition-transform ${colorblindMode ? 'translate-x-4' : 'translate-x-0'}`} />
             </span>
@@ -152,7 +156,7 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
               : 'bg-neutral-900/60 border-amber-500/10'
           }`}>
             <div className="flex items-center justify-between px-3 py-2">
-              <span className="text-xs font-mono tracking-widest text-neutral-400">CPU OPPONENT</span>
+              <span className="text-xs font-mono tracking-widest text-neutral-400">CPU PLAYER</span>
               <button
                 type="button"
                 onClick={() => setIsCpu(!isCpu)}
@@ -198,16 +202,16 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
             id="btn-main-start"
             className="flex-[2] py-3 text-xs bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black tracking-widest rounded-xl uppercase border border-amber-400/20 shadow-lg shadow-amber-500/15 transition-all hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer"
           >
-            <Play className="w-4 h-4 fill-current text-neutral-950" /> Start Chase
+            <Play className="w-4 h-4 fill-current text-neutral-950" /> Start
           </button>
         </div>
       </form>
 
       {/* Instruction Mini Guide or Footer Card */}
       <div className="w-full max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center text-[10px] font-mono tracking-wider text-neutral-500 uppercase border-t border-amber-500/10 pt-4 mt-6 gap-2">
-        <span className="flex items-center gap-2"><Trophy className="w-3.5 h-3.5 text-amber-500 animate-pulse" /> Goal: Escape longest as Hider / Catch fast as Seeker</span>
+          <span className="flex items-center gap-2"><Trophy className="w-3.5 h-3.5 text-amber-500 animate-pulse" /> Survive as Runner. Catch as Chaser. First to {bestOf} wins.</span>
         <span>Local Device Pass-and-Play Hotseat</span>
-        <span>© 2026 Night Cyber Golfing Corp</span>
+        <span>© 2026 Bayard deVries</span>
       </div>
     </div>
   );

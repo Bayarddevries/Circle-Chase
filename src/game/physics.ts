@@ -48,6 +48,7 @@ export interface PhysicsState {
 export interface PhysicsCallbacks {
   onTag: () => void;
   onOrbCollect: (orbType: PowerUpType) => void;
+  onBumperHit: () => void;
 }
 
 export function physicsStep(
@@ -140,6 +141,7 @@ export function physicsStep(
             b.pulseTimer = BUMPER_PULSE_DURATION;
             shakeAmtRef.current = Math.min(shakeAmtRef.current + SHAKE_BUMPER_ADD, SHAKE_MAX);
             particlesRef.current.push(...spawnBumperParticles(b.x, b.y, b.radius, nx, ny, b.color));
+            callbacks.onBumperHit();
           }
         }
       }

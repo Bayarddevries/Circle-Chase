@@ -92,11 +92,15 @@ export interface RoundRecord {
   roundWinner: string; // Name of the winner of this round (the Seeker if quick, otherwise Hider)
   hiderName: string;
   seekerName: string;
+  hiderScore: number;
+  seekerScore: number;
+  hiderBreakdown: Partial<ScoreBreakdown>;
+  seekerBreakdown: Partial<ScoreBreakdown>;
 }
 
 export interface RoundMeta {
   turnsSurvived: number;
-  powerUpCollected: boolean;
+  powerUpCollector: 'hider' | 'seeker' | null;
   bumperHits: number;
   tagTurn: number;
 }

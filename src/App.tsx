@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { GamePhase, MatchConfig, RoundRecord, PlayerRole } from './types';
+import type { RoundScoreResult } from './game/scoring';
 import { MainMenu } from './components/MainMenu';
 import { GameCanvas } from './components/GameCanvas';
 import { MatchOverlay } from './components/MatchOverlay';
@@ -66,60 +67,44 @@ export default function App() {
   };
 
   // Callback when Seeker tags Hider
-  const handleRoundComplete = (turns: number, suddenDeathWinnerRole?: PlayerRole) => {
-    if (isSuddenDeath) {
-      // Sudden death handles direct, quick override.
-      // Who was seeker in sudden death?
-      // P1 was Seeker if round index alternates, or based on who scored the tag
-      // Let's declare who scored the tag as the winner instantly!
-      // In sudden death, the seeker role tags the hider.
-      // Let's look at who was Seeker in this final sudden death showdown:
-      // P1 is seeker in sudden death if config.bestOfRounds%2 !== 0 or we simple declare p1/p2 winner based on assignment
-      const suddenDeathSeekerIsP1 = (config.bestOfRounds % 2 !== 0); 
-      
-      if (suddenDeathWinnerRole === 'seeker') {
-        if (suddenDeathSeekerIsP1) {
-          setP1Score(prev => prev + 100); // Massive boost to ensure victory
-        } else {
-          setP2Score(prev => prev + 100);
-        }
-      } else {
-        // Hider won
-        if (suddenDeathSeekerIsP1) {
-          setP2Score(prev => prev + 100);
-        } else {
-          setP1Score(prev => prev + 100);
-        }
-      }
-      setPhase('match_over');
-      return;
-    }
-
+  const handleRoundComplete = (
+    data: RoundScoreResult & { suddenDeathWinnerRole?: PlayerRole }
+  ) => {
     const p1IsHider = currentRound % 2 === 0;
     const hiderName = p1IsHider ? config.p1Name : config.p2Name;
     const seekerName = p1IsHider ? config.p2Name : config.p1Name;
 
-    // Award turns as survival score to Hider
+    // Determine round winner role (sudden death overrides)
+    const roundWinnerRole: 'hider' | 'seeker' =
+      data.suddenDeathWinnerRole || data.roundWinner;
+
+    // Add scores to totals based on roles
     if (p1IsHider) {
-      setP1Score(prev => prev + turns);
+      setP1Score(prev => prev + data.hiderScore);
+      setP2Score(prev => prev + data.seekerScore);
     } else {
-      setP2Score(prev => prev + turns);
+      setP1Score(prev => prev + data.seekerScore);
+      setP2Score(prev => prev + data.hiderScore);
     }
 
-    // Capture round metrics
+    // Build round record with full breakdowns
     const newRecord: RoundRecord = {
       roundIndex: currentRound,
       p1Role: p1IsHider ? 'hider' : 'seeker',
       p2Role: p1IsHider ? 'seeker' : 'hider',
-      turnsSurvived: turns,
-      roundWinner: hiderName, // Hider achieves points
+      turnsSurvived: data.hiderBreakdown.base ?? 0,
+      roundWinner: roundWinnerRole === 'hider' ? hiderName : seekerName,
       hiderName,
       seekerName,
+      hiderScore: data.hiderScore,
+      seekerScore: data.seekerScore,
+      hiderBreakdown: data.hiderBreakdown,
+      seekerBreakdown: data.seekerBreakdown,
     };
 
     setHistory(prev => [...prev, newRecord]);
     setActiveRoundRecord(newRecord);
-    setPhase('round_over');
+    setPhase(isSuddenDeath ? 'match_over' : 'round_over');
   };
 
   const handleRestartGame = () => {

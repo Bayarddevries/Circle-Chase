@@ -160,12 +160,17 @@ import {
   AimingState,
 } from '../game/ai';
 
+import {
+  calculateRoundScore,
+  RoundScoreResult,
+} from '../game/scoring';
+
 interface GameCanvasProps {
   phase: GamePhase;
   config: MatchConfig;
   currentRound: number;
   isSuddenDeath: boolean;
-  onRoundComplete: (turns: number, suddenDeathWinnerRole?: PlayerRole) => void;
+  onRoundComplete: (data: RoundScoreResult & { suddenDeathWinnerRole?: PlayerRole }) => void;
   onOpenHelp: () => void;
   onExitGame: () => void;
 }
@@ -184,7 +189,7 @@ export function GameCanvas({
   // Round meta tracking (for scoring combos + future features)
   const roundMetaRef = useRef<RoundMeta>({
     turnsSurvived: 0,
-    powerUpCollected: false,
+    powerUpCollector: null,
     bumperHits: 0,
     tagTurn: 0,
   });
@@ -194,6 +199,7 @@ export function GameCanvas({
   const minDistanceRef = useRef<number>(Infinity);  // closest approach this seeker turn
   const comboCountRef = useRef<number>(0);          // consecutive bumper hits
   const nearMissTriggeredRef = useRef<boolean>(false);
+  const tagFrozenRef = useRef<boolean>(false); // true during slow-mo tag freeze — stop scoring
 
   // Game state parameters
   const [activeRole, setActiveRole] = useState<PlayerRole>('hider');
@@ -204,6 +210,14 @@ export function GameCanvas({
   // Floating status message
   const [floatMessage, setFloatMessage] = useState<string | null>(null);
   const [floatTimer, setFloatTimer] = useState<number>(0);
+
+  // Scoring message queue — shows live point events during play
+  const [scoreMessages, setScoreMessages] = useState<Array<{id: number; text: string; type: string}>>([]);
+  const msgIdCounter = useRef(0);
+  const showScoreMessage = (text: string, type: string) => {
+    const id = msgIdCounter.current++;
+    setScoreMessages(prev => [...prev, {id, text, type}]);
+  };
 
   // Determine who plays which role in the current round
   // Player 1 is Hider on even-indexed rounds (0, 2, ...), Seeker on odd-indexed rounds
@@ -305,6 +319,20 @@ export function GameCanvas({
     setActivePowerUp(null);
     setBallsMoving(false);
 
+    // Reset round-specific tracking for scoring
+    roundMetaRef.current = {
+      turnsSurvived: 0,
+      powerUpCollector: null,
+      bumperHits: 0,
+      tagTurn: 0,
+    };
+    comboCountRef.current = 0;
+    nearMissTriggeredRef.current = false;
+    minDistanceRef.current = Infinity;
+    totalDistanceRef.current = 0;
+    distanceSamplesRef.current = 0;
+    tagFrozenRef.current = false;
+
     // Reset AI state for new round
     aiStateRef.current = resetAIAiming();
     cpuFiredThisTurnRef.current = false;
@@ -329,12 +357,22 @@ export function GameCanvas({
     }
   }, [floatMessage]);
 
+  // Auto-dismiss scoring messages after 1.5s
+  useEffect(() => {
+    if (scoreMessages.length === 0) return;
+    const id = scoreMessages[0].id;
+    const tid = setTimeout(() => {
+      setScoreMessages(prev => prev.filter(m => m.id !== id));
+    }, 1500);
+    return () => clearTimeout(tid);
+  }, [scoreMessages]);
+
   // Core Game Loop
   useEffect(() => {
-    if (phase !== 'playing') return;
-
     // Initialize error buffer so it's always queryable (even when no errors)
     (window as any).__gameLoopErrors = [];
+
+    if (phase !== 'playing') return;
 
     let animFrame: number;
     let lastTime = performance.now();
@@ -374,14 +412,27 @@ export function GameCanvas({
             setActivePowerUp(orbType);
             setPowerUpDuration(1);
             const titles: Record<PowerUpType, string> = {
-              laser: 'Laser Sight Opt-In!',
-              superball: 'Superball Rebound Activator!',
-              iron: 'Iron Ball Anti-Sand Mass!',
-              sonar: 'Sonar Pulse Radar Activated!',
-              cloak: 'Cloak Invisibility Active!',
-              magnet: 'Magnet Pull Engaged!',
+              laser: 'LASER SIGHT',
+              superball: 'SUPERBALL',
+              iron: 'IRON BALL',
+              sonar: 'SONAR',
+              cloak: 'CLOAK',
+              magnet: 'MAGNET',
             };
-            setFloatMessage(`PERK ACQUIRED: ${titles[orbType].toUpperCase()}`);
+            setFloatMessage(`Power-up: ${titles[orbType]}`);
+            roundMetaRef.current.powerUpCollector = activeRole;
+          },
+          onBumperHit: () => {
+            if (tagFrozenRef.current) return;
+            comboCountRef.current++;
+            // Track total bumper hits for end-of-round scoring
+            roundMetaRef.current.bumperHits++;
+            const count = comboCountRef.current;
+            if (count <= 1) {
+              showScoreMessage('+1 BUMPER', 'combo');
+            } else {
+              showScoreMessage(`x${count} COMBO`, 'combo');
+            }
           },
         },
       );
@@ -398,6 +449,8 @@ export function GameCanvas({
       // Detect state transition from motion to resting
       if (!isMoving && ballsMoving) {
         setBallsMoving(false);
+        // Reset combo counter — combos are per-flight
+        comboCountRef.current = 0;
         // Clean turn swaps
         toggleTurnFlow();
       }
@@ -468,6 +521,19 @@ export function GameCanvas({
         );
       }
 
+      // --- Near miss detection (Seeker came close during flight) ---
+      if (isMoving && activeRole === 'seeker' && !nearMissTriggeredRef.current) {
+        const seekDist = Math.hypot(seekerBallRef.current.x - hiderBallRef.current.x, seekerBallRef.current.y - hiderBallRef.current.y);
+        // Track minimum distance this turn for end-of-round bonus
+        if (seekDist < minDistanceRef.current) {
+          minDistanceRef.current = seekDist;
+        }
+        if (seekDist < 100) {
+          nearMissTriggeredRef.current = true;
+          showScoreMessage('NEAR MISS!', 'nearMiss');
+        }
+      }
+
       // Update Particle debris FX
       updateParticles(particlesRef.current, slowMotionRef.current, mapWidth, mapHeight);
 
@@ -520,6 +586,8 @@ export function GameCanvas({
         setActiveRole('seeker');
         // Earn survival point
         setTurnsSurvived(prev => prev + 1);
+        roundMetaRef.current.turnsSurvived++;
+        showScoreMessage('+1 TURN SURVIVED', 'turn');
         // Reset CPU fired flag so AI can fire on its turn
         cpuFiredThisTurnRef.current = false;
       } else {
@@ -547,6 +615,12 @@ export function GameCanvas({
     const triggerTagEvent = () => {
       const h = hiderBallRef.current;
       const s = seekerBallRef.current;
+
+      // Record tag turn for quick-tag bonus
+      roundMetaRef.current.tagTurn = currentTurnNumberRef.current;
+      tagFrozenRef.current = true; // freeze scoring — no more combos during slow-mo
+
+      showScoreMessage('TAG! +5', 'tag');
 
       // Set hiderExploded to true so the solid ball core shatters out of sight
       hiderExplodedRef.current = true;
@@ -583,11 +657,23 @@ export function GameCanvas({
         // Halt velocity forces when transitioning
         h.vx = 0; h.vy = 0;
         s.vx = 0; s.vy = 0;
-        
+
+        // Getting tagged means no near-miss bonus
+        nearMissTriggeredRef.current = false;
+
+        // Calculate final scores from tracked stats
+        const scoreResult = calculateRoundScore(
+          roundMetaRef.current,
+          nearMissTriggeredRef.current,
+          minDistanceRef.current,
+          comboCountRef.current,
+          p1IsHider,
+        );
+
         if (isSuddenDeath) {
-          onRoundComplete(turnsSurvived, 'seeker');
+          onRoundComplete({ ...scoreResult, suddenDeathWinnerRole: 'seeker' });
         } else {
-          onRoundComplete(turnsSurvived);
+          onRoundComplete(scoreResult);
         }
       }, TAG_FREEZE_TIME);
     };
@@ -885,7 +971,7 @@ export function GameCanvas({
     drawSeekerBall(ctx, seeker, config.colorblindMode, activeRole === 'seeker', ballsMoving);
 
     // --- DRAW FOG OF WAR SHROUD ---
-    if (activeRole === 'seeker' && !isSuddenDeath && activePowerUp !== 'sonar') {
+    if (activeRole === 'seeker' && !isSuddenDeath && activePowerUp !== 'sonar' && !tagFrozenRef.current) {
       drawFogOfWar(ctx, seeker.x, seeker.y, mapWidth, mapHeight);
     }
 
@@ -1059,6 +1145,27 @@ export function GameCanvas({
       {floatMessage && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-emerald-500/10 border border-emerald-400/40 text-emerald-400 rounded-full font-mono text-xs font-bold tracking-widest shadow-lg shadow-emerald-500/5 animate-bounce">
           {floatMessage}
+        </div>
+      )}
+
+      {/* Scoring Message Queue */}
+      {scoreMessages.length > 0 && (
+        <div className="absolute top-28 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5 pointer-events-none">
+          {scoreMessages.slice(-5).reverse().map((msg) => {
+            const colors: Record<string, string> = {
+              combo: 'bg-emerald-500/15 border-emerald-400/40 text-emerald-300',
+              turn: 'bg-white/5 border-white/10 text-white',
+              nearMiss: 'bg-amber-500/20 border-amber-400/40 text-amber-300 font-black animate-pulse',
+              collect: 'bg-purple-500/15 border-purple-400/30 text-purple-300',
+              tag: 'bg-yellow-500/20 border-yellow-400/40 text-yellow-300 font-black',
+            };
+            const style = colors[msg.type] || colors.turn;
+            return (
+              <div key={msg.id} className={`px-3 py-1.5 border rounded-lg font-mono text-xs font-bold tracking-wider shadow-lg ${style}`}>
+                {msg.text}
+              </div>
+            );
+          })}
         </div>
       )}
 

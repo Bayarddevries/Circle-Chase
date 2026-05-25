@@ -25,7 +25,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
         <div className="flex items-center gap-3 mb-6 border-b border-amber-500/20 pb-4">
           <HelpCircle className="w-7 h-7 text-amber-500 animate-pulse" />
           <h2 className="text-2xl font-bold tracking-widest text-amber-500 font-sans uppercase">
-            OPERATIONS MANUAL
+            How to Play
           </h2>
         </div>
 
@@ -35,19 +35,17 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
           {/* Phase 1: Game Loop */}
           <div>
             <h3 className="flex items-center gap-2 text-amber-400 font-medium tracking-wider mb-2 text-base uppercase">
-              <RefreshCw className="w-4 h-4" /> 1. Turn-Based Evasion
+              <RefreshCw className="w-4 h-4" /> 1. How Turns Work
             </h3>
             <p>
-              Two players share the same screen to play a high-tech game of hide-and-seek.
-              You alternate shoots. <span className="text-white font-semibold">Hider flings first</span>, then the <span className="text-orange-400 font-semibold">Seeker flings</span>.
-              A round continues until the Seeker tags the Hider. The Hider earns points for every turn they successfully survive. Once tagged, roles swap automatically.
+              Two players share the same screen. Players take turns slingshotting. <span className="text-white font-semibold">Runner goes first</span>, then the <span className="text-orange-400 font-semibold">Chaser</span>. A round continues until the Chaser tags the Runner. The Runner earns points for every turn survived. Once tagged, roles swap.
             </p>
           </div>
 
           {/* Phase 2: Controls */}
           <div>
             <h3 className="flex items-center gap-2 text-amber-400 font-medium tracking-wider mb-2 text-base uppercase">
-              <Compass className="w-4 h-4" /> 2. Touch & Hook Controls
+              <Compass className="w-4 h-4" /> 2. Slingshot Controls
             </h3>
             <p>
               Touch/Click and <span className="text-white font-semibold">drag backwards</span> from your circle to aim, then release to launch your ball into high-speed physics action. Power correlates to your drag distance.
@@ -59,22 +57,22 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             <div className="p-4 rounded-xl bg-orange-950/20 border border-orange-500/20">
               <h4 className="flex items-center gap-2 text-orange-400 font-semibold tracking-wider mb-2 uppercase">
-                <ShieldAlert className="w-4 h-4" /> Seeker's Instinct
+                <ShieldAlert className="w-4 h-4" /> Chaser Advantage
               </h4>
               <ul className="list-disc list-inside space-y-1 text-xs text-neutral-400">
                 <li><strong className="text-neutral-200">+50% speed:</strong> Heavy charge capability.</li>
                 <li><strong className="text-neutral-200">-15% friction:</strong> Slides further and faster.</li>
-                <li><strong className="text-neutral-200">Distance Veil:</strong> Hider is hidden in a dark Fog of War if beyond 350px.</li>
+                <li><strong className="text-neutral-200">Distance Veil:</strong> Runner is hidden in a dark Fog of War if beyond 350px.</li>
               </ul>
             </div>
 
             <div className="p-4 rounded-xl bg-amber-950/25 border border-amber-500/20">
               <h4 className="flex items-center gap-2 text-amber-400 font-semibold tracking-wider mb-2 uppercase">
-                <Eye className="w-4 h-4" /> Hider's Covert Sonar
+                <Eye className="w-4 h-4" /> Runner Ability
               </h4>
               <ul className="list-disc list-inside space-y-1 text-xs text-neutral-400">
-                <li><strong className="text-neutral-200">Sonar Pings:</strong> Map broadcasts an acoustic shockwave from Hider's location every 3 seconds, leaking their general position through the mist.</li>
-                <li><strong className="text-neutral-200">First Strike:</strong> Commences shooting first in every round.</li>
+                <li><strong className="text-neutral-200">Sonar Pings:</strong> Map broadcasts an acoustic shockwave from Runner's location every 3 seconds, leaking their general position through the mist.</li>
+                <li><strong className="text-neutral-200">First Launch:</strong> Runner goes first in every round.</li>
               </ul>
             </div>
           </div>
@@ -82,19 +80,19 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
           {/* Grid of Terrains */}
           <div>
             <h3 className="text-amber-400 font-medium tracking-wider mb-2 text-base uppercase">
-              Terrain Grid Hazards
+              Terrain
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="p-3 bg-neutral-900 border border-yellow-500/20 rounded-lg">
-                <div className="text-yellow-400 font-semibold tracking-wider text-xs uppercase mb-1">Sand Traps (Slow)</div>
+                <div className="text-yellow-400 font-semibold tracking-wider text-xs uppercase mb-1">Sand (Slow)</div>
                 <div className="text-xs text-neutral-400">Reduces current speed by an extra <span className="text-yellow-500">8%</span> per frame upon entries. Avoid!</div>
               </div>
               <div className="p-3 bg-neutral-900 border border-cyan-500/20 rounded-lg">
-                <div className="text-cyan-400 font-semibold tracking-wider text-xs uppercase mb-1">Ice Patches (Turbo)</div>
+                <div className="text-cyan-400 font-semibold tracking-wider text-xs uppercase mb-1">Ice (Fast)</div>
                 <div className="text-xs text-neutral-400">Glide effortlessly! Velocity loses only <span className="text-cyan-400">1%</span> per frame, generating infinite speed.</div>
               </div>
               <div className="p-3 bg-neutral-900 border border-amber-500/20 rounded-lg">
-                <div className="text-amber-400 font-semibold tracking-wider text-xs uppercase mb-1 font-bold">Chased Bumper</div>
+                <div className="text-amber-400 font-semibold tracking-wider text-xs uppercase mb-1 font-bold">Bumper (Boost)</div>
                 <div className="text-xs text-neutral-400">Booster hazards of <span className="text-amber-400 font-bold">1.4x bounciness</span>. Hits supply sudden vertical launch velocity!</div>
               </div>
             </div>
@@ -103,10 +101,10 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
           {/* Seeker Power-Up System */}
           <div>
             <h3 className="flex items-center gap-2 text-amber-400 font-medium tracking-wider mb-2 text-base uppercase">
-              <Award className="w-4 h-4" /> Seeker Power-up Orbs
+              <Award className="w-4 h-4" /> Chaser Power-ups
             </h3>
             <p className="mb-3 text-xs text-neutral-400">
-              A glowing cyan Orb coordinates dynamically in neutral zones. Collection gives the Seeker immediate, single-use, turn-exclusive technological advancements:
+              A glowing cyan Orb coordinates dynamically in neutral zones. Collection gives the Chaser immediate, single-use, turn-exclusive technological advancements:
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="p-2.5 rounded bg-neutral-900 border border-blue-500/25">
@@ -123,7 +121,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
               </div>
               <div className="p-2.5 rounded bg-neutral-900 border border-purple-500/25">
                 <span className="text-xs font-semibold text-purple-400 uppercase block">4. Sonar Pulse</span>
-                <span className="text-xs text-zinc-400">Fades the shrouds of War Fog, revealing the Hider's coordinate precisely!</span>
+                <span className="text-xs text-zinc-400">Fades the fog, revealing the Runner's position!</span>
               </div>
             </div>
           </div>
@@ -137,7 +135,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
             id="btn-close-help-footer"
             className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-neutral-950 font-bold tracking-wider text-xs uppercase rounded transition-colors uppercase cursor-pointer"
           >
-            DISMISS MANUAL
+            Got It
           </button>
         </div>
       </div>
