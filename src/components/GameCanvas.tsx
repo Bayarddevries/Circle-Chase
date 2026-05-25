@@ -389,8 +389,8 @@ export function GameCanvas({
         sonarPingsRef.current,
         lastPingTimeRef.current,
         performance.now(),
-        hider.x, hider.y,
-        seeker.x, seeker.y,
+        hiderBallRef.current.x, hiderBallRef.current.y,
+        seekerBallRef.current.x, seekerBallRef.current.y,
         activeRole,
         isSuddenDeath,
       );
