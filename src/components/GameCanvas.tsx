@@ -401,7 +401,7 @@ export function GameCanvas({
       }
 
       // Update orb pulse
-      updateOrbPulse(orbRef.current, time);
+      updateOrbPulse(orbRef.current, _time);
 
       // --- Accumulate ball trails ---
       updateTrail(hiderTrailRef.current, hiderBallRef.current.x, hiderBallRef.current.y, hiderBallRef.current.vx, hiderBallRef.current.vy);
