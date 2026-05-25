@@ -17,6 +17,8 @@ export default function App() {
     p1Name: 'Player 1',
     p2Name: 'Player 2',
     bestOfRounds: 5,
+    isCpu: false,
+    difficulty: 'medium',
   });
 
   const [currentRound, setCurrentRound] = useState<number>(0);

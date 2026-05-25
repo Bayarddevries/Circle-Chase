@@ -1,25 +1,19 @@
 name: Deploy
 
 on:
-  push:
-    branches: [main, gh-pages, 'feature/**']
+  workflow_dispatch:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: deploy-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
-  # Job 1: Main branch → GitHub Pages (production)
+  # Job 1: Main branch → root of gh-pages (production)
   deploy-main:
     if: github.ref == 'refs/heads/main'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -38,14 +32,25 @@ jobs:
         env:
           GITHUB_PAGES: 'true'
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
         with:
-          path: dist
+          ref: gh-pages
+          path: gh-pages
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Copy build to root
+        run: |
+          rm -rf gh-pages/assets gh-pages/index.html
+          cp -r dist/* gh-pages/
+
+      - name: Deploy to gh-pages
+        run: |
+          cd gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "deploy: main @ ${{ github.sha }}" || echo "No changes"
+          git push origin gh-pages
 
   # Job 2: Feature branches → subdirectory on gh-pages (preview)
   deploy-preview:

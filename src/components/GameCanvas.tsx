@@ -152,6 +152,13 @@ import { drawMinimap, getDefaultConfig } from '../game/minimap';
 import { updateOrbPulse, drawOrb } from '../game/powerups';
 import { drawHazards, drawBumpers, drawShockwave, drawHiderBall, drawSeekerBall } from '../game/renderer';
 import { physicsStep } from '../game/physics';
+import {
+  startAIAiming,
+  isAIReadyToFire,
+  getAIFiringVector,
+  resetAIAiming,
+  AimingState,
+} from '../game/ai';
 
 interface GameCanvasProps {
   phase: GamePhase;
@@ -269,6 +276,12 @@ export function GameCanvas({
   // Controls lock during active flings
   const [ballsMoving, setBallsMoving] = useState<boolean>(false);
 
+  // AI opponent state
+  const aiStateRef = useRef<AimingState>(resetAIAiming());
+  const cpuFiredThisTurnRef = useRef<boolean>(false);
+  const cpuHiderFiredThisTurnRef = useRef<boolean>(false);
+  const roundStartTimeRef = useRef<number>(0);
+
   // Run procedural map generator when a round shifts
   const generateMap = () => {
     const map = generateMapModule(isSuddenDeath, hiderName, seekerName);
@@ -291,6 +304,12 @@ export function GameCanvas({
     setTurnsSurvived(0);
     setActivePowerUp(null);
     setBallsMoving(false);
+
+    // Reset AI state for new round
+    aiStateRef.current = resetAIAiming();
+    cpuFiredThisTurnRef.current = false;
+    cpuHiderFiredThisTurnRef.current = false;
+    roundStartTimeRef.current = performance.now();
   };
 
   // Build the map on mount & phase variations
@@ -380,6 +399,72 @@ export function GameCanvas({
         toggleTurnFlow();
       }
 
+      // --- AI opponent logic (CPU controls Seeker when P1=Hider) ---
+      if (
+        config.isCpu &&
+        p1IsHider &&
+        activeRole === 'seeker' &&
+        !isMoving &&
+        !ballsMoving &&
+        !cpuFiredThisTurnRef.current
+      ) {
+        // Start AI aiming if not already started
+        if (!aiStateRef.current.active) {
+          aiStateRef.current = startAIAiming(
+            hiderBallRef.current,
+            seekerBallRef.current,
+            config.difficulty || 'medium',
+          );
+        }
+        // Check if AI is ready to fire
+        if (isAIReadyToFire(aiStateRef.current, performance.now())) {
+          const launch = getAIFiringVector(aiStateRef.current);
+          seekerBallRef.current.vx = launch.vx;
+          seekerBallRef.current.vy = launch.vy;
+          cpuFiredThisTurnRef.current = true;
+
+          // Launch sparks particles
+          particlesRef.current.push(
+            ...spawnLaunchParticles(
+              seekerBallRef.current.x,
+              seekerBallRef.current.y,
+              seekerBallRef.current.vx,
+              seekerBallRef.current.vy,
+              true, // isSeeker
+            ),
+          );
+
+          // Reset AI state for next turn
+          aiStateRef.current = resetAIAiming();
+        }
+      }
+
+      // --- CPU auto-fires as Hider (when P2=CPU controls Hider on odd rounds) ---
+      if (
+        config.isCpu &&
+        !p1IsHider &&
+        activeRole === 'hider' &&
+        !isMoving &&
+        !ballsMoving &&
+        !cpuHiderFiredThisTurnRef.current
+      ) {
+        // Launch Hider in a random-ish direction at 60% power
+        const angle = (Math.random() - 0.5) * Math.PI; // random upward direction
+        const power = HIDER_BASE_SPEED * 0.6;
+        hiderBallRef.current.vx = Math.cos(angle) * power;
+        hiderBallRef.current.vy = Math.sin(angle) * power;
+        cpuHiderFiredThisTurnRef.current = true;
+        particlesRef.current.push(
+          ...spawnLaunchParticles(
+            hiderBallRef.current.x,
+            hiderBallRef.current.y,
+            hiderBallRef.current.vx,
+            hiderBallRef.current.vy,
+            false,
+          ),
+        );
+      }
+
       // Update Particle debris FX
       updateParticles(particlesRef.current, slowMotionRef.current, mapWidth, mapHeight);
 
@@ -432,10 +517,14 @@ export function GameCanvas({
         setActiveRole('seeker');
         // Earn survival point
         setTurnsSurvived(prev => prev + 1);
+        // Reset CPU fired flag so AI can fire on its turn
+        cpuFiredThisTurnRef.current = false;
       } else {
         // Seeker flings and misses!
         // Swap back to Hider
         setActiveRole('hider');
+        cpuHiderFiredThisTurnRef.current = false;
+        roundStartTimeRef.current = performance.now();
 
         // Check if Seeker consumed their active single-use powerup
         if (activePowerUp) {
@@ -500,7 +589,23 @@ export function GameCanvas({
       }, TAG_FREEZE_TIME);
     };
 
-    animFrame = requestAnimationFrame(loop);
+    // Wrap game loop in error catcher for debug visibility
+    const wrappedLoop = (time: number) => {
+      try {
+        loop(time);
+      } catch (e) {
+        const errs = ((window as any).__gameLoopErrors ??= []);
+        errs.push({
+          message: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined,
+          time: performance.now(),
+        });
+        // Still try to keep the loop alive by re-requesting the frame
+        // (the error likely killed this frame's render, but next frame might recover)
+      }
+    };
+
+    animFrame = requestAnimationFrame(wrappedLoop);
     return () => {
       cancelAnimationFrame(animFrame);
     };
@@ -906,6 +1011,14 @@ export function GameCanvas({
             </div>
           )}
         </div>
+
+        {/* AI Thinking Indicator */}
+        {config.isCpu && activeRole === 'seeker' && !ballsMoving && aiStateRef.current.active && (
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-950/30 border border-amber-500/20 rounded-lg">
+            <Cpu className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+            <span className="text-amber-400 text-[9px] font-bold tracking-widest uppercase">CPU Aiming...</span>
+          </div>
+        )}
 
         {/* Right Side: Active power-up badge item */}
         <div className="flex items-center gap-2">

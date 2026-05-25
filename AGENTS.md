@@ -155,9 +155,10 @@ BASE_PATH=/Circle-Chase/preview/my-feature/ npm run build   # preview build
 ```
 
 ### Troubleshooting
-- If live site serves old content: check the workflow file exists and `vite.config.ts` has the `GITHUB_PAGES` conditional base path
-- `gh-pages` branch must stay intact — it serves both production (root) and previews (`/preview/*`)
-- If staged deletions appear on gh-pages: `git checkout main`, do NOT commit deletions from gh-pages branch
+- If live site serves old content: trigger a redeploy by pushing to main
+- `gh-pages` branch is the source of truth for GitHub Pages (branch-based deployment)
+- Production files go to root of gh-pages; previews go to `/preview/<branch>/`
+- Never manually edit the `gh-pages` branch — let Actions handle it
 
 ---
 
