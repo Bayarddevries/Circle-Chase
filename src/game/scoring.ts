@@ -12,8 +12,7 @@ const NEAR_MISS_BONUS = 1;
 const POWERUP_BONUS = 2;
 const BUMPER_POINTS = 1;
 const TAG_BASE = 5;
-const QUICK_TAG_1 = 3;  // tagged on first turn
-const QUICK_TAG_2 = 1;  // tagged on second turn
+const QUICK_TAG = 3;  // bonus for tagging within 3 turns
 
 export interface RoundScoreResult {
   hiderScore: number;
@@ -40,8 +39,7 @@ export function calculateRoundScore(
   // ── Seeker score ────────────────────────────────────
   const tagBonus = TAG_BASE;
   const quickTagBonus =
-    meta.tagTurn <= 1 ? QUICK_TAG_1 :
-    meta.tagTurn === 2 ? QUICK_TAG_2 : 0;
+    meta.tagTurn <= 3 ? QUICK_TAG : 0;
   const seekerPowerUpBonus = meta.powerUpCollector === 'seeker' ? POWERUP_BONUS : 0;
   const seekerScore = tagBonus + quickTagBonus + seekerPowerUpBonus;
 

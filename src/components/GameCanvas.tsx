@@ -622,6 +622,7 @@ export function GameCanvas({
         // Earn survival point
         setTurnsSurvived(prev => prev + 1);
         roundMetaRef.current.turnsSurvived++;
+        currentTurnNumberRef.current = roundMetaRef.current.turnsSurvived;
         playTurnIncrement();
         showScoreMessage('+1 TURN SURVIVED', 'turn');
         // Reset CPU fired flag so AI can fire on its turn
