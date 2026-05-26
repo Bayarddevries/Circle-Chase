@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MatchConfig } from '../types';
 import { Swords, Trophy, Play, Settings, Users, BookOpen } from 'lucide-react';
+import { playUIClick } from '../game/sounds';
 
 interface MainMenuProps {
   onStartGame: (config: MatchConfig) => void;
@@ -191,7 +192,7 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
           <button
             type="button"
             id="btn-main-help"
-            onClick={onOpenHelp}
+            onClick={() => { playUIClick(); onOpenHelp(); }}
             className="flex-1 py-3 text-xs bg-neutral-900/40 hover:bg-neutral-850 text-neutral-300 font-bold tracking-wider rounded-xl uppercase border border-amber-500/10 transition-colors flex items-center justify-center gap-2"
           >
             <BookOpen className="w-4 h-4 text-amber-500" /> Manual
@@ -200,6 +201,7 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
           <button
             type="submit"
             id="btn-main-start"
+            onClick={playUIClick}
             className="flex-[2] py-3 text-xs bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black tracking-widest rounded-xl uppercase border border-amber-400/20 shadow-lg shadow-amber-500/15 transition-all hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer"
           >
             <Play className="w-4 h-4 fill-current text-neutral-950" /> Start

@@ -1,6 +1,7 @@
 import React from 'react';
 import { GamePhase, RoundRecord, MatchConfig, PlayerRole } from '../types';
 import { Swords, Trophy, Zap, AlertOctagon, RotateCcw, Home, Sparkles } from 'lucide-react';
+import { playUIClick, playRoundOver } from '../game/sounds';
 
 interface MatchOverlayProps {
   phase: GamePhase;
@@ -118,7 +119,7 @@ export function MatchOverlay({
             </div>
 
             <button
-              onClick={onNextRound}
+              onClick={() => { playUIClick(); onNextRound(); }}
               id="btn-intro-start"
               className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-black tracking-[4px] uppercase text-xs rounded-xl shadow-lg shadow-emerald-500/15 cursor-pointer transition-transform hover:scale-[1.01]"
             >
@@ -153,7 +154,7 @@ export function MatchOverlay({
             </div>
 
             <button
-              onClick={onNextRound}
+              onClick={() => { playUIClick(); onNextRound(); }}
               id="btn-sdeath-start"
               className="w-full py-4 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-black tracking-[4px] uppercase text-xs rounded-xl shadow-lg shadow-fuchsia-500/20 cursor-pointer transition-transform"
             >
@@ -258,7 +259,7 @@ export function MatchOverlay({
             </div>
 
             <button
-              onClick={onNextRound}
+              onClick={() => { playRoundOver(); onNextRound(); }}
               id="btn-round-next"
               className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-black tracking-[4px] uppercase text-xs rounded-xl shadow-lg shadow-emerald-500/15 cursor-pointer transition-transform"
             >
@@ -319,14 +320,14 @@ export function MatchOverlay({
             {/* Option menus */}
             <div className="flex gap-3 pt-2">
               <button
-                onClick={onRestartGame}
+                onClick={() => { playUIClick(); onRestartGame(); }}
                 id="btn-match-replay"
                 className="flex-1 py-3 bg-neutral-900 hover:bg-neutral-850 text-neutral-200 border border-neutral-700/20 font-bold tracking-wider text-xs uppercase rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4 text-emerald-400" /> REPLAY SERIES
               </button>
               <button
-                onClick={onReturnToMenu}
+                onClick={() => { playUIClick(); onReturnToMenu(); }}
                 id="btn-match-home"
                 className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-black tracking-widest text-xs uppercase rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >

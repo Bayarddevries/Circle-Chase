@@ -153,6 +153,20 @@ import { updateOrbPulse, drawOrb } from '../game/powerups';
 import { drawHazards, drawBumpers, drawShockwave, drawHiderBall, drawSeekerBall } from '../game/renderer';
 import { physicsStep } from '../game/physics';
 import {
+  playLaunch,
+  playBumperHit,
+  playNearMiss,
+  playTag,
+  playOrbCollect,
+  playTurnIncrement,
+  playUIClick,
+  startDrone,
+  updateDrone,
+  stopDrone,
+  initAudio,
+} from '../game/sounds';
+import * as haptics from '../game/haptics';
+import {
   startAIAiming,
   isAIReadyToFire,
   getAIFiringVector,
@@ -373,6 +387,7 @@ export function GameCanvas({
     (window as any).__gameLoopErrors = [];
 
     if (phase !== 'playing') return;
+    startDrone();
 
     let animFrame: number;
     let lastTime = performance.now();
@@ -383,6 +398,15 @@ export function GameCanvas({
 
       // Update positions & physics with substepping
       physicsStepLocal(time);
+
+      // Proximity drone update based on distance
+      const hdr = hiderBallRef.current;
+      const skr = seekerBallRef.current;
+      if (hdr && skr) {
+        const dist = Math.hypot(hdr.x - skr.x, hdr.y - skr.y);
+        const norm = 1 - Math.min(1, dist / 1500);
+        updateDrone(norm);
+      }
 
       // Render
       draw();
@@ -420,10 +444,14 @@ export function GameCanvas({
               magnet: 'MAGNET',
             };
             setFloatMessage(`Power-up: ${titles[orbType]}`);
+            playOrbCollect();
+            haptics.buzz();
             roundMetaRef.current.powerUpCollector = activeRole;
           },
           onBumperHit: () => {
             if (tagFrozenRef.current) return;
+            playBumperHit();
+            haptics.tap();
             comboCountRef.current++;
             // Track total bumper hits for end-of-round scoring
             roundMetaRef.current.bumperHits++;
@@ -530,6 +558,8 @@ export function GameCanvas({
         }
         if (seekDist < 100) {
           nearMissTriggeredRef.current = true;
+          playNearMiss();
+          haptics.buzz();
           showScoreMessage('NEAR MISS!', 'nearMiss');
         }
       }
@@ -587,6 +617,7 @@ export function GameCanvas({
         // Earn survival point
         setTurnsSurvived(prev => prev + 1);
         roundMetaRef.current.turnsSurvived++;
+        playTurnIncrement();
         showScoreMessage('+1 TURN SURVIVED', 'turn');
         // Reset CPU fired flag so AI can fire on its turn
         cpuFiredThisTurnRef.current = false;
@@ -621,6 +652,8 @@ export function GameCanvas({
       tagFrozenRef.current = true; // freeze scoring — no more combos during slow-mo
 
       showScoreMessage('TAG! +5', 'tag');
+      playTag();
+      haptics.strong();
 
       // Set hiderExploded to true so the solid ball core shatters out of sight
       hiderExplodedRef.current = true;
@@ -696,6 +729,7 @@ export function GameCanvas({
 
     animFrame = requestAnimationFrame(wrappedLoop);
     return () => {
+      stopDrone();
       cancelAnimationFrame(animFrame);
     };
   }, [phase, activeRole, ballsMoving, activePowerUp, isSuddenDeath]);
@@ -1035,6 +1069,9 @@ export function GameCanvas({
 
     activeBall.vx = launch.vx;
     activeBall.vy = launch.vy;
+
+    playLaunch();
+    haptics.launch();
 
     // Launch sparks particles
     particlesRef.current.push(
