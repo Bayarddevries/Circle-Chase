@@ -96,15 +96,32 @@ export function drawShockwave(
 ): void {
   if (!shockwave || !shockwave.active) return;
   const alpha = Math.max(0, 1 - (shockwave.r / shockwave.maxR));
+
+  // Outer amber ring
   ctx.save();
   ctx.beginPath();
   ctx.arc(shockwave.x, shockwave.y, shockwave.r, 0, Math.PI * 2);
   ctx.strokeStyle = `rgba(217, 119, 6, ${alpha})`;
-  ctx.lineWidth = 8 * alpha;
+  ctx.lineWidth = 7 * alpha;
   ctx.shadowBlur = 25;
   ctx.shadowColor = '#d97706';
   ctx.stroke();
   ctx.restore();
+
+  // Inner gold ring — delayed, shorter range
+  const innerR = Math.max(0, (shockwave.r - 25) * 0.75);
+  if (innerR > 10) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(shockwave.x, shockwave.y, innerR, 0, Math.PI * 2);
+    const innerAlpha = alpha * 0.6;
+    ctx.strokeStyle = `rgba(251, 191, 36, ${innerAlpha})`;
+    ctx.lineWidth = 4 * alpha;
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#fbbf24';
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 // ── Tech-Neon Runner ball ────────────────────────────

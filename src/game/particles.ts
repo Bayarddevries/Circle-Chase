@@ -151,59 +151,59 @@ export function spawnTagParticles(
   const centerTagY = (hiderY + seekerY) / 2;
   const parts: Particle[] = [];
 
-  // Core combustion sparks
+  // Core combustion sparks — bigger, more varied
   for (let i = 0; i < TAG_SPARKS; i++) {
-    const angle = (i / TAG_SPARKS) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
-    const speed = 8 + Math.random() * 26;
+    const angle = (i / TAG_SPARKS) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+    const speed = 10 + Math.random() * 32;
     parts.push({
       x: centerTagX,
       y: centerTagY,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
-      radius: 2 + Math.random() * 5,
-      color: i % 3 === 0 ? '#ea580c' : (i % 3 === 1 ? '#d97706' : '#ffffff'),
+      radius: 2 + Math.random() * 6,
+      color: i % 4 === 0 ? '#ea580c' : (i % 4 === 1 ? '#d97706' : (i % 4 === 2 ? '#ffffff' : '#fbbf24')),
       alpha: 1.0,
-      decay: 0.012 + Math.random() * 0.01,
+      decay: 0.008 + Math.random() * 0.012,
       type: 'spark',
     });
   }
 
-  // Heavy bouncing debris shards
+  // Heavy bouncing debris shards — more, from hider position
   for (let i = 0; i < TAG_DEBRIS; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const speed = 7 + Math.random() * 24;
+    const speed = 8 + Math.random() * 30;
     parts.push({
       x: hiderX,
       y: hiderY,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
-      radius: 4.5 + Math.random() * 8.5,
+      radius: 4 + Math.random() * 10,
       color: i % 2 === 0 ? '#38bdf8' : '#ffffff',
       alpha: 1.0,
-      decay: 0.0035 + Math.random() * 0.004,
+      decay: 0.0025 + Math.random() * 0.003,
       type: 'debris',
       angle: Math.random() * Math.PI * 2,
-      spin: (Math.random() - 0.5) * 0.45,
+      spin: (Math.random() - 0.5) * 0.55,
       heavy: true,
     });
   }
 
-  // Glass fragments
+  // Glass fragments — more, faster spin
   for (let i = 0; i < TAG_GLASS; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const speed = 12 + Math.random() * 30;
+    const speed = 14 + Math.random() * 36;
     parts.push({
       x: centerTagX,
       y: centerTagY,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
-      radius: 3 + Math.random() * 5.5,
+      radius: 3 + Math.random() * 6,
       color: '#e0f2fe',
       alpha: 1.0,
-      decay: 0.005 + Math.random() * 0.006,
+      decay: 0.004 + Math.random() * 0.005,
       type: 'glass',
       angle: Math.random() * Math.PI * 2,
-      spin: (Math.random() - 0.5) * 0.65,
+      spin: (Math.random() - 0.5) * 0.8,
     });
   }
 

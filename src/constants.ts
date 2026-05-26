@@ -119,11 +119,11 @@ export const MAGNET_PULL_STRENGTH = 0.15;
 export const LASER_SPEED_MULT = 1.2;  // 20% speed boost
 
 // ── Particles ────────────────────────────────────────
-export const TAG_SPARKS = 65;
-export const TAG_DEBRIS = 35;
-export const TAG_GLASS = 25;
+export const TAG_SPARKS = 120;
+export const TAG_DEBRIS = 60;
+export const TAG_GLASS = 50;
 export const TAG_SHOCKWAVE_MAX_R = 640;
-export const TAG_SHOCKWAVE_SPEED = 6.5;
+export const TAG_SHOCKWAVE_SPEED = 8.5;
 export const TAG_RECOIL_HIDER = 200;
 export const TAG_RECOIL_SEEKER = 145;
 export const TAG_FREEZE_TIME = 1450;             // ms

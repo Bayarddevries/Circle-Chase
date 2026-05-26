@@ -293,6 +293,7 @@ export function GameCanvas({
   const slowMotionRef = useRef<number>(1.0);
   const activeShockwaveRef = useRef<{ x: number; y: number; r: number; maxR: number; active: boolean } | null>(null);
   const hiderExplodedRef = useRef<boolean>(false);
+  const tagFlashRef = useRef<{x: number; y: number; alpha: number} | null>(null);
 
   // Controls lock during active flings
   const [ballsMoving, setBallsMoving] = useState<boolean>(false);
@@ -321,6 +322,7 @@ export function GameCanvas({
     slowMotionRef.current = 1.0;
     activeShockwaveRef.current = null;
     hiderExplodedRef.current = false;
+    tagFlashRef.current = null;
     setActiveRole('hider');
     setTurnsSurvived(0);
     setActivePowerUp(null);
@@ -399,6 +401,14 @@ export function GameCanvas({
         const dist = Math.hypot(hdr.x - skr.x, hdr.y - skr.y);
         const norm = 1 - Math.min(1, dist / 1500);
         updateDrone(norm);
+      }
+
+      // Decay tag flash
+      if (tagFlashRef.current) {
+        tagFlashRef.current.alpha -= 0.03; // fade over ~30 frames (0.5s)
+        if (tagFlashRef.current.alpha <= 0) {
+          tagFlashRef.current = null;
+        }
       }
 
       // Render
@@ -668,6 +678,9 @@ export function GameCanvas({
         maxR: TAG_SHOCKWAVE_MAX_R,
         active: true,
       };
+
+      // Tag flash burst
+      tagFlashRef.current = { x: centerTagX, y: centerTagY, alpha: 1.0 };
 
       particlesRef.current = spawnTagParticles(h.x, h.y, s.x, s.y);
 
@@ -944,6 +957,24 @@ export function GameCanvas({
 
     // --- DRAW SHOCKWAVE ---
     drawShockwave(ctx, activeShockwaveRef.current);
+
+    // --- TAG FLASH BURST ---
+    const flash = tagFlashRef.current;
+    if (flash && flash.alpha > 0.01) {
+      const flashR = 20 + (1 - flash.alpha) * 60;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(flash.x, flash.y, flashR, 0, Math.PI * 2);
+      const fg = ctx.createRadialGradient(flash.x, flash.y, 0, flash.x, flash.y, flashR);
+      fg.addColorStop(0, `rgba(255,255,255,${flash.alpha * 0.7})`);
+      fg.addColorStop(0.4, `rgba(217,119,6,${flash.alpha * 0.3})`);
+      fg.addColorStop(1, 'rgba(217,119,6,0)');
+      ctx.fillStyle = fg;
+      ctx.shadowBlur = 40;
+      ctx.shadowColor = '#ffffff';
+      ctx.fill();
+      ctx.restore();
+    }
 
     // --- HIGH-END TRAILING PATHS ENGINE ---
     drawTrail(ctx, hiderTrailRef.current, HIDER_TRAIL_COLOR, hider.radius, 0.45, 0.9);
