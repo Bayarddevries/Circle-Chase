@@ -5,9 +5,10 @@
 
 export type PlayerRole = 'hider' | 'seeker';
 
-export type PowerUpType = 'laser' | 'superball' | 'iron' | 'sonar' | 'cloak' | 'magnet';
+export type PowerUpType = 'iron' | 'rocket' | 'gravity' | 'vampire' | 'superball' | 'emp';
 
 export type AIDifficulty = 'easy' | 'medium' | 'hard';
+export type GameMode = 'standard' | 'survival';
 
 export type GamePhase = 
   | 'menu' 
@@ -123,4 +124,26 @@ export interface MatchConfig {
   isCpu?: boolean;
   difficulty?: AIDifficulty;
   colorblindMode?: boolean;
+  gameMode?: GameMode;
+}
+
+export interface LeaderboardEntry {
+  id?: string;
+  turnsSurvived: number;
+  totalScore: number;
+  difficulty: AIDifficulty;
+  playerName: string;
+  date: string;
+  matchId: string;
+}
+
+export interface PlayerStats {
+  totalMatches: number;
+  survivalCount: number;
+  bestRun: number;
+  bestScore: number;
+  bestRunDifficulty: AIDifficulty;
+  lastPlayed: string;
+  totalTurnsSurvived: number;
+  totalScore: number;
 }

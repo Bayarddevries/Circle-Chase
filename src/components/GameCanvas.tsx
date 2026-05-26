@@ -69,10 +69,6 @@ import {
   ORB_PULSE_AMP,
   ORB_RESPAWN_TIME,
   ORB_COLLECT_PARTICLES,
-  CLOAK_DURATION,
-  MAGNET_DURATION,
-  MAGNET_PULL_STRENGTH,
-  LASER_SPEED_MULT,
   TAG_SPARKS,
   TAG_DEBRIS,
   TAG_GLASS,
@@ -106,6 +102,13 @@ import {
   SLOWMO_RECOVERY,
   HIDER_BASE_SPEED,
   SEEKER_SPEED_MULT,
+  ROCKET_SPEED_MULT,
+  GRAVITY_PULL,
+  EMP_FREEZE_MS,
+  EMP_FREEZE_FRAMES,
+  VAMPIRE_BONUS,
+  ORBIT_SPEED,
+  ORBIT_RADIUS,
   AI_EASY_ERROR,
   AI_THINK_DELAY,
   FLOAT_MESSAGE_DURATION,
@@ -295,6 +298,11 @@ export function GameCanvas({
   const hiderExplodedRef = useRef<boolean>(false);
   const tagFlashRef = useRef<{x: number; y: number; alpha: number} | null>(null);
 
+  // Freeze timer for EMP power-up (frames)
+  const hiderFrozenRef = useRef(0);
+  // Vampire: flag when active to add point steal on tag
+  const vampireActiveRef = useRef(false);
+
   // Controls lock during active flings
   const [ballsMoving, setBallsMoving] = useState<boolean>(false);
 
@@ -411,8 +419,8 @@ export function GameCanvas({
         }
       }
 
-      // Render
-      draw();
+// Draw everything
+        draw(time);
 
       animFrame = requestAnimationFrame(loop);
     };
@@ -432,6 +440,7 @@ export function GameCanvas({
           particlesRef,
           mapWidth,
           mapHeight,
+          hiderFrozenRef,
         },
         {
           onTag: triggerTagEvent,
@@ -439,12 +448,12 @@ export function GameCanvas({
             setActivePowerUp(orbType);
             setPowerUpDuration(1);
             const titles: Record<PowerUpType, string> = {
-              laser: 'LASER SIGHT',
-              superball: 'SUPERBALL',
               iron: 'IRON BALL',
-              sonar: 'SONAR',
-              cloak: 'CLOAK',
-              magnet: 'MAGNET',
+              rocket: 'ROCKET BURST',
+              gravity: 'GRAVITY WELL',
+              vampire: 'VAMPIRE',
+              superball: 'SUPERBALL',
+              emp: 'EMP',
             };
             setFloatMessage(`Power-up: ${titles[orbType]}`);
             playOrbCollect();
@@ -457,6 +466,12 @@ export function GameCanvas({
             haptics.tap();
             comboCountRef.current++;
             // Track total bumper hits for end-of-round scoring
+            // EMP freeze if active
+            if (activePowerUp === 'emp') {
+              hiderFrozenRef.current = EMP_FREEZE_FRAMES;
+              setActivePowerUp(null);
+              setFloatMessage('EMP FREEZE!');
+            }
             roundMetaRef.current.bumperHits++;
             const count = comboCountRef.current;
             if (count <= 1) {
@@ -656,7 +671,12 @@ export function GameCanvas({
       // Record tag turn for quick-tag bonus
       roundMetaRef.current.tagTurn = currentTurnNumberRef.current;
       tagFrozenRef.current = true; // freeze scoring — no more combos during slow-mo
-
+      // Vampire: steal an extra point on tag
+      if (activePowerUp === 'vampire') {
+        vampireActiveRef.current = true;
+        setActivePowerUp(null);
+        setFloatMessage('VAMPIRE STEAL!');
+      }
       showScoreMessage('TAG! +5', 'tag');
       playTag();
       haptics.strong();
@@ -704,15 +724,23 @@ export function GameCanvas({
         nearMissTriggeredRef.current = false;
 
         // Calculate final scores from tracked stats
-        const scoreResult = calculateRoundScore(
-          roundMetaRef.current,
-          nearMissTriggeredRef.current,
-          minDistanceRef.current,
-          comboCountRef.current,
-          p1IsHider,
-        );
-
-        if (isSuddenDeath) {
+         const scoreResult = calculateRoundScore(
+           roundMetaRef.current,
+           nearMissTriggeredRef.current,
+           minDistanceRef.current,
+           comboCountRef.current,
+           p1IsHider,
+         );
+         // Vampire bonus: add 1 point to seeker's score
+         if (vampireActiveRef.current) {
+           if (p1IsHider) {
+             scoreResult.seekerScore += VAMPIRE_BONUS;
+           } else {
+             scoreResult.hiderScore += VAMPIRE_BONUS;
+           }
+         }
+ 
+         if (isSuddenDeath) {
           onRoundComplete({ ...scoreResult, suddenDeathWinnerRole: 'seeker' });
         } else {
           onRoundComplete(scoreResult);
@@ -769,7 +797,7 @@ export function GameCanvas({
     const points: { x: number; y: number }[] = [{ x: activeBall.x, y: activeBall.y }];
     
     // Calculate laser sight projection with reflections if active
-    const beamLength = (activeRole === 'seeker' && activePowerUp === 'laser') ? 480 : 180;
+    const beamLength = 180;
     let cx = activeBall.x;
     let cy = activeBall.y;
     let cvx = vx;
@@ -825,7 +853,7 @@ export function GameCanvas({
   };
 
   // Main Draw function to render Canvas elements
-  const draw = () => {
+  const draw = (now: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -947,7 +975,7 @@ export function GameCanvas({
 
     // --- DRAW POWER-UP ORBS ---
     for (const orb of orbs) {
-      drawOrb(ctx, orb, isSuddenDeath);
+      drawOrb(ctx, orb, isSuddenDeath, now);
     }
 
     // --- DRAW SONAR PINGS ---
@@ -1025,7 +1053,7 @@ export function GameCanvas({
 
     // --- DRAW HIDER BALL ---
     const shroudDistance = Math.hypot(hider.x - seeker.x, hider.y - seeker.y);
-    const shroudEnabled = shroudDistance > FOG_RADIUS && activeRole === 'seeker' && !isSuddenDeath && (activePowerUp !== 'sonar');
+    const shroudEnabled = shroudDistance > FOG_RADIUS && activeRole === 'seeker' && !isSuddenDeath;
     if (!shroudEnabled && !hiderExplodedRef.current) {
       drawHiderBall(ctx, hider, config.colorblindMode, activeRole === 'hider', ballsMoving);
     }
@@ -1034,7 +1062,7 @@ export function GameCanvas({
     drawSeekerBall(ctx, seeker, config.colorblindMode, activeRole === 'seeker', ballsMoving);
 
     // --- DRAW FOG OF WAR SHROUD ---
-    if (activeRole === 'seeker' && !isSuddenDeath && activePowerUp !== 'sonar' && !tagFrozenRef.current) {
+    if (activeRole === 'seeker' && !isSuddenDeath && !tagFrozenRef.current) {
       drawFogOfWar(ctx, seeker.x, seeker.y, mapWidth, mapHeight);
     }
 
@@ -1098,6 +1126,14 @@ export function GameCanvas({
 
     activeBall.vx = launch.vx;
     activeBall.vy = launch.vy;
+
+    // Rocket Burst: 3x speed boost on next launch
+    if (activeRole === 'seeker' && activePowerUp === 'rocket') {
+      activeBall.vx *= ROCKET_SPEED_MULT;
+      activeBall.vy *= ROCKET_SPEED_MULT;
+      setActivePowerUp(null);
+      setFloatMessage('ROCKET BURST!');
+    }
 
     playLaunch();
     haptics.launch();
@@ -1179,9 +1215,12 @@ export function GameCanvas({
         <div className="flex items-center gap-2">
           {activePowerUp && (
             <div className={`px-2.5 py-1 rounded border leading-none text-[9px] font-bold tracking-widest uppercase flex items-center gap-1.5 ${
-              activePowerUp === 'laser' ? 'bg-blue-950/20 text-blue-400 border-blue-500/20' :
-              activePowerUp === 'superball' ? 'bg-fuchsia-950/20 text-fuchsia-400 border-fuchsia-500/20' :
               activePowerUp === 'iron' ? 'bg-yellow-950/20 text-yellow-400 border-yellow-500/20' :
+              activePowerUp === 'rocket' ? 'bg-rose-950/20 text-rose-400 border-rose-500/20' :
+              activePowerUp === 'gravity' ? 'bg-violet-950/20 text-violet-400 border-violet-500/20' :
+              activePowerUp === 'vampire' ? 'bg-red-950/20 text-red-400 border-red-500/20' :
+              activePowerUp === 'superball' ? 'bg-fuchsia-950/20 text-fuchsia-400 border-fuchsia-500/20' :
+              activePowerUp === 'emp' ? 'bg-amber-950/20 text-amber-400 border-amber-500/20' :
               'bg-purple-950/30 text-purple-400 border-purple-500/20'
             }`}>
               <Zap className="w-3 h-3 fill-current" /> {activePowerUp.toUpperCase()}

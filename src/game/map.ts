@@ -122,7 +122,7 @@ export function generateMap(
 
   // --- Power-Up Orbs ---
   const orbCount = isSuddenDeath ? 0 : ORB_COUNT_MIN + Math.floor(Math.random() * (ORB_COUNT_MAX - ORB_COUNT_MIN + 1));
-  const allTypes: PowerUpType[] = ['laser', 'superball', 'iron', 'sonar', 'cloak', 'magnet'];
+  const allTypes: PowerUpType[] = ['iron', 'rocket', 'gravity', 'vampire', 'superball', 'emp'];
   const orbs: PowerUpOrb[] = [];
 
   for (let i = 0; i < orbCount; i++) {

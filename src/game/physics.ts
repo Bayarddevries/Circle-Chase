@@ -6,30 +6,16 @@
  * Handles sub-stepping, boundary collisions, bumper collisions, friction, and tag detection.
  */
 
-import {
-  SUBSTEPS,
-  FRICTION_BASE,
-  FRICTION_SEEKER,
-  FRICTION_SLOWMO,
-  FRICTION_SAND_MULT,
-  FRICTION_ICE,
-  STOP_THRESHOLD,
-  BOUNCE_REST_NORMAL,
-  BOUNCE_REST_SLOWMO,
-  BOUNCE_REST_SUPERBALL,
-  BUMPER_REST,
-  BUMPER_REST_SUPERBALL,
-  BUMPER_BOOST_NORMAL,
-  BUMPER_BOOST_SUPERBALL,
-  BUMPER_MIN_SPEED,
-  BUMPER_KICK_SPEED,
-  BUMPER_PULSE_DURATION,
-  SHAKE_BUMPER_ADD,
-  SHAKE_MAX,
-  ORB_RADIUS,
-} from '../constants';
 import { PlayerBall, NeonBumper, HazardPatch, PowerUpOrb, PowerUpType } from '../types';
 import { spawnBumperParticles, spawnOrbParticles } from './particles';
+import {
+  SUBSTEPS, FRICTION_BASE, FRICTION_SEEKER, FRICTION_SLOWMO,
+  FRICTION_SAND_MULT, FRICTION_ICE, STOP_THRESHOLD,
+  BOUNCE_REST_NORMAL, BOUNCE_REST_SLOWMO, BOUNCE_REST_SUPERBALL,
+  BUMPER_REST, BUMPER_REST_SUPERBALL, BUMPER_BOOST_NORMAL, BUMPER_BOOST_SUPERBALL,
+  BUMPER_MIN_SPEED, BUMPER_KICK_SPEED, BUMPER_PULSE_DURATION,
+  SHAKE_BUMPER_ADD, SHAKE_MAX, ORB_RADIUS, GRAVITY_PULL,
+} from '../constants';
 
 export interface PhysicsState {
   hider: PlayerBall;
@@ -43,6 +29,7 @@ export interface PhysicsState {
   particlesRef: { current: any[] };
   mapWidth: number;
   mapHeight: number;
+  hiderFrozenRef: { current: number };
 }
 
 export interface PhysicsCallbacks {
@@ -58,11 +45,17 @@ export function physicsStep(
   const {
     hider, seeker, bumpers, hazards, orbs,
     slowMotionRef, activePowerUp, shakeAmtRef, particlesRef,
-    mapWidth, mapHeight,
+    mapWidth, mapHeight, hiderFrozenRef,
   } = state;
 
   const subStepsCount = SUBSTEPS;
   const speedScale = slowMotionRef.current;
+
+  // If hider is frozen, zero velocity immediately
+  if (hiderFrozenRef.current > 0) {
+    hider.vx = 0;
+    hider.vy = 0;
+  }
 
   for (let s = 0; s < subStepsCount; s++) {
     // Move players
@@ -150,6 +143,17 @@ export function physicsStep(
     handleBumperCollision(hider, false);
     handleBumperCollision(seeker, true);
 
+    // --- Gravity well ---
+    if (activePowerUp === 'gravity') {
+      const dx = seeker.x - hider.x;
+      const dy = seeker.y - hider.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 0) {
+        hider.vx += (dx / dist) * GRAVITY_PULL / subStepsCount;
+        hider.vy += (dy / dist) * GRAVITY_PULL / subStepsCount;
+      }
+    }
+
     // --- Tag detection ---
     const distToTag = Math.hypot(seeker.x - hider.x, seeker.y - hider.y);
     if (distToTag < hider.radius + seeker.radius) {
@@ -220,4 +224,11 @@ export function physicsStep(
 
   applyFriction(hider, false);
   applyFriction(seeker, true);
+
+  // Countdown hider freeze timer
+  if (hiderFrozenRef.current > 0) {
+    hider.vx = 0;
+    hider.vy = 0;
+    hiderFrozenRef.current--;
+  }
 }

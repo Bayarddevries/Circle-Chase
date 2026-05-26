@@ -103,20 +103,25 @@ export const HAZARD_MIN_SEP = 200;               // min dist between hazards
 export const HAZARD_BUMPER_CLEAR = 100;          // min dist from bumper edge
 
 // ── Power-up orb ─────────────────────────────────────
-export const ORB_COUNT_MIN = 3;
-export const ORB_COUNT_MAX = 4;
+export const ORB_COUNT_MIN = 6;
+export const ORB_COUNT_MAX = 8;
 export const ORB_RADIUS = 18;
 export const ORB_SPAWN_RANGE = 150;              // +/- from map center
 export const ORB_PULSE_SPEED = 0.006;
 export const ORB_PULSE_AMP = 0.12;
 export const ORB_RESPAWN_TIME = 10000;           // ms
 export const ORB_COLLECT_PARTICLES = 20;
+export const ORBIT_SPEED = 0.002;                // rad/ms for orbiting label
+export const ORBIT_RADIUS = 32;                  // px from orb center
+export const ORB_DRIP_INTERVAL = 400;            // ms between drip particles
+export const DRIP_PARTICLE_SPEED = 0.5;
 
-// ── Power-up durations (frames at 60fps) ──
-export const CLOAK_DURATION = 180;    // 3 seconds
-export const MAGNET_DURATION = 300;   // 5 seconds
-export const MAGNET_PULL_STRENGTH = 0.15;
-export const LASER_SPEED_MULT = 1.2;  // 20% speed boost
+// ── Power-up effects ────────────────────────────
+export const ROCKET_SPEED_MULT = 3.0;
+export const GRAVITY_PULL = 0.08;
+export const EMP_FREEZE_MS = 1500;               // ms
+export const EMP_FREEZE_FRAMES = 90;             // frames at ~60fps
+export const VAMPIRE_BONUS = 1;
 
 // ── Particles ────────────────────────────────────────
 export const TAG_SPARKS = 120;
