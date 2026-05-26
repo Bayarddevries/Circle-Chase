@@ -11,7 +11,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-      <div className="relative w-full max-w-2xl overflow-y-auto border max-h-[90vh] bg-neutral-950 border-amber-500/30 rounded-2xl shadow-2xl p-6 text-neutral-200">
+      <div className="relative w-full max-w-2xl overflow-y-auto border max-h-[90vh] bg-neutral-950 border-emerald-500/30 rounded-2xl shadow-2xl p-6 text-neutral-200">
         <button
           onClick={onClose}
           id="btn-close-help"
@@ -22,9 +22,9 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
         </button>
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6 border-b border-amber-500/20 pb-4">
-          <HelpCircle className="w-7 h-7 text-amber-500 animate-pulse" />
-          <h2 className="text-2xl font-bold tracking-widest text-amber-500 font-sans uppercase">
+        <div className="flex items-center gap-3 mb-6 border-b border-emerald-500/20 pb-4">
+          <HelpCircle className="w-7 h-7 text-emerald-500" />
+          <h2 className="text-2xl font-bold tracking-widest text-emerald-500 font-sans uppercase">
             How to Play
           </h2>
         </div>
@@ -34,7 +34,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
           
           {/* Phase 1: Game Loop */}
           <div>
-            <h3 className="flex items-center gap-2 text-amber-400 font-medium tracking-wider mb-2 text-base uppercase">
+            <h3 className="flex items-center gap-2 text-emerald-400 font-medium tracking-wider mb-2 text-base uppercase">
               <RefreshCw className="w-4 h-4" /> 1. How Turns Work
             </h3>
             <p>
@@ -44,12 +44,12 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
 
           {/* Phase 2: Controls */}
           <div>
-            <h3 className="flex items-center gap-2 text-amber-400 font-medium tracking-wider mb-2 text-base uppercase">
+            <h3 className="flex items-center gap-2 text-emerald-400 font-medium tracking-wider mb-2 text-base uppercase">
               <Compass className="w-4 h-4" /> 2. Slingshot Controls
             </h3>
             <p>
               Touch/Click and <span className="text-white font-semibold">drag backwards</span> from your circle to aim, then release to launch your ball into high-speed physics action. Power correlates to your drag distance.
-              The next turn starts <span className="text-amber-500 font-semibold font-bold">only when BOTH balls have come to a complete stop</span>.
+              The next turn starts <span className="text-emerald-500 font-semibold font-bold">only when BOTH balls have come to a complete stop</span>.
             </p>
           </div>
 
@@ -66,8 +66,8 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
               </ul>
             </div>
 
-            <div className="p-4 rounded-xl bg-amber-950/25 border border-amber-500/20">
-              <h4 className="flex items-center gap-2 text-amber-400 font-semibold tracking-wider mb-2 uppercase">
+            <div className="p-4 rounded-xl bg-emerald-950/25 border border-emerald-500/20">
+              <h4 className="flex items-center gap-2 text-emerald-400 font-semibold tracking-wider mb-2 uppercase">
                 <Eye className="w-4 h-4" /> Runner Ability
               </h4>
               <ul className="list-disc list-inside space-y-1 text-xs text-neutral-400">
@@ -79,7 +79,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
 
           {/* Grid of Terrains */}
           <div>
-            <h3 className="text-amber-400 font-medium tracking-wider mb-2 text-base uppercase">
+            <h3 className="text-emerald-400 font-medium tracking-wider mb-2 text-base uppercase">
               Terrain
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -91,37 +91,45 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
                 <div className="text-cyan-400 font-semibold tracking-wider text-xs uppercase mb-1">Ice (Fast)</div>
                 <div className="text-xs text-neutral-400">Glide effortlessly! Velocity loses only <span className="text-cyan-400">1%</span> per frame, generating infinite speed.</div>
               </div>
-              <div className="p-3 bg-neutral-900 border border-amber-500/20 rounded-lg">
-                <div className="text-amber-400 font-semibold tracking-wider text-xs uppercase mb-1 font-bold">Bumper (Boost)</div>
-                <div className="text-xs text-neutral-400">Booster hazards of <span className="text-amber-400 font-bold">1.4x bounciness</span>. Hits supply sudden vertical launch velocity!</div>
+              <div className="p-3 bg-neutral-900 border border-emerald-500/20 rounded-lg">
+                <div className="text-emerald-400 font-semibold tracking-wider text-xs uppercase mb-1 font-bold">Bumper (Boost)</div>
+                <div className="text-xs text-neutral-400">Booster hazards of <span className="text-emerald-400 font-bold">1.4x bounciness</span>. Hits supply sudden vertical launch velocity!</div>
               </div>
             </div>
           </div>
 
-          {/* Seeker Power-Up System */}
+          {/* Chaser Power-Up System */}
           <div>
-            <h3 className="flex items-center gap-2 text-amber-400 font-medium tracking-wider mb-2 text-base uppercase">
+            <h3 className="flex items-center gap-2 text-emerald-400 font-medium tracking-wider mb-2 text-base uppercase">
               <Award className="w-4 h-4" /> Chaser Power-ups
             </h3>
             <p className="mb-3 text-xs text-neutral-400">
-              A glowing cyan Orb coordinates dynamically in neutral zones. Collection gives the Chaser immediate, single-use, turn-exclusive technological advancements:
+              A glowing orb appears on the map. Collection gives the Chaser a single-use ability for the current turn:
             </p>
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-2.5 rounded bg-neutral-900 border border-blue-500/25">
-                <span className="text-xs font-semibold text-blue-400 uppercase block">1. Laser Sight</span>
-                <span className="text-xs text-zinc-400">Extends the slingshot predictive path trajectory by 2.5x for long range snipes.</span>
+              <div className="p-2.5 rounded bg-neutral-900 border border-yellow-500/25">
+                <span className="text-xs font-semibold text-yellow-400 uppercase block">Iron Ball</span>
+                <span className="text-xs text-zinc-400">Massive weight — plows through sand completely unaffected.</span>
               </div>
               <div className="p-2.5 rounded bg-neutral-900 border border-fuchsia-500/25">
-                <span className="text-xs font-semibold text-fuchsia-400 uppercase block">2. Superball</span>
-                <span className="text-xs text-zinc-400">Fling rebounds bounce off border walls and hazards with 2x intensity!</span>
+                <span className="text-xs font-semibold text-fuchsia-400 uppercase block">Superball</span>
+                <span className="text-xs text-zinc-400">Rebounds off walls and hazards with 2x bounce intensity.</span>
               </div>
-              <div className="p-2.5 rounded bg-neutral-900 border border-orange-500/25">
-                <span className="text-xs font-semibold text-orange-400 uppercase block">3. Iron Ball</span>
-                <span className="text-xs text-zinc-400">Gain massive virtual weight, plowing through slow sand completely unaffected.</span>
+              <div className="p-2.5 rounded bg-neutral-900 border border-rose-500/25">
+                <span className="text-xs font-semibold text-rose-400 uppercase block">Rocket Burst</span>
+                <span className="text-xs text-zinc-400">Next fling launches at 3x speed — close the gap instantly.</span>
               </div>
-              <div className="p-2.5 rounded bg-neutral-900 border border-purple-500/25">
-                <span className="text-xs font-semibold text-purple-400 uppercase block">4. Sonar Pulse</span>
-                <span className="text-xs text-zinc-400">Fades the fog, revealing the Runner's position!</span>
+              <div className="p-2.5 rounded bg-neutral-900 border border-violet-500/25">
+                <span className="text-xs font-semibold text-violet-400 uppercase block">Gravity Well</span>
+                <span className="text-xs text-zinc-400">Pulls the Runner toward you for the rest of the round.</span>
+              </div>
+              <div className="p-2.5 rounded bg-neutral-900 border border-red-500/25">
+                <span className="text-xs font-semibold text-red-400 uppercase block">Vampire</span>
+                <span className="text-xs text-zinc-400">Tagging the Runner steals 1 extra point from their score.</span>
+              </div>
+              <div className="p-2.5 rounded bg-neutral-900 border border-amber-500/25">
+                <span className="text-xs font-semibold text-amber-400 uppercase block">EMP</span>
+                <span className="text-xs text-zinc-400">Hit a bumper to freeze the Runner in place for 1.5 seconds.</span>
               </div>
             </div>
           </div>
@@ -129,11 +137,11 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="mt-6 pt-4 border-t border-amber-500/20 flex justify-end">
+        <div className="mt-6 pt-4 border-t border-emerald-500/20 flex justify-end">
           <button
             onClick={onClose}
             id="btn-close-help-footer"
-            className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-neutral-950 font-bold tracking-wider text-xs uppercase rounded transition-colors uppercase cursor-pointer"
+            className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-neutral-950 font-bold tracking-wider text-xs uppercase rounded transition-colors uppercase cursor-pointer"
           >
             Got It
           </button>
