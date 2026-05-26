@@ -30,15 +30,18 @@ import {
   HAZARD_BUMPER_CLEAR,
   ORB_RADIUS,
   ORB_SPAWN_RANGE,
+  ORB_COUNT_MIN,
+  ORB_COUNT_MAX,
 } from '../constants';
 import { NeonBumper, HazardPatch, PowerUpOrb, PowerUpType, PlayerBall, PlayerRole } from '../types';
+import { getRandomTemplate } from './templates';
 
 export interface GeneratedMap {
   hider: PlayerBall;
   seeker: PlayerBall;
   bumpers: NeonBumper[];
   hazards: HazardPatch[];
-  orb: PowerUpOrb;
+  orbs: PowerUpOrb[];
 }
 
 const BUMPER_COLORS = ['#ff0055', '#ff00aa', '#00f0ff', '#e0ffff'];
@@ -72,123 +75,75 @@ export function generateMap(
     name: seekerName,
   };
 
-  // --- Bumpers ---
+  // Pick a map template
+  const template = getRandomTemplate(isSuddenDeath);
+
+  // --- Bumpers (from template) ---
   const bumpers: NeonBumper[] = [];
-  const numBumpers = isSuddenDeath ? BUMPER_COUNT_SD : BUMPER_COUNT_NORMAL;
-  let tries = 0;
-
-  while (bumpers.length < numBumpers && tries < 100) {
-    tries++;
-    let bx = BUMPER_SPAWN_CLEAR / 2 + Math.random() * (mapWidth - BUMPER_SPAWN_CLEAR);
-    let by = BUMPER_SPAWN_CLEAR / 2 + Math.random() * (mapHeight - BUMPER_SPAWN_CLEAR);
-
-    // Bias early bumpers near center-corridor
-    if (tries < 40 && bumpers.length < 3) {
-      bx = (mapWidth / 2) + (Math.random() - 0.5) * (mapWidth * 0.42);
-      by = (mapHeight / 2) + (Math.random() - 0.5) * (mapHeight * 0.42);
-    }
-
-    // Clear from player spawns
-    const distH = Math.hypot(bx - hider.x, by - hider.y);
-    const distS = Math.hypot(bx - seeker.x, by - seeker.y);
-    if (distH < BUMPER_SPAWN_CLEAR || distS < BUMPER_SPAWN_CLEAR) continue;
-
-    // Avoid bunching
-    let tooClose = false;
-    for (const b of bumpers) {
-      if (Math.hypot(bx - b.x, by - b.y) < BUMPER_MIN_SEP) tooClose = true;
-    }
-    if (tooClose) continue;
-
+  for (let i = 0; i < template.bumpers.length; i++) {
+    const bp = template.bumpers[i];
     bumpers.push({
-      id: `bumper-${bumpers.length}`,
-      x: bx,
-      y: by,
+      id: `bumper-${i}`,
+      x: bp.x,
+      y: bp.y,
       radius: BUMPER_MIN_RADIUS + Math.random() * BUMPER_RADIUS_VAR,
-      color: bumpers.length < BUMPER_COLORS.length ? BUMPER_COLORS[bumpers.length] : BUMPER_COLORS[bumpers.length % BUMPER_COLORS.length],
+      color: i < BUMPER_COLORS.length ? BUMPER_COLORS[i] : BUMPER_COLORS[i % BUMPER_COLORS.length],
       pulseTimer: 0,
     });
   }
 
-  // --- Hazards (sand + ice) ---
+  // --- Hazards (from template) ---
   const hazards: HazardPatch[] = [];
   if (!isSuddenDeath) {
-    // Sand
     let sandCount = 0;
-    tries = 0;
-    while (sandCount < SAND_COUNT && tries < 150) {
-      tries++;
-      const sx = HAZARD_SPAWN_CLEAR / 2 + Math.random() * (mapWidth - HAZARD_SPAWN_CLEAR);
-      const sy = HAZARD_SPAWN_CLEAR / 2 + Math.random() * (mapHeight - HAZARD_SPAWN_CLEAR);
-
-      const distH = Math.hypot(sx - hider.x, sy - hider.y);
-      const distS = Math.hypot(sx - seeker.x, sy - seeker.y);
-      if (distH < HAZARD_SPAWN_CLEAR || distS < HAZARD_SPAWN_CLEAR) continue;
-
-      let overlap = false;
-      for (const b of bumpers) {
-        if (Math.hypot(sx - b.x, sy - b.y) < b.radius + HAZARD_BUMPER_CLEAR) overlap = true;
-      }
-      for (const h of hazards) {
-        if (Math.hypot(sx - h.x, sy - h.y) < HAZARD_MIN_SEP) overlap = true;
-      }
-      if (overlap) continue;
-
-      hazards.push({
-        id: `sand-${sandCount}`,
-        x: sx,
-        y: sy,
-        radius: SAND_MIN_RADIUS + Math.random() * SAND_RADIUS_VAR,
-        type: 'sand',
-      });
-      sandCount++;
-    }
-
-    // Ice — matches original spawn logic exactly
     let iceCount = 0;
-    tries = 0;
-    while (iceCount < ICE_COUNT && tries < 150) {
-      tries++;
-      const ix = 200 + Math.random() * (mapWidth - 400);
-      const iy = 200 + Math.random() * (mapHeight - 400);
-
-      const distH = Math.hypot(ix - hider.x, iy - hider.y);
-      const distS = Math.hypot(ix - seeker.x, iy - seeker.y);
-      if (distH < HAZARD_SPAWN_CLEAR || distS < HAZARD_SPAWN_CLEAR) continue;
-
-      let overlap = false;
-      for (const b of bumpers) {
-        if (Math.hypot(ix - b.x, iy - b.y) < b.radius + 100) overlap = true;
+    for (const hz of template.hazards) {
+      if (hz.type === 'sand') {
+        hazards.push({
+          id: `sand-${sandCount}`,
+          x: hz.x,
+          y: hz.y,
+          radius: SAND_MIN_RADIUS + Math.random() * SAND_RADIUS_VAR,
+          type: 'sand',
+        });
+        sandCount++;
+      } else {
+        hazards.push({
+          id: `ice-${iceCount}`,
+          x: hz.x,
+          y: hz.y,
+          radius: ICE_MIN_RADIUS + Math.random() * ICE_RADIUS_VAR,
+          type: 'ice',
+        });
+        iceCount++;
       }
-      for (const h of hazards) {
-        if (Math.hypot(ix - h.x, iy - h.y) < 200) overlap = true;
-      }
-      if (overlap) continue;
-
-      hazards.push({
-        id: `ice-${iceCount}`,
-        x: ix,
-        y: iy,
-        radius: ICE_MIN_RADIUS + Math.random() * ICE_RADIUS_VAR,
-        type: 'ice',
-      });
-      iceCount++;
     }
   }
 
-  // --- Power-Up Orb ---
-  const pTypes: PowerUpType[] = ['laser', 'superball', 'iron', 'sonar'];
-  const randomType = pTypes[Math.floor(Math.random() * pTypes.length)];
-  const orbRange = ORB_SPAWN_RANGE;
+  // --- Power-Up Orbs ---
+  const orbCount = isSuddenDeath ? 0 : ORB_COUNT_MIN + Math.floor(Math.random() * (ORB_COUNT_MAX - ORB_COUNT_MIN + 1));
+  const allTypes: PowerUpType[] = ['laser', 'superball', 'iron', 'sonar', 'cloak', 'magnet'];
+  const orbs: PowerUpOrb[] = [];
 
-  const orb: PowerUpOrb = {
-    x: isSuddenDeath ? -1000 : (mapWidth / 2) - orbRange + Math.random() * (orbRange * 2),
-    y: isSuddenDeath ? -1000 : (mapHeight / 2) - orbRange + Math.random() * (orbRange * 2),
-    radius: ORB_RADIUS,
-    type: randomType,
-    active: !isSuddenDeath,
-    pulseScale: 1,
-  };
+  for (let i = 0; i < orbCount; i++) {
+    const randomType = allTypes[Math.floor(Math.random() * allTypes.length)];
+    const orbRange = isSuddenDeath ? 0 : ORB_SPAWN_RANGE;
+    
+    // Distribute orbs across the map, not all at center
+    const regionX = (i / orbCount) * mapWidth;
+    const regionY = (i % 2 === 0) ? mapHeight * 0.3 : mapHeight * 0.7;
+    const ox = regionX + (Math.random() - 0.5) * orbRange * 1.5;
+    const oy = regionY + (Math.random() - 0.5) * orbRange * 1.5;
+    
+    orbs.push({
+      x: isSuddenDeath ? -1000 : Math.max(ORB_RADIUS + 10, Math.min(mapWidth - ORB_RADIUS - 10, ox)),
+      y: isSuddenDeath ? -1000 : Math.max(ORB_RADIUS + 10, Math.min(mapHeight - ORB_RADIUS - 10, oy)),
+      radius: ORB_RADIUS,
+      type: randomType,
+      active: !isSuddenDeath,
+      pulseScale: 1,
+    });
+  }
 
-  return { hider, seeker, bumpers, hazards, orb };
+  return { hider, seeker, bumpers, hazards, orbs };
 }

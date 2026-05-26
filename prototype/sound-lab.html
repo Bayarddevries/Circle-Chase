@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Turn Tag — Sound Lab</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #020502;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .container {
+      max-width: 700px;
+      width: 100%;
+      border: 1px solid rgba(255, 180, 50, 0.15);
+      border-radius: 1.5rem;
+      background: rgba(12, 14, 20, 0.95);
+      padding: 2.5rem;
+      box-shadow: 0 0 80px rgba(255, 180, 50, 0.04);
+    }
+    h1 {
+      font-size: 1.2rem;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      color: #ffb432;
+      text-align: center;
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+    }
+    .sub {
+      text-align: center;
+      font-size: 0.7rem;
+      color: #666;
+      letter-spacing: 3px;
+      margin-bottom: 2rem;
+      text-transform: uppercase;
+    }
+    .sound-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .sound-card {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 1.25rem 1.5rem;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 1rem;
+      transition: border-color 0.2s;
+    }
+    .sound-card:hover {
+      border-color: rgba(255, 180, 50, 0.2);
+    }
+    .sound-info {
+      flex: 1;
+    }
+    .sound-name {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #ffb432;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 0.2rem;
+    }
+    .sound-desc {
+      font-size: 0.7rem;
+      color: #888;
+      letter-spacing: 1px;
+    }
+    .play-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 2px solid #ffb432;
+      background: transparent;
+      color: #ffb432;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .play-btn:hover {
+      background: #ffb432;
+      color: #020502;
+    }
+    .play-btn:active {
+      transform: scale(0.92);
+    }
+    .play-btn.playing {
+      background: #ffb432;
+      color: #020502;
+      animation: pulse 0.4s ease-out;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 180, 50, 0.4); }
+      100% { box-shadow: 0 0 0 15px rgba(255, 180, 50, 0); }
+    }
+    .drone-card {
+      margin-top: 1.5rem;
+      padding: 1.25rem 1.5rem;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255, 180, 50, 0.15);
+      border-radius: 1rem;
+    }
+    .drone-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+    .drone-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #ffb432;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    .drone-sub {
+      font-size: 0.65rem;
+      color: #666;
+      letter-spacing: 1px;
+    }
+    .drone-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .drone-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: #333;
+      outline: none;
+      cursor: pointer;
+    }
+    .drone-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #ffb432;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .drone-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+    .drone-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #ffb432;
+      border: none;
+      cursor: pointer;
+    }
+    .drone-label {
+      font-size: 0.65rem;
+      color: #555;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      min-width: 3rem;
+      text-align: center;
+    }
+    .drone-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .drone-bar {
+      width: 80px;
+      height: 4px;
+      border-radius: 2px;
+      background: #222;
+      overflow: hidden;
+    }
+    .drone-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #333, #ff6600, #ff2222);
+      transition: width 0.1s;
+      width: 0%;
+    }
+    .drone-toggle {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 2px solid #555;
+      background: transparent;
+      color: #888;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .drone-toggle.active {
+      border-color: #ff6600;
+      color: #ff6600;
+      background: rgba(255, 102, 0, 0.08);
+      box-shadow: 0 0 20px rgba(255, 102, 0, 0.1);
+    }
+    .master {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(255, 180, 50, 0.08);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+    }
+    .init-btn {
+      padding: 0.6rem 2rem;
+      border: 1px solid #ffb432;
+      border-radius: 2rem;
+      background: transparent;
+      color: #ffb432;
+      font-family: inherit;
+      font-size: 0.7rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 600;
+    }
+    .init-btn:hover {
+      background: #ffb432;
+      color: #020502;
+    }
+    .init-btn.initiated {
+      background: rgba(0, 200, 83, 0.15);
+      border-color: #00c853;
+      color: #00c853;
+      pointer-events: none;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #555;
+      transition: all 0.3s;
+    }
+    .status-dot.active { background: #00c853; box-shadow: 0 0 8px rgba(0, 200, 83, 0.4); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>◆ Sound Lab</h1>
+    <p class="sub">Turn Tag — Phase 3 Prototype</p>
+
+    <div class="sound-grid">
+      <div class="sound-card">
+        <div class="sound-info">
+          <div class="sound-name">Slingshot Launch</div>
+          <div class="sound-desc">Rubber band snap + air whoosh</div>
+        </div>
+        <button class="play-btn" data-sound="launch">▶</button>
+      </div>
+
+      <div class="sound-card">
+        <div class="sound-info">
+          <div class="sound-name">Bumper Hit</div>
+          <div class="sound-desc">Metallic spring recoil "boing"</div>
+        </div>
+        <button class="play-btn" data-sound="bumper">▶</button>
+      </div>
+
+      <div class="sound-card">
+        <div class="sound-info">
+          <div class="sound-name">Tag / Impact</div>
+          <div class="sound-desc">Heavy tackle — sub-boom + crunch</div>
+        </div>
+        <button class="play-btn" data-sound="tag">▶</button>
+      </div>
+
+      <div class="sound-card">
+        <div class="sound-info">
+          <div class="sound-name">Orb Collect</div>
+          <div class="sound-desc">Glass / crystal shatter chime</div>
+        </div>
+        <button class="play-btn" data-sound="orb">▶</button>
+      </div>
+
+      <div class="sound-card">
+        <div class="sound-info">
+          <div class="sound-name">Near Miss</div>
+          <div class="sound-desc">Sharp air snap — missing by inches</div>
+        </div>
+        <button class="play-btn" data-sound="nearmiss">▶</button>
+      </div>
+    </div>
+
+    <div class="drone-card">
+      <div class="drone-header">
+        <div>
+          <div class="drone-title">◆ Proximity Drone</div>
+          <div class="drone-sub">Chaser distance → tension layer</div>
+        </div>
+        <div class="drone-indicator">
+          <span class="drone-label" id="drone-dist-label">FAR</span>
+          <div class="drone-bar">
+            <div class="drone-bar-fill" id="drone-bar-fill"></div>
+          </div>
+        </div>
+      </div>
+      <div class="drone-controls">
+        <span class="drone-label">Far</span>
+        <input type="range" class="drone-slider" id="drone-slider" min="0" max="100" value="0">
+        <span class="drone-label">Close</span>
+        <button class="drone-toggle" id="drone-toggle">▶</button>
+      </div>
+    </div>
+
+    <div class="master">
+      <span class="status-dot" id="status-dot"></span>
+      <button class="init-btn" id="init-btn">Initialize Audio</button>
+    </div>
+  </div>
+
+  <script>
+    // ── Audio Engine ──────────────────────────────────────────────
+    let ctx = null;
+
+    function resume() {
+      if (ctx) return;
+      ctx = new AudioContext();
+      document.getElementById('init-btn').classList.add('initiated');
+      document.getElementById('init-btn').textContent = 'Ready';
+      document.getElementById('status-dot').classList.add('active');
+    }
+
+    // Master gain
+    let master = null;
+    function getMaster() {
+      if (!master) {
+        master = ctx.createGain();
+        master.gain.value = 0.45;
+        master.connect(ctx.destination);
+      }
+      return master;
+    }
+
+    // Simple reverb — single feedback delay
+    function createReverb(ms, mix) {
+      const delay = ctx.createDelay(1);
+      delay.delayTime.value = ms / 1000;
+      const feedback = ctx.createGain();
+      feedback.gain.value = mix;
+      const wet = ctx.createGain();
+      wet.gain.value = 0.35;
+      delay.connect(feedback);
+      feedback.connect(delay);
+      delay.connect(wet);
+      return { delay, feedback, wet };
+    }
+
+    // Utility: noise buffer (pink noise via Voss-McCartney)
+    function pinkNoise(ctx, duration) {
+      const sr = ctx.sampleRate;
+      const len = Math.floor(sr * duration);
+      const buffer = ctx.createBuffer(1, len, sr);
+      const data = buffer.getChannelData(0);
+      // Pink noise: Voss-McCartney with 8 generators
+      let sum = 0;
+      const coeffs = [0, 0, 0, 0, 0, 0, 0, 0];
+      for (let i = 0; i < len; i++) {
+        const mask = i & -i;
+        for (let j = 0; j < 8; j++) {
+          if ((mask >> j) & 1) {
+            coeffs[j] = Math.random() * 2 - 1;
+          }
+          sum += coeffs[j];
+        }
+        data[i] = sum * 0.04;
+      }
+      return buffer;
+    }
+
+    function brownNoise(ctx, duration) {
+      const sr = ctx.sampleRate;
+      const len = Math.floor(sr * duration);
+      const buffer = ctx.createBuffer(1, len, sr);
+      const data = buffer.getChannelData(0);
+      let val = 0;
+      for (let i = 0; i < len; i++) {
+        val += (Math.random() * 2 - 1) * 0.04;
+        val = Math.max(-1, Math.min(1, val));
+        data[i] = val;
+      }
+      return buffer;
+    }
+
+    // ── Sound builders ────────────────────────────────────────────
+
+    function playLaunch() {
+      const m = getMaster();
+
+      // 1. Rubber band snap — fast sine chirp
+      const snap = ctx.createOscillator();
+      const snapGain = ctx.createGain();
+      snap.type = 'sawtooth';
+      snap.frequency.setValueAtTime(150, ctx.currentTime);
+      snap.frequency.exponentialRampToValueAtTime(1800, ctx.currentTime + 0.08);
+      snapGain.gain.setValueAtTime(0.25, ctx.currentTime);
+      snapGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+      snap.connect(snapGain).connect(m);
+      snap.start(ctx.currentTime);
+      snap.stop(ctx.currentTime + 0.15);
+
+      // 2. Air whoosh — filtered noise burst
+      const whoosh = ctx.createBufferSource();
+      whoosh.buffer = pinkNoise(ctx, 0.2);
+      const whooshFilter = ctx.createBiquadFilter();
+      whooshFilter.type = 'bandpass';
+      whooshFilter.frequency.setValueAtTime(400, ctx.currentTime);
+      whooshFilter.frequency.exponentialRampToValueAtTime(2000, ctx.currentTime + 0.15);
+      whooshFilter.Q.value = 0.8;
+      const whooshGain = ctx.createGain();
+      whooshGain.gain.setValueAtTime(0.20, ctx.currentTime);
+      whooshGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+      whoosh.connect(whooshFilter).connect(whooshGain).connect(m);
+      whoosh.start(ctx.currentTime);
+      whoosh.stop(ctx.currentTime + 0.22);
+    }
+
+    function playBumper() {
+      const m = getMaster();
+
+      // 1. Metallic spring "boing" — sine with rapid pitch wobble + feedback delay
+      const boing = ctx.createOscillator();
+      const boingGain = ctx.createGain();
+      boing.type = 'sine';
+      boing.frequency.setValueAtTime(1200, ctx.currentTime);
+      boing.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.12);
+      boingGain.gain.setValueAtTime(0.30, ctx.currentTime);
+      boingGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+      boing.connect(boingGain);
+
+      // Add short delay for a springy feel
+      const delay = ctx.createDelay(0.1);
+      delay.delayTime.value = 0.04;
+      const fb = ctx.createGain();
+      fb.gain.value = 0.25;
+      boingGain.connect(delay);
+      delay.connect(fb);
+      fb.connect(delay);
+      delay.connect(m);
+      boingGain.connect(m);
+
+      boing.start(ctx.currentTime);
+      boing.stop(ctx.currentTime + 0.3);
+
+      // 2. Subtle metallic ping at harmonic
+      const ping = ctx.createOscillator();
+      const pingGain = ctx.createGain();
+      ping.type = 'triangle';
+      ping.frequency.setValueAtTime(2400, ctx.currentTime);
+      ping.frequency.exponentialRampToValueAtTime(1800, ctx.currentTime + 0.06);
+      pingGain.gain.setValueAtTime(0.10, ctx.currentTime);
+      pingGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      ping.connect(pingGain).connect(m);
+      ping.start(ctx.currentTime + 0.02);
+      ping.stop(ctx.currentTime + 0.12);
+    }
+
+    function playTag() {
+      const m = getMaster();
+
+      // 1. Sharp crack / snap — very short white noise burst
+      const crack = ctx.createBufferSource();
+      const sr = ctx.sampleRate;
+      const crackLen = Math.floor(sr * 0.03);
+      const crackBuf = ctx.createBuffer(1, crackLen, sr);
+      const crackData = crackBuf.getChannelData(0);
+      for (let i = 0; i < crackLen; i++) {
+        crackData[i] = (Math.random() * 2 - 1) * (1 - i / crackLen);
+      }
+      crack.buffer = crackBuf;
+      const crackHP = ctx.createBiquadFilter();
+      crackHP.type = 'highpass';
+      crackHP.frequency.value = 2000;
+      const crackGain = ctx.createGain();
+      crackGain.gain.setValueAtTime(0.50, ctx.currentTime);
+      crackGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+      crack.connect(crackHP).connect(crackGain).connect(m);
+      crack.start(ctx.currentTime);
+      crack.stop(ctx.currentTime + 0.05);
+
+      // 2. Deep sub-boom — 60Hz sine with aggressive attack
+      const boom = ctx.createOscillator();
+      const boomGain = ctx.createGain();
+      boom.type = 'sine';
+      boom.frequency.setValueAtTime(100, ctx.currentTime);
+      boom.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.6);
+      boomGain.gain.setValueAtTime(0.70, ctx.currentTime);
+      boomGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+      boom.connect(boomGain).connect(m);
+      boom.start(ctx.currentTime);
+      boom.stop(ctx.currentTime + 0.85);
+
+      // 3. Mid impact punch — triangle thwack
+      const punch = ctx.createOscillator();
+      const punchGain = ctx.createGain();
+      punch.type = 'triangle';
+      punch.frequency.setValueAtTime(250, ctx.currentTime);
+      punch.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.2);
+      punchGain.gain.setValueAtTime(0.40, ctx.currentTime);
+      punchGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      punch.connect(punchGain).connect(m);
+      punch.start(ctx.currentTime);
+      punch.stop(ctx.currentTime + 0.3);
+
+      // 4. Explosive debris — brown noise crunch (wider, more aggressive)
+      const crunch = ctx.createBufferSource();
+      crunch.buffer = brownNoise(ctx, 0.5);
+      const crunchLP = ctx.createBiquadFilter();
+      crunchLP.type = 'lowpass';
+      crunchLP.frequency.setValueAtTime(1200, ctx.currentTime);
+      crunchLP.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.3);
+      const crunchGain = ctx.createGain();
+      crunchGain.gain.setValueAtTime(0.45, ctx.currentTime);
+      crunchGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      crunch.connect(crunchLP).connect(crunchGain).connect(m);
+      crunch.start(ctx.currentTime);
+      crunch.stop(ctx.currentTime + 0.55);
+
+      // 5. Rumble tail — low brown noise that lingers
+      const rumble = ctx.createBufferSource();
+      rumble.buffer = brownNoise(ctx, 0.9);
+      const rumbleLP = ctx.createBiquadFilter();
+      rumbleLP.type = 'lowpass';
+      rumbleLP.frequency.value = 120;
+      const rumbleGain = ctx.createGain();
+      rumbleGain.gain.setValueAtTime(0.15, ctx.currentTime + 0.1);
+      rumbleGain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.3);
+      rumbleGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.9);
+      rumble.connect(rumbleLP).connect(rumbleGain).connect(m);
+      rumble.start(ctx.currentTime + 0.05);
+      rumble.stop(ctx.currentTime + 0.95);
+    }
+
+    function playOrb() {
+      const m = getMaster();
+
+      // Crystal chime — 3 harmonic tones with staccato decay
+      const harmonics = [880, 1320, 1760];
+      harmonics.forEach((freq, i) => {
+        const tone = ctx.createOscillator();
+        const gain = ctx.createGain();
+        tone.type = 'sine';
+        const start = ctx.currentTime + i * 0.06;
+        tone.frequency.setValueAtTime(freq, start);
+        // Slight detune on third for sparkle
+        if (i === 2) tone.detune.setValueAtTime(10, start);
+        gain.gain.setValueAtTime(0.20, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.2);
+        tone.connect(gain).connect(m);
+        tone.start(start);
+        tone.stop(start + 0.25);
+      });
+
+      // High sparkle — fast sine burst
+      const spark = ctx.createOscillator();
+      const sparkGain = ctx.createGain();
+      spark.type = 'sine';
+      spark.frequency.setValueAtTime(4000, ctx.currentTime);
+      sparkGain.gain.setValueAtTime(0.10, ctx.currentTime);
+      sparkGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      spark.connect(sparkGain).connect(m);
+      spark.start(ctx.currentTime);
+      spark.stop(ctx.currentTime + 0.1);
+    }
+
+    function playNearMiss() {
+      const m = getMaster();
+
+      // 1. Sharp air snap — fast filtered noise burst with sweep
+      const snap = ctx.createBufferSource();
+      snap.buffer = pinkNoise(ctx, 0.1);
+      const snapFilter = ctx.createBiquadFilter();
+      snapFilter.type = 'bandpass';
+      snapFilter.frequency.setValueAtTime(3000, ctx.currentTime);
+      snapFilter.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.08);
+      snapFilter.Q.value = 3;
+      const snapGain = ctx.createGain();
+      snapGain.gain.setValueAtTime(0.20, ctx.currentTime);
+      snapGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+      snap.connect(snapFilter).connect(snapGain).connect(m);
+      snap.start(ctx.currentTime);
+      snap.stop(ctx.currentTime + 0.12);
+
+      // 2. Low "buzz" — short sub feeling
+      const buzz = ctx.createOscillator();
+      const buzzGain = ctx.createGain();
+      buzz.type = 'sawtooth';
+      buzz.frequency.setValueAtTime(100, ctx.currentTime);
+      buzz.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.06);
+      buzzGain.gain.setValueAtTime(0.12, ctx.currentTime);
+      buzzGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      buzz.connect(buzzGain).connect(m);
+      buzz.start(ctx.currentTime);
+      buzz.stop(ctx.currentTime + 0.1);
+    }
+
+    // ── UI wiring ────────────────────────────────────────────────
+
+    const soundMap = {
+      launch: playLaunch,
+      bumper: playBumper,
+      tag: playTag,
+      orb: playOrb,
+      nearmiss: playNearMiss,
+    };
+
+    document.getElementById('init-btn').addEventListener('click', resume);
+
+    document.querySelectorAll('.play-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        if (!ctx) { resume(); }
+        if (ctx && ctx.state === 'suspended') { ctx.resume(); }
+        const sound = btn.dataset.sound;
+        if (soundMap[sound]) {
+          soundMap[sound]();
+          btn.classList.add('playing');
+          setTimeout(() => btn.classList.remove('playing'), 300);
+        }
+      });
+    });
+
+    // ── Proximity Drone ──────────────────────────────────────────
+    let droneState = {
+      running: false,
+      nodes: null,
+      distance: 0, // 0 = far, 1 = close
+    };
+
+    function droneGainAt(dist) {
+      // Exponential curve: silent at far, audible at close
+      return Math.pow(dist, 2.5) * 0.18;
+    }
+
+    function droneFreqAt(dist) {
+      // Filter cutoff: low and rumbly at far, higher and present at close
+      return 50 + dist * dist * 350;
+    }
+
+    function startDrone() {
+      if (!ctx) resume();
+      if (droneState.running) return;
+
+      // Brown noise source (looping)
+      const sr = ctx.sampleRate;
+      const bufLen = sr * 2; // 2 second buffer
+      const buf = ctx.createBuffer(1, bufLen, sr);
+      const data = buf.getChannelData(0);
+      let val = 0;
+      for (let i = 0; i < bufLen; i++) {
+        val += (Math.random() * 2 - 1) * 0.04;
+        val = Math.max(-1, Math.min(1, val));
+        data[i] = val;
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = buf;
+      noise.loop = true;
+
+      // Lowpass filter — modulated by distance
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      const dist = droneState.distance;
+      filter.frequency.value = droneFreqAt(dist);
+      filter.Q.value = 1.5;
+
+      // Gain — modulated by distance
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+
+      // Smooth attack
+      const targetGain = droneGainAt(dist);
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(targetGain, ctx.currentTime + 0.5);
+
+      // Optional sub-oscillator for weight
+      const sub = ctx.createOscillator();
+      sub.type = 'sine';
+      sub.frequency.value = 40;
+      const subGain = ctx.createGain();
+      subGain.gain.setValueAtTime(0, ctx.currentTime);
+      subGain.gain.linearRampToValueAtTime(dist * 0.08 * 0.6, ctx.currentTime + 0.5);
+      const subFilter = ctx.createBiquadFilter();
+      subFilter.type = 'lowpass';
+      subFilter.frequency.value = 100;
+
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      sub.connect(subFilter);
+      subFilter.connect(subGain);
+      subGain.connect(ctx.destination);
+
+      noise.start(ctx.currentTime);
+      sub.start(ctx.currentTime);
+
+      droneState.running = true;
+      droneState.nodes = { noise, filter, gain, sub, subGain, subFilter };
+    }
+
+    function updateDrone(dist) {
+      droneState.distance = dist;
+      if (!droneState.running || !droneState.nodes) return;
+      const { filter, gain, subGain } = droneState.nodes;
+      const now = ctx.currentTime;
+      filter.frequency.linearRampToValueAtTime(droneFreqAt(dist), now + 0.15);
+      const targetGain = droneGainAt(dist);
+      gain.gain.linearRampToValueAtTime(targetGain, now + 0.15);
+      if (subGain) {
+        subGain.gain.linearRampToValueAtTime(dist * 0.08, now + 0.15);
+      }
+    }
+
+    function stopDrone() {
+      if (!droneState.running || !droneState.nodes) return;
+      const { noise, gain, sub, subGain } = droneState.nodes;
+      const now = ctx.currentTime;
+      gain.gain.linearRampToValueAtTime(0, now + 0.3);
+      if (subGain) subGain.gain.linearRampToValueAtTime(0, now + 0.3);
+      // Stop after fade out
+      noise.stop(now + 0.35);
+      sub.stop(now + 0.35);
+      droneState.running = false;
+      droneState.nodes = null;
+    }
+
+    // ── Drone UI ─────────────────────────────────────────────────
+    const droneToggle = document.getElementById('drone-toggle');
+    const droneSlider = document.getElementById('drone-slider');
+    const droneDistLabel = document.getElementById('drone-dist-label');
+    const droneBarFill = document.getElementById('drone-bar-fill');
+
+    droneToggle.addEventListener('click', () => {
+      if (!ctx) resume();
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+
+      if (droneState.running) {
+        stopDrone();
+        droneToggle.classList.remove('active');
+        droneToggle.textContent = '▶';
+      } else {
+        startDrone();
+        droneToggle.classList.add('active');
+        droneToggle.textContent = '■';
+      }
+    });
+
+    droneSlider.addEventListener('input', () => {
+      const val = parseInt(droneSlider.value) / 100; // 0..1
+      updateDrone(val);
+
+      // Update labels
+      const barPct = val * 100;
+      droneBarFill.style.width = barPct + '%';
+      if (val < 0.2) droneDistLabel.textContent = 'FAR';
+      else if (val < 0.4) droneDistLabel.textContent = 'DISTANT';
+      else if (val < 0.6) droneDistLabel.textContent = 'NEARING';
+      else if (val < 0.8) droneDistLabel.textContent = 'CLOSING';
+      else droneDistLabel.textContent = 'CLOSE!';
+
+      // If drone is running, update in real-time
+      // (updateDrone already handles this)
+    });
+  </script>
+</body>
+</html>

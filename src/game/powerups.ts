@@ -25,14 +25,25 @@ export function drawOrb(
 ): void {
   if (!orb.active || isSuddenDeath) return;
 
+  const typeColor: Record<string, string> = {
+    laser: '#ef4444',
+    superball: '#22c55e',
+    iron: '#6b7280',
+    sonar: '#22d3ee',
+    cloak: '#a855f7',
+    magnet: '#eab308',
+  };
+
+  const color = typeColor[orb.type] || '#22d3ee';
+
   ctx.save();
   ctx.shadowBlur = 16;
-  ctx.shadowColor = '#22d3ee';
+  ctx.shadowColor = color;
 
   // Outer pulse ring
   ctx.beginPath();
   ctx.arc(orb.x, orb.y, orb.radius * orb.pulseScale, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(34, 211, 238, 0.45)';
+  ctx.strokeStyle = `rgba(${hexToRgb(color)}, 0.45)`;
   ctx.lineWidth = 2.5;
   ctx.stroke();
 
@@ -41,16 +52,22 @@ export function drawOrb(
   ctx.arc(orb.x, orb.y, orb.radius * 0.65, 0, Math.PI * 2);
   ctx.fillStyle = '#ffffff';
   ctx.fill();
-  ctx.strokeStyle = '#22d3ee';
+  ctx.strokeStyle = color;
   ctx.lineWidth = 3.5;
   ctx.stroke();
 
   // Label
   ctx.shadowBlur = 0;
-  ctx.fillStyle = '#22d3ee';
+  ctx.fillStyle = color;
   ctx.font = '9px monospace';
   ctx.textAlign = 'center';
   ctx.fillText(orb.type.toUpperCase(), orb.x, orb.y - orb.radius - 8);
 
   ctx.restore();
+}
+
+function hexToRgb(hex: string): string {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return '34, 211, 238';
+  return `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}`;
 }

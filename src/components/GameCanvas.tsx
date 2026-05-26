@@ -267,14 +267,7 @@ export function GameCanvas({
   // Entities
   const bumpersRef = useRef<NeonBumper[]>([]);
   const hazardsRef = useRef<HazardPatch[]>([]);
-  const orbRef = useRef<PowerUpOrb>({
-    x: 1000,
-    y: 750,
-    radius: 18,
-    type: 'laser',
-    active: true,
-    pulseScale: 1,
-  });
+  const orbsRef = useRef<PowerUpOrb[]>([]);
 
   // FX systems
   const particlesRef = useRef<Particle[]>([]);
@@ -317,7 +310,7 @@ export function GameCanvas({
     seekerBallRef.current = map.seeker;
     bumpersRef.current = map.bumpers;
     hazardsRef.current = map.hazards;
-    orbRef.current = map.orb;
+    orbsRef.current = map.orbs;
 
     // Reset systems
     particlesRef.current = [];
@@ -422,7 +415,7 @@ export function GameCanvas({
           seeker: seekerBallRef.current,
           bumpers: bumpersRef.current,
           hazards: hazardsRef.current,
-          orb: orbRef.current,
+          orbs: orbsRef.current,
           slowMotionRef,
           activePowerUp,
           shakeAmtRef,
@@ -585,7 +578,9 @@ export function GameCanvas({
       }
 
       // Update orb pulse
-      updateOrbPulse(orbRef.current, _time);
+      for (const orb of orbsRef.current) {
+        updateOrbPulse(orb, _time);
+      }
 
       // --- Accumulate ball trails ---
       updateTrail(hiderTrailRef.current, hiderBallRef.current.x, hiderBallRef.current.y, hiderBallRef.current.vx, hiderBallRef.current.vy);
@@ -829,7 +824,7 @@ export function GameCanvas({
     const seeker = seekerBallRef.current;
     const bumpers = bumpersRef.current;
     const hazards = hazardsRef.current;
-    const orb = orbRef.current;
+    const orbs = orbsRef.current;
     const particles = particlesRef.current;
     const pings = sonarPingsRef.current;
 
@@ -936,8 +931,10 @@ export function GameCanvas({
     // --- DRAW TERRAIN HAZARDS ---
     drawHazards(ctx, hazards);
 
-    // --- DRAW POWER-UP ORB ---
-    drawOrb(ctx, orb, isSuddenDeath);
+    // --- DRAW POWER-UP ORBS ---
+    for (const orb of orbs) {
+      drawOrb(ctx, orb, isSuddenDeath);
+    }
 
     // --- DRAW SONAR PINGS ---
     drawSonarPings(ctx, pings);
@@ -1019,7 +1016,7 @@ export function GameCanvas({
       hider.x, hider.y,
       seeker.x, seeker.y,
       hazards, bumpers,
-      orb.x, orb.y, orb.active,
+      orbs,
       isSuddenDeath,
       shroudEnabled,
       hiderExplodedRef.current,

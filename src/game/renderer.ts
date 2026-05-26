@@ -107,7 +107,7 @@ export function drawShockwave(
   ctx.restore();
 }
 
-// ── Hider ball ───────────────────────────────────────
+// ── Tech-Neon Runner ball ────────────────────────────
 
 export function drawHiderBall(
   ctx: CanvasRenderingContext2D,
@@ -116,46 +116,127 @@ export function drawHiderBall(
   isHiderTurn: boolean,
   ballsMoving: boolean,
 ): void {
+  const { x, y, radius: r } = hider;
+  const t = performance.now() / 1000;
+  const breathe = 0.8 + 0.2 * Math.sin(t * 2);
+
   ctx.save();
+
+  // ── Outer glow bloom ──
+  for (let i = 4; i >= 1; i--) {
+    ctx.beginPath();
+    ctx.arc(x, y, r + i * 4, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(56, 189, 248, ${0.05 * i})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // ── Rotating dashed outer ring ──
+  const rot = -t * 0.5;
   ctx.beginPath();
-  ctx.arc(hider.x, hider.y, hider.radius, 0, Math.PI * 2);
-  ctx.fillStyle = '#f8fafc';
-  ctx.fill();
-  ctx.lineWidth = 4.5;
+  ctx.arc(x, y, r + 5, 0, Math.PI * 2);
   ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.45;
+  ctx.setLineDash([4, 6]);
+  ctx.lineDashOffset = rot;
+  ctx.shadowBlur = 14;
+  ctx.shadowColor = '#38bdf8';
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+
+  // ── Solid gradient body ──
+  const bodyGrad = ctx.createRadialGradient(x - 6, y - 8, 2, x, y, r);
+  bodyGrad.addColorStop(0, '#ffffff');
+  bodyGrad.addColorStop(0.2, '#e0f2fe');
+  bodyGrad.addColorStop(0.5, '#7dd3fc');
+  bodyGrad.addColorStop(0.8, '#38bdf8');
+  bodyGrad.addColorStop(1, '#0c4a6e');
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = bodyGrad;
+  ctx.fill();
+
+  // ── Solid edge boundary (opaque, know where to hit) ──
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = '#38bdf8';
+  ctx.shadowBlur = 0;
+  ctx.stroke();
+  // Glow pass on top
+  ctx.lineWidth = 3.5;
+  ctx.strokeStyle = '#7dd3fc';
   ctx.shadowBlur = 18;
   ctx.shadowColor = '#38bdf8';
   ctx.stroke();
-
-  // Letter
   ctx.shadowBlur = 0;
-  ctx.font = 'bold 12px monospace';
-  ctx.fillStyle = '#0f172a';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('H', hider.x, hider.y);
 
-  // Colorblind overlay
+  // ── Inner pulse glow ──
+  const inGrad = ctx.createRadialGradient(x, y, 0, x, y, r * 0.6);
+  inGrad.addColorStop(0, `rgba(255,255,255,${0.3 * breathe})`);
+  inGrad.addColorStop(0.5, `rgba(56,189,248,${0.08 * breathe})`);
+  inGrad.addColorStop(1, 'rgba(56,189,248,0)');
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.6, 0, Math.PI * 2);
+  ctx.fillStyle = inGrad;
+  ctx.shadowBlur = 14;
+  ctx.shadowColor = '#38bdf8';
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // ── Core dot ──
+  ctx.beginPath();
+  ctx.arc(x, y, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowBlur = 18;
+  ctx.shadowColor = '#ffffff';
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // ── Scanning arc ──
+  const arcAngle = t * 0.7;
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.7, arcAngle - 0.3, arcAngle + 0.05);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2.5;
+  ctx.globalAlpha = 0.3;
+  ctx.shadowBlur = 12;
+  ctx.shadowColor = '#7dd3fc';
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+
+  // ── Colorblind overlay (square) ──
   if (colorblindMode) {
-    const s = hider.radius * 0.7;
+    const s = r * 0.7;
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(hider.x - s, hider.y - s, s * 2, s * 2);
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(x - s, y - s, s * 2, s * 2);
   }
 
-  // Turn halo
+  // ── Turn halo (rotating dashed, only when active) ──
   if (isHiderTurn && !ballsMoving) {
+    const haloRot = t * 0.6;
     ctx.beginPath();
-    ctx.arc(hider.x, hider.y, hider.radius + 12, 0, Math.PI * 2);
+    ctx.arc(x, y, r + 14, 0, Math.PI * 2);
     ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2.5;
-    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.5;
+    ctx.setLineDash([3, 5]);
+    ctx.lineDashOffset = -haloRot;
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = '#38bdf8';
     ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
   }
+
   ctx.restore();
 }
 
-// ── Seeker ball ──────────────────────────────────────
+// ── Tech-Neon Chaser ball ────────────────────────────
 
 export function drawSeekerBall(
   ctx: CanvasRenderingContext2D,
@@ -164,15 +245,105 @@ export function drawSeekerBall(
   isSeekerTurn: boolean,
   ballsMoving: boolean,
 ): void {
+  const { x, y, radius: r } = seeker;
+  const t = performance.now() / 1000;
+  const breathe = 0.7 + 0.3 * Math.sin(t * 3);
+
   ctx.save();
 
-  // Colorblind triangle
+  // ── Outer glow bloom ──
+  for (let i = 4; i >= 1; i--) {
+    ctx.beginPath();
+    ctx.arc(x, y, r + i * 4, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(245, 158, 11, ${0.06 * i})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // ── Rotating dashed outer ring (faster) ──
+  const rot = -t * 0.7;
+  ctx.beginPath();
+  ctx.arc(x, y, r + 5, 0, Math.PI * 2);
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.5;
+  ctx.setLineDash([4, 6]);
+  ctx.lineDashOffset = rot;
+  ctx.shadowBlur = 16;
+  ctx.shadowColor = '#f59e0b';
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+
+  // ── Solid gradient body ──
+  const bodyGrad = ctx.createRadialGradient(x - 6, y - 8, 2, x, y, r);
+  bodyGrad.addColorStop(0, '#fef3c7');
+  bodyGrad.addColorStop(0.2, '#fde68a');
+  bodyGrad.addColorStop(0.5, '#f59e0b');
+  bodyGrad.addColorStop(0.8, '#d97706');
+  bodyGrad.addColorStop(1, '#7c2d12');
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = bodyGrad;
+  ctx.fill();
+
+  // ── Solid edge boundary (opaque, know where to hit) ──
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = '#d97706';
+  ctx.shadowBlur = 0;
+  ctx.stroke();
+  // Glow pass on top
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#f59e0b';
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = '#f59e0b';
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // ── Inner pulse glow ──
+  const inGrad = ctx.createRadialGradient(x, y, 0, x, y, r * 0.55);
+  inGrad.addColorStop(0, `rgba(255,255,255,${0.35 * breathe})`);
+  inGrad.addColorStop(0.4, `rgba(251,191,36,${0.12 * breathe})`);
+  inGrad.addColorStop(1, 'rgba(245,158,11,0)');
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.55, 0, Math.PI * 2);
+  ctx.fillStyle = inGrad;
+  ctx.shadowBlur = 14;
+  ctx.shadowColor = '#f59e0b';
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // ── Core dot ──
+  const coreSize = 5 * (0.8 + 0.2 * breathe);
+  ctx.beginPath();
+  ctx.arc(x, y, coreSize, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowBlur = 22;
+  ctx.shadowColor = '#fbbf24';
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // ── Targeting sweep arc ──
+  const sweepAngle = t * 1.0;
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.7, sweepAngle - 0.4, sweepAngle + 0.05);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 3;
+  ctx.globalAlpha = 0.35;
+  ctx.shadowBlur = 14;
+  ctx.shadowColor = '#fbbf24';
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+
+  // ── Colorblind overlay (triangle) ──
   if (colorblindMode) {
     ctx.beginPath();
     for (let i = 0; i < 3; i++) {
       const angle = (i / 3) * Math.PI * 2 - Math.PI / 2;
-      const sx = seeker.x + Math.cos(angle) * (seeker.radius + 6.5);
-      const sy = seeker.y + Math.sin(angle) * (seeker.radius + 6.5);
+      const sx = x + Math.cos(angle) * (r + 6.5);
+      const sy = y + Math.sin(angle) * (r + 6.5);
       if (i === 0) ctx.moveTo(sx, sy);
       else ctx.lineTo(sx, sy);
     }
@@ -182,34 +353,26 @@ export function drawSeekerBall(
     ctx.shadowBlur = 14;
     ctx.shadowColor = '#d97706';
     ctx.stroke();
+    ctx.shadowBlur = 0;
   }
 
-  ctx.beginPath();
-  ctx.arc(seeker.x, seeker.y, seeker.radius, 0, Math.PI * 2);
-  ctx.fillStyle = '#d97706';
-  ctx.fill();
-  ctx.lineWidth = 4.5;
-  ctx.strokeStyle = '#ea580c';
-  ctx.shadowBlur = 18;
-  ctx.shadowColor = '#d97706';
-  ctx.stroke();
-
-  // Letter
-  ctx.shadowBlur = 0;
-  ctx.font = 'bold 12px monospace';
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('S', seeker.x, seeker.y);
-
-  // Turn halo
+  // ── Turn halo (rotating dashed, only when active) ──
   if (isSeekerTurn && !ballsMoving) {
+    const haloRot = t * 0.8;
     ctx.beginPath();
-    ctx.arc(seeker.x, seeker.y, seeker.radius + 12, 0, Math.PI * 2);
-    ctx.strokeStyle = '#d97706';
+    ctx.arc(x, y, r + 14, 0, Math.PI * 2);
+    ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 2.5;
-    ctx.setLineDash([4, 4]);
+    ctx.globalAlpha = 0.55;
+    ctx.setLineDash([3, 5]);
+    ctx.lineDashOffset = -haloRot;
+    ctx.shadowBlur = 14;
+    ctx.shadowColor = '#f59e0b';
     ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
   }
+
   ctx.restore();
 }

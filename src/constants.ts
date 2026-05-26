@@ -103,6 +103,8 @@ export const HAZARD_MIN_SEP = 200;               // min dist between hazards
 export const HAZARD_BUMPER_CLEAR = 100;          // min dist from bumper edge
 
 // ── Power-up orb ─────────────────────────────────────
+export const ORB_COUNT_MIN = 3;
+export const ORB_COUNT_MAX = 4;
 export const ORB_RADIUS = 18;
 export const ORB_SPAWN_RANGE = 150;              // +/- from map center
 export const ORB_PULSE_SPEED = 0.006;

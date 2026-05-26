@@ -36,7 +36,7 @@ export interface PhysicsState {
   seeker: PlayerBall;
   bumpers: NeonBumper[];
   hazards: HazardPatch[];
-  orb: PowerUpOrb;
+  orbs: PowerUpOrb[];
   slowMotionRef: { current: number };
   activePowerUp: PowerUpType | null;
   shakeAmtRef: { current: number };
@@ -56,7 +56,7 @@ export function physicsStep(
   callbacks: PhysicsCallbacks,
 ): void {
   const {
-    hider, seeker, bumpers, hazards, orb,
+    hider, seeker, bumpers, hazards, orbs,
     slowMotionRef, activePowerUp, shakeAmtRef, particlesRef,
     mapWidth, mapHeight,
   } = state;
@@ -158,12 +158,14 @@ export function physicsStep(
     }
 
     // --- Orb pickup ---
-    if (orb.active) {
-      const distToOrb = Math.hypot(seeker.x - orb.x, seeker.y - orb.y);
-      if (distToOrb < seeker.radius + orb.radius) {
-        orb.active = false;
-        callbacks.onOrbCollect(orb.type);
-        particlesRef.current.push(...spawnOrbParticles(orb.x, orb.y));
+    for (const orb of orbs) {
+      if (orb.active) {
+        const distToOrb = Math.hypot(seeker.x - orb.x, seeker.y - orb.y);
+        if (distToOrb < seeker.radius + orb.radius) {
+          orb.active = false;
+          callbacks.onOrbCollect(orb.type);
+          particlesRef.current.push(...spawnOrbParticles(orb.x, orb.y));
+        }
       }
     }
   }

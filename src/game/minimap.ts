@@ -6,6 +6,8 @@
  * Draws a tactical radar overlay in the top-right corner of the canvas.
  */
 
+import { PowerUpOrb } from '../types';
+
 export interface MinimapConfig {
   viewportW: number;
   viewportH: number;
@@ -37,9 +39,7 @@ export function drawMinimap(
   seekerY: number,
   hazards: { x: number; y: number; radius: number; type: string }[],
   bumpers: { x: number; y: number; radius: number }[],
-  orbX: number,
-  orbY: number,
-  orbActive: boolean,
+  orbs: PowerUpOrb[],
   isSuddenDeath: boolean,
   shroudEnabled: boolean,
   hiderExploded: boolean,
@@ -107,17 +107,21 @@ export function drawMinimap(
     ctx.fill();
   }
 
-  // 5. Power-up orb
-  if (orbActive && !isSuddenDeath) {
-    const ox = toMiniX(orbX);
-    const oy = toMiniY(orbY);
-    ctx.beginPath();
-    ctx.arc(ox, oy, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#22d3ee';
-    ctx.shadowBlur = 5;
-    ctx.shadowColor = '#22d3ee';
-    ctx.fill();
-    ctx.shadowBlur = 0;
+  // 5. Power-up orbs
+  if (!isSuddenDeath) {
+    for (const orb of orbs) {
+      if (orb.active) {
+        const ox = toMiniX(orb.x);
+        const oy = toMiniY(orb.y);
+        ctx.beginPath();
+        ctx.arc(ox, oy, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#22d3ee';
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = '#22d3ee';
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
   }
 
   // 6. Seeker (orange triangle)
