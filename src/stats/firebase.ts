@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, query, orderByChild, limitToLast, get, serverTimestamp } from 'firebase/database';
+import { getDatabase, ref, push, serverTimestamp } from 'firebase/database';
 import type { LeaderboardEntry, AIDifficulty } from '../types';
 
 const firebaseConfig = {
@@ -48,25 +48,30 @@ export async function submitSurvivalScore(
   });
 }
 
+const DB_BASE = 'https://turn-tag-leader-default-rtdb.firebaseio.com';
+
+/**
+ * Fetch and sort leaderboard entries client-side via the Realtime DB REST API.
+ * Avoids Firebase SDK ordered queries that require `.indexOn` in security rules.
+ */
 async function getLeaderboardByChild(
   child: 'turnsSurvived' | 'totalScore',
   limit = 50,
 ): Promise<LeaderboardEntry[]> {
   try {
-    const leaderboardRef = ref(db, 'leaderboard');
-    const topQuery = query(
-      leaderboardRef,
-      orderByChild(child),
-      limitToLast(limit),
-    );
-    const snapshot = await get(topQuery);
-    if (!snapshot.exists()) return [];
+    const res = await fetch(`${DB_BASE}/leaderboard.json`);
+    if (!res.ok) return [];
+    const data: Record<string, unknown> | null = await res.json();
+    if (!data) return [];
 
-    const entries: LeaderboardEntry[] = [];
-    snapshot.forEach(child => {
-      entries.push({ id: child.key ?? undefined, ...child.val() });
-    });
-    return entries.reverse(); // highest first
+    const entries: LeaderboardEntry[] = Object.entries(data).map(([key, val]) => ({
+      id: key,
+      ...(val as Omit<LeaderboardEntry, 'id'>),
+    }));
+
+    return entries
+      .sort((a, b) => (b[child] || 0) - (a[child] || 0))
+      .slice(0, limit);
   } catch {
     return [];
   }
