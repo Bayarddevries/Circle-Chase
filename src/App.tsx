@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GamePhase, MatchConfig, RoundRecord, PlayerRole } from './types';
 import type { RoundScoreResult } from './game/scoring';
 import { MainMenu } from './components/MainMenu';
@@ -14,6 +14,22 @@ import { Trophy, HelpCircle, RefreshCw } from 'lucide-react';
 
 export default function App() {
   const [phase, setPhase] = useState<GamePhase>('menu');
+
+  // Expose game phase globally for automated testing
+  useEffect(() => {
+    (window as any).__gamePhase = phase;
+  }, [phase]);
+
+  // Global debug toggle — works before GameCanvas mounts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'd' || e.key === 'D') {
+        (window as any).__debugRequested = true;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
   const [config, setConfig] = useState<MatchConfig>({
     p1Name: 'Player 1',
     p2Name: 'Player 2',

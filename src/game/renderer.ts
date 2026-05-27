@@ -130,7 +130,6 @@ export function drawHiderBall(
   ctx: CanvasRenderingContext2D,
   hider: PlayerBall,
   colorblindMode: boolean,
-  isHiderTurn: boolean,
   ballsMoving: boolean,
   hasGravity: boolean = false,
 ): void {
@@ -219,24 +218,6 @@ export function drawHiderBall(
     ctx.strokeRect(x - s, y - s, s * 2, s * 2);
   }
 
-  // ── Turn halo (rotating dashed, only when active) ──
-  if (isHiderTurn && !ballsMoving) {
-    const haloRot = t * 0.6;
-    ctx.beginPath();
-    ctx.arc(x, y, r + 14, 0, Math.PI * 2);
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = 0.5;
-    ctx.setLineDash([3, 5]);
-    ctx.lineDashOffset = -haloRot;
-    ctx.shadowBlur = 12;
-    ctx.shadowColor = '#38bdf8';
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
-  }
-
   ctx.restore();
 }
 
@@ -246,7 +227,6 @@ export function drawSeekerBall(
   ctx: CanvasRenderingContext2D,
   seeker: PlayerBall,
   colorblindMode: boolean,
-  isSeekerTurn: boolean,
   ballsMoving: boolean,
   hasGravity: boolean = false,
 ): void {
@@ -362,22 +342,19 @@ export function drawSeekerBall(
     }
   }
 
-  // ── Turn halo (rotating dashed, only when active) ──
-  if (isSeekerTurn && !ballsMoving) {
-    const haloRot = t * 0.8;
-    ctx.beginPath();
-    ctx.arc(x, y, r + 14, 0, Math.PI * 2);
-    ctx.strokeStyle = '#f59e0b';
-    ctx.lineWidth = 2.5;
-    ctx.globalAlpha = 0.55;
-    ctx.setLineDash([3, 5]);
-    ctx.lineDashOffset = -haloRot;
-    ctx.shadowBlur = 14;
-    ctx.shadowColor = '#f59e0b';
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
+  // ── Gravity well pulsing rings (active when Seeker has gravity) ──
+  if (hasGravity) {
+    const t = performance.now() / 1000;
+    const pulse = t % 1;
+    for (let i = 1; i <= 3; i++) {
+      const ringRadius = r + 10 + i * 15;
+      const alpha = Math.max(0, 0.3 - pulse * 0.25 - i * 0.08);
+      ctx.beginPath();
+      ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(245, 158, 11, ${alpha})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
   }
 
   ctx.restore();

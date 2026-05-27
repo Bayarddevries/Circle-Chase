@@ -123,6 +123,7 @@ export const GRAVITY_PULL_BASE = 0.0018;
 export const GRAVITY_PULL_MAX = 0.004;
 export const GRAVITY_PULL_MIN_DIST = 100;
 export const GRAVITY_PULL_MAX_DIST = 500;
+export const GRAVITY_DURATION_MS = 10000;        // 10 seconds per activation
 export const EMP_FREEZE_MS = 1500;               // ms
 export const EMP_FREEZE_FRAMES = 90;             // frames at ~60fps
 export const VAMPIRE_BONUS = 1;

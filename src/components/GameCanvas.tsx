@@ -108,6 +108,7 @@ import {
   VAMPIRE_BONUS,
   ORBIT_SPEED,
   ORBIT_RADIUS,
+  GRAVITY_DURATION_MS,
   AI_EASY_ERROR,
   AI_THINK_DELAY,
   FLOAT_MESSAGE_DURATION,
@@ -169,6 +170,15 @@ import {
   stopDrone,
   initAudio,
 } from '../game/sounds';
+import {
+  createDebugState,
+  debugLogFrame,
+  debugLogEvent,
+  debugToggleEnabled,
+  debugToggleVisible,
+  debugIncrementFrame,
+  drawDebugOverlay,
+} from '../game/debugOverlay';
 import * as haptics from '../game/haptics';
 import {
   startAIAiming,
@@ -224,7 +234,9 @@ export function GameCanvas({
   const [turnsSurvived, setTurnsSurvived] = useState<number>(0);
   const [activePowerUp, setActivePowerUp] = useState<PowerUpType | null>(null);
   const [powerUpDuration, setPowerUpDuration] = useState<number>(0); // turns remaining (decrements on seeker→hider swap)
-  
+
+  // Gravity power-up timer (ms remaining) — time-based, not turn-based
+  const gravityTimerRef = useRef<number>(0);  
   // Floating status message
   const [floatMessage, setFloatMessage] = useState<string | null>(null);
   const [floatTimer, setFloatTimer] = useState<number>(0);
@@ -306,20 +318,15 @@ export function GameCanvas({
 
   // Controls lock during active flings
   const [ballsMoving, setBallsMoving] = useState<boolean>(false);
+
   // Debug Overlay State
-  const [isOverlayVisible, setIsOverlayVisible] = useState<boolean>(false);
-  const debugLogRef = useRef<Array<any>>([]);
+  const debugStateRef = useRef(createDebugState());
 
   // AI opponent state
   const aiStateRef = useRef<AimingState>(resetAIAiming());
   const cpuFiredThisTurnRef = useRef<boolean>(false);
   const cpuHiderFiredThisTurnRef = useRef<boolean>(false);
   const roundStartTimeRef = useRef<number>(0);
-
-  // Debug Overlay Refs
-  const debugLogRef = useRef<Array<any>>([]);
-  const isOverlayVisibleRef = useRef<boolean>(false);
-  const lastTimestampRef = useRef<number>(0);
 
   // Run procedural map generator when a round shifts
   const generateMap = () => {
@@ -364,6 +371,14 @@ export function GameCanvas({
     cpuFiredThisTurnRef.current = false;
     cpuHiderFiredThisTurnRef.current = false;
     roundStartTimeRef.current = performance.now();
+
+    debugLogEvent(debugStateRef.current, 'round_start', {
+      round: currentRound,
+      isSuddenDeath,
+      p1IsHider,
+      hiderName,
+      seekerName,
+    });
   };
 
   // Build the map on mount & phase variations
@@ -407,6 +422,15 @@ export function GameCanvas({
     const loop = (time: number) => {
       const delta = Math.min(DELTA_CAP, time - lastTime);
       lastTime = time;
+
+      // Decay gravity timer — clear power-up when it expires
+      if (gravityTimerRef.current > 0) {
+        gravityTimerRef.current = Math.max(0, gravityTimerRef.current - delta);
+        if (gravityTimerRef.current === 0) {
+          setActivePowerUp(prev => prev === 'gravity' ? null : prev);
+          setFloatMessage('GRAVITY EXPIRED');
+        }
+      }
 
       // Update positions & physics with substepping
       physicsStepLocal(time);
@@ -456,6 +480,9 @@ export function GameCanvas({
           onOrbCollect: (orbType: PowerUpType) => {
             setActivePowerUp(orbType);
             setPowerUpDuration(2); // lasts through next full turn
+            if (orbType === 'gravity') {
+              gravityTimerRef.current = GRAVITY_DURATION_MS;
+            }
             const titles: Record<PowerUpType, string> = {
               iron: 'IRON BALL',
               rocket: 'ROCKET BURST',
@@ -472,6 +499,7 @@ export function GameCanvas({
             }
             haptics.buzz();
             roundMetaRef.current.powerUpCollector = activeRole;
+            debugLogEvent(debugStateRef.current, 'powerup_collect', { orbType, collector: activeRole });
           },
           onBumperHit: () => {
             if (tagFrozenRef.current) return;
@@ -487,6 +515,7 @@ export function GameCanvas({
               playPowerUpActivate('emp');
             }
             roundMetaRef.current.bumperHits++;
+            debugLogEvent(debugStateRef.current, 'bumper_hit', { comboCount: comboCount.current, hitter: activeRole, totalBumperHits: roundMetaRef.current.bumperHits });
             const count = comboCountRef.current;
             if (count <= 1) {
               showScoreMessage('+1 BUMPER', 'combo');
@@ -496,6 +525,24 @@ export function GameCanvas({
           },
         },
       );
+
+      // Debug frame logging
+      const ds = debugStateRef.current;
+      if (ds.enabled) {
+        debugIncrementFrame(ds);
+        debugLogFrame(ds, {
+          timestamp: time,
+          frame: ds.frameCounter,
+          phase,
+          turnNumber: currentTurnNumberRef.current,
+          activeRole,
+          hider: { x: hiderBallRef.current.x, y: hiderBallRef.current.y, vx: hiderBallRef.current.vx, vy: hiderBallRef.current.vy },
+          seeker: { x: seekerBallRef.current.x, y: seekerBallRef.current.y, vx: seekerBallRef.current.vx, vy: seekerBallRef.current.vy },
+          activePowerUp,
+          ballsMoving,
+          roundMeta: { ...roundMetaRef.current },
+        });
+      }
 
       // Check if balls have come to rest
       const hSpeed = Math.hypot(hiderBallRef.current.vx, hiderBallRef.current.vy);
@@ -594,6 +641,11 @@ export function GameCanvas({
           playNearMiss();
           haptics.buzz();
           showScoreMessage('NEAR MISS!', 'nearMiss');
+          debugLogEvent(debugStateRef.current, 'near_miss', {
+            distance: seekDist,
+            seekerPos: { x: seekerBallRef.current.x, y: seekerBallRef.current.y },
+            hiderPos: { x: hiderBallRef.current.x, y: hiderBallRef.current.y },
+          });
         }
       }
 
@@ -655,6 +707,7 @@ export function GameCanvas({
         currentTurnNumberRef.current = roundMetaRef.current.turnsSurvived;
         playTurnIncrement();
         showScoreMessage('+1 TURN SURVIVED', 'turn');
+        debugLogEvent(debugStateRef.current, 'turn_swap', { newRole: 'seeker', turnsSurvived: roundMetaRef.current.turnsSurvived });
         // Reset CPU fired flag so AI can fire on its turn
         cpuFiredThisTurnRef.current = false;
       } else {
@@ -663,6 +716,7 @@ export function GameCanvas({
         setActiveRole('hider');
         cpuHiderFiredThisTurnRef.current = false;
         roundStartTimeRef.current = performance.now();
+        debugLogEvent(debugStateRef.current, 'turn_swap', { newRole: 'hider', turnsSurvived: roundMetaRef.current.turnsSurvived });
 
         // Check if Seeker consumed their active single-use powerup
         if (activePowerUp) {
@@ -696,6 +750,13 @@ export function GameCanvas({
       showScoreMessage('TAG! +5', 'tag');
       playTag();
       haptics.strong();
+      debugLogEvent(debugStateRef.current, 'tag_attempt', {
+        tagTurn: currentTurnNumberRef.current,
+        hiderPos: { x: h.x, y: h.y },
+        seekerPos: { x: s.x, y: s.y },
+        distance: Math.hypot(h.x - s.x, h.y - s.y),
+        vampireActive: vampireActiveRef.current,
+      });
 
       // Set hiderExploded to true so the solid ball core shatters out of sight
       hiderExplodedRef.current = true;
@@ -761,6 +822,17 @@ export function GameCanvas({
         } else {
           onRoundComplete(scoreResult);
         }
+
+        debugLogEvent(debugStateRef.current, 'round_end', {
+          hiderScore: scoreResult.hiderScore,
+          seekerScore: scoreResult.seekerScore,
+          roundWinner: scoreResult.roundWinner,
+          turnsSurvived: roundMetaRef.current.turnsSurvived,
+          bumperHits: roundMetaRef.current.bumperHits,
+          isSuddenDeath,
+          hiderBreakdown: scoreResult.hiderBreakdown,
+          seekerBreakdown: scoreResult.seekerBreakdown,
+        });
       }, TAG_FREEZE_TIME);
     };
 
@@ -1071,11 +1143,11 @@ export function GameCanvas({
     const shroudDistance = Math.hypot(hider.x - seeker.x, hider.y - seeker.y);
     const shroudEnabled = shroudDistance > FOG_RADIUS && activeRole === 'seeker' && !isSuddenDeath;
     if (!shroudEnabled && !hiderExplodedRef.current) {
-      drawHiderBall(ctx, hider, config.colorblindMode, activeRole === 'hider', ballsMoving);
+      drawHiderBall(ctx, hider, config.colorblindMode, ballsMoving);
     }
 
     // --- DRAW SEEKER BALL ---
-    drawSeekerBall(ctx, seeker, config.colorblindMode, activeRole === 'seeker', ballsMoving, activePowerUp === 'gravity');
+    drawSeekerBall(ctx, seeker, config.colorblindMode, ballsMoving, activePowerUp === 'gravity');
 
     // --- DRAW FOG OF WAR SHROUD ---
     if (activeRole === 'seeker' && !isSuddenDeath && !tagFrozenRef.current) {
@@ -1148,6 +1220,9 @@ export function GameCanvas({
       hiderExplodedRef.current,
       activeRole,
     );
+
+    // Debug overlay (drawn last, in screen space)
+    drawDebugOverlay(ctx, debugStateRef.current, w, h);
   };
 
   // --- TOUCH / MOUSE CONTROLS MAPPINGS ---
@@ -1223,6 +1298,53 @@ export function GameCanvas({
     window.addEventListener('resize', handleResize);
     handleResize(); // initial set
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Debug overlay: consume __debugRequested flag (set by automated runner or pre-mount keypress)
+  // This must run BEFORE the keyboard handler so it catches flags set while game was on menu/intro phases.
+  useEffect(() => {
+    const requested = (window as any).__debugRequested;
+    if (requested) {
+      const state = debugStateRef.current;
+      if (!state.enabled) {
+        debugToggleEnabled(state);
+        console.log('[DebugOverlay] Auto-enabled via __debugRequested flag.');
+      }
+      (window as any).__debugRequested = false;
+    }
+  }, []);
+
+  // Keyboard handler for debug overlay toggle (D = enable/toggle panel, Shift+D = full disable)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'd' || e.key === 'D') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          // Shift+D = full disable
+          const state = debugStateRef.current;
+          if (state.enabled) {
+            state.enabled = false;
+            state.visible = false;
+            (window as any).__gameLog = [];
+            console.log('[DebugOverlay] Fully disabled.');
+          }
+        } else {
+          // D = toggle enable, or toggle panel visibility if already enabled
+          const state = debugStateRef.current;
+          if (!state.enabled) {
+            const enabled = debugToggleEnabled(state);
+            if (enabled) {
+              console.log('[DebugOverlay] Enabled — logging started.');
+            }
+          } else {
+            const visible = debugToggleVisible(state);
+            console.log(`[DebugOverlay] Panel ${visible ? 'shown' : 'hidden'}.`);
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   return (
