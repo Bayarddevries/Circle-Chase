@@ -148,21 +148,7 @@ export function drawHiderBall(
     ctx.stroke();
   }
 
-  // ── Rotating dashed outer ring ──
-  const rot = -t * 0.5;
-  ctx.beginPath();
-  ctx.arc(x, y, r + 5, 0, Math.PI * 2);
-  ctx.strokeStyle = '#38bdf8';
-  ctx.lineWidth = 2;
-  ctx.globalAlpha = 0.45;
-  ctx.setLineDash([4, 6]);
-  ctx.lineDashOffset = rot;
-  ctx.shadowBlur = 14;
-  ctx.shadowColor = '#38bdf8';
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.globalAlpha = 1;
-  ctx.shadowBlur = 0;
+
 
   // ── Solid gradient body ──
   const bodyGrad = ctx.createRadialGradient(x - 6, y - 8, 2, x, y, r);
@@ -178,7 +164,7 @@ export function drawHiderBall(
 
   // ── Solid edge boundary (opaque, know where to hit) ──
   ctx.lineWidth = 6;
-  ctx.strokeStyle = '#38bdf8';
+  ctx.strokeStyle = '#ffffff';
   ctx.shadowBlur = 0;
   ctx.stroke();
   // Glow pass on top
@@ -277,21 +263,7 @@ export function drawSeekerBall(
     ctx.stroke();
   }
 
-  // ── Rotating dashed outer ring (faster) ──
-  const rot = -t * 0.7;
-  ctx.beginPath();
-  ctx.arc(x, y, r + 5, 0, Math.PI * 2);
-  ctx.strokeStyle = '#f59e0b';
-  ctx.lineWidth = 2;
-  ctx.globalAlpha = 0.5;
-  ctx.setLineDash([4, 6]);
-  ctx.lineDashOffset = rot;
-  ctx.shadowBlur = 16;
-  ctx.shadowColor = '#f59e0b';
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.globalAlpha = 1;
-  ctx.shadowBlur = 0;
+
 
   // ── Solid gradient body ──
   const bodyGrad = ctx.createRadialGradient(x - 6, y - 8, 2, x, y, r);
@@ -307,7 +279,7 @@ export function drawSeekerBall(
 
   // ── Solid edge boundary (opaque, know where to hit) ──
   ctx.lineWidth = 6;
-  ctx.strokeStyle = '#d97706';
+  ctx.strokeStyle = '#ffffff';
   ctx.shadowBlur = 0;
   ctx.stroke();
   // Glow pass on top
