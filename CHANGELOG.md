@@ -25,3 +25,4 @@
 - Canvas zero-height bug (nesting h-screen caused collapse to 0px)
 - Dead code: removed laser beamLength condition, sonar fog/aiming conditions
 - Duplicate showScoreMessage('TAG! +5') in triggerTagEvent
+- Power-up duration: now lasts until end of next turn (was expiring same turn)
