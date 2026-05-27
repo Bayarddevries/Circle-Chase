@@ -15,7 +15,7 @@ import {
   BUMPER_REST, BUMPER_REST_SUPERBALL, BUMPER_BOOST_NORMAL, BUMPER_BOOST_SUPERBALL,
   BUMPER_MIN_SPEED, BUMPER_KICK_SPEED, BUMPER_PULSE_DURATION,
   SHAKE_BUMPER_ADD, SHAKE_MAX, ORB_RADIUS,
-  GRAVITY_PULL_NEAR, GRAVITY_PULL_FAR, GRAVITY_PULL_MIN_DIST, GRAVITY_PULL_MAX_DIST,
+  GRAVITY_PULL_BASE, GRAVITY_PULL_MAX, GRAVITY_PULL_MIN_DIST, GRAVITY_PULL_MAX_DIST,
 } from '../constants';
 
 export interface PhysicsState {
@@ -144,25 +144,7 @@ export function physicsStep(
     handleBumperCollision(hider, false);
     handleBumperCollision(seeker, true);
 
-    // --- Gravity well ---
-    if (activePowerUp === 'gravity') {
-      const dx = seeker.x - hider.x;
-      const dy = seeker.y - hider.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist > 0) {
-        let pullStrength: number;
-        if (dist <= GRAVITY_PULL_MIN_DIST) {
-          pullStrength = GRAVITY_PULL_NEAR;
-        } else if (dist >= GRAVITY_PULL_MAX_DIST) {
-          pullStrength = GRAVITY_PULL_FAR;
-        } else {
-          const t = (dist - GRAVITY_PULL_MIN_DIST) / (GRAVITY_PULL_MAX_DIST - GRAVITY_PULL_MIN_DIST);
-          pullStrength = GRAVITY_PULL_FAR + t * (GRAVITY_PULL_NEAR - GRAVITY_PULL_FAR);
-        }
-        hider.vx += (dx / dist) * pullStrength / subStepsCount;
-        hider.vy += (dy / dist) * pullStrength / subStepsCount;
-      }
-    }
+
 
     // --- Tag detection ---
     const distToTag = Math.hypot(seeker.x - hider.x, seeker.y - hider.y);
@@ -184,7 +166,33 @@ export function physicsStep(
     }
   }
 
+  // Gravity well (distance-based, applied once per frame)
+  if (activePowerUp === 'gravity') {
+    const dx = seeker.x - hider.x;
+    const dy = seeker.y - hider.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > 0) {
+      const clampedDist = Math.max(GRAVITY_PULL_MIN_DIST, Math.min(dist, GRAVITY_PULL_MAX_DIST));
+      const pullPerFrame = GRAVITY_PULL_BASE * (GRAVITY_PULL_MAX_DIST / clampedDist);
+      hider.vx += (dx / dist) * pullPerFrame;
+      hider.vy += (dy / dist) * pullPerFrame;
+    }
+  }
+
   // --- Friction ---
+  // Gravity well (distance-based, applied once per frame)
+  if (activePowerUp === 'gravity') {
+    const dx = seeker.x - hider.x;
+    const dy = seeker.y - hider.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > 0) {
+      const clampedDist = Math.max(GRAVITY_PULL_MIN_DIST, Math.min(dist, GRAVITY_PULL_MAX_DIST));
+      const pullPerFrame = GRAVITY_PULL_BASE * (GRAVITY_PULL_MAX_DIST / clampedDist);
+      hider.vx += (dx / dist) * pullPerFrame;
+      hider.vy += (dy / dist) * pullPerFrame;
+    }
+  }
+
   const applyFriction = (ball: PlayerBall, isSeeker: boolean) => {
     let baseFriction = isSeeker ? FRICTION_SEEKER : FRICTION_BASE;
     if (slowMotionRef.current < 1.0) baseFriction = FRICTION_SLOWMO;

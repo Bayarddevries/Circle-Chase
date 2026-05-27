@@ -1067,11 +1067,36 @@ export function GameCanvas({
     }
 
     // --- DRAW SEEKER BALL ---
-    drawSeekerBall(ctx, seeker, config.colorblindMode, activeRole === 'seeker', ballsMoving);
+    drawSeekerBall(ctx, seeker, config.colorblindMode, activeRole === 'seeker', ballsMoving, activePowerUp === 'gravity');
 
     // --- DRAW FOG OF WAR SHROUD ---
     if (activeRole === 'seeker' && !isSuddenDeath && !tagFrozenRef.current) {
       drawFogOfWar(ctx, seeker.x, seeker.y, mapWidth, mapHeight);
+    }
+
+    // --- DRAW GRAVITY PULL ARROW ---
+    if (activePowerUp === 'gravity') {
+      const startX = hider.x;
+      const startY = hider.y;
+      const endX = seeker.x;
+      const endY = seeker.y;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      const angle = Math.atan2(endY - startY, endX - startX);
+      const headLen = 12;
+      ctx.beginPath();
+      ctx.moveTo(endX, endY);
+      ctx.lineTo(endX - headLen * Math.cos(angle - Math.PI/6), endY - headLen * Math.sin(angle - Math.PI/6));
+      ctx.lineTo(endX - headLen * Math.cos(angle + Math.PI/6), endY - headLen * Math.sin(angle + Math.PI/6));
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
+      ctx.fill();
+      ctx.restore();
     }
 
     restoreCameraTransform(ctx); // Restore camera matrices
