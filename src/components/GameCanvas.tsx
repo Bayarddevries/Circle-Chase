@@ -306,12 +306,20 @@ export function GameCanvas({
 
   // Controls lock during active flings
   const [ballsMoving, setBallsMoving] = useState<boolean>(false);
+  // Debug Overlay State
+  const [isOverlayVisible, setIsOverlayVisible] = useState<boolean>(false);
+  const debugLogRef = useRef<Array<any>>([]);
 
   // AI opponent state
   const aiStateRef = useRef<AimingState>(resetAIAiming());
   const cpuFiredThisTurnRef = useRef<boolean>(false);
   const cpuHiderFiredThisTurnRef = useRef<boolean>(false);
   const roundStartTimeRef = useRef<number>(0);
+
+  // Debug Overlay Refs
+  const debugLogRef = useRef<Array<any>>([]);
+  const isOverlayVisibleRef = useRef<boolean>(false);
+  const lastTimestampRef = useRef<number>(0);
 
   // Run procedural map generator when a round shifts
   const generateMap = () => {
@@ -1072,6 +1080,31 @@ export function GameCanvas({
     // --- DRAW FOG OF WAR SHROUD ---
     if (activeRole === 'seeker' && !isSuddenDeath && !tagFrozenRef.current) {
       drawFogOfWar(ctx, seeker.x, seeker.y, mapWidth, mapHeight);
+    }
+
+    // --- DRAW GRAVITY PULL ARROW ---
+    if (activePowerUp === 'gravity') {
+      const startX = hider.x;
+      const startY = hider.y;
+      const endX = seeker.x;
+      const endY = seeker.y;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      const angle = Math.atan2(endY - startY, endX - startX);
+      const headLen = 12;
+      ctx.beginPath();
+      ctx.moveTo(endX, endY);
+      ctx.lineTo(endX - headLen * Math.cos(angle - Math.PI/6), endY - headLen * Math.sin(angle - Math.PI/6));
+      ctx.lineTo(endX - headLen * Math.cos(angle + Math.PI/6), endY - headLen * Math.sin(angle + Math.PI/6));
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
+      ctx.fill();
+      ctx.restore();
     }
 
     // --- DRAW GRAVITY PULL ARROW ---

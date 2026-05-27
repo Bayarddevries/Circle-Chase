@@ -132,6 +132,7 @@ export function drawHiderBall(
   colorblindMode: boolean,
   isHiderTurn: boolean,
   ballsMoving: boolean,
+  hasGravity: boolean = false,
 ): void {
   const { x, y, radius: r } = hider;
   const t = performance.now() / 1000;

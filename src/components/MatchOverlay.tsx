@@ -409,7 +409,7 @@ export function MatchOverlay({
                 id="btn-match-replay"
                 className="flex-1 py-3 bg-neutral-900 hover:bg-neutral-850 text-neutral-200 border border-neutral-700/20 font-bold tracking-wider text-xs uppercase rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
-                <RotateCcw className="w-4 h-4 text-emerald-400" /> REPLAY SERIES
+                <RotateCcw className="w-4 h-4 text-emerald-400" /> {config.gameMode === 'survival' ? 'TRY AGAIN' : 'REPLAY SERIES'}
               </button>
               <button
                 onClick={() => { playUIClick(); onReturnToMenu(); }}
