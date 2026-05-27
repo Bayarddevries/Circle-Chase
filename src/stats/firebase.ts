@@ -60,7 +60,10 @@ async function getLeaderboardByChild(
 ): Promise<LeaderboardEntry[]> {
   try {
     const res = await fetch(`${DB_BASE}/leaderboard.json`);
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.warn('Leaderboard fetch not OK:', res.status, res.statusText);
+      return [];
+    }
     const data: Record<string, unknown> | null = await res.json();
     if (!data) return [];
 
@@ -72,7 +75,8 @@ async function getLeaderboardByChild(
     return entries
       .sort((a, b) => (b[child] || 0) - (a[child] || 0))
       .slice(0, limit);
-  } catch {
+  } catch (err) {
+    console.error('Leaderboard fetch failed:', err);
     return [];
   }
 }
