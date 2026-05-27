@@ -224,7 +224,7 @@ export function GameCanvas({
   const [activeRole, setActiveRole] = useState<PlayerRole>('hider');
   const [turnsSurvived, setTurnsSurvived] = useState<number>(0);
   const [activePowerUp, setActivePowerUp] = useState<PowerUpType | null>(null);
-  const [powerUpDuration, setPowerUpDuration] = useState<number>(0); // consumed after 1 shot
+  const [powerUpDuration, setPowerUpDuration] = useState<number>(0); // turns remaining (decrements on seeker→hider swap)
   
   // Floating status message
   const [floatMessage, setFloatMessage] = useState<string | null>(null);
@@ -448,7 +448,7 @@ export function GameCanvas({
           onTag: triggerTagEvent,
           onOrbCollect: (orbType: PowerUpType) => {
             setActivePowerUp(orbType);
-            setPowerUpDuration(1);
+            setPowerUpDuration(2); // lasts through next full turn
             const titles: Record<PowerUpType, string> = {
               iron: 'IRON BALL',
               rocket: 'ROCKET BURST',
