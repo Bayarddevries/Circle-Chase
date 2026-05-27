@@ -14,7 +14,8 @@ import {
   BOUNCE_REST_NORMAL, BOUNCE_REST_SLOWMO, BOUNCE_REST_SUPERBALL,
   BUMPER_REST, BUMPER_REST_SUPERBALL, BUMPER_BOOST_NORMAL, BUMPER_BOOST_SUPERBALL,
   BUMPER_MIN_SPEED, BUMPER_KICK_SPEED, BUMPER_PULSE_DURATION,
-  SHAKE_BUMPER_ADD, SHAKE_MAX, ORB_RADIUS, GRAVITY_PULL,
+  SHAKE_BUMPER_ADD, SHAKE_MAX, ORB_RADIUS,
+  GRAVITY_PULL_NEAR, GRAVITY_PULL_FAR, GRAVITY_PULL_MIN_DIST, GRAVITY_PULL_MAX_DIST,
 } from '../constants';
 
 export interface PhysicsState {
@@ -149,8 +150,17 @@ export function physicsStep(
       const dy = seeker.y - hider.y;
       const dist = Math.hypot(dx, dy);
       if (dist > 0) {
-        hider.vx += (dx / dist) * GRAVITY_PULL / subStepsCount;
-        hider.vy += (dy / dist) * GRAVITY_PULL / subStepsCount;
+        let pullStrength: number;
+        if (dist <= GRAVITY_PULL_MIN_DIST) {
+          pullStrength = GRAVITY_PULL_NEAR;
+        } else if (dist >= GRAVITY_PULL_MAX_DIST) {
+          pullStrength = GRAVITY_PULL_FAR;
+        } else {
+          const t = (dist - GRAVITY_PULL_MIN_DIST) / (GRAVITY_PULL_MAX_DIST - GRAVITY_PULL_MIN_DIST);
+          pullStrength = GRAVITY_PULL_FAR + t * (GRAVITY_PULL_NEAR - GRAVITY_PULL_FAR);
+        }
+        hider.vx += (dx / dist) * pullStrength / subStepsCount;
+        hider.vy += (dy / dist) * pullStrength / subStepsCount;
       }
     }
 

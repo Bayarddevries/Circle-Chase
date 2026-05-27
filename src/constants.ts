@@ -118,7 +118,11 @@ export const DRIP_PARTICLE_SPEED = 0.5;
 
 // ── Power-up effects ────────────────────────────
 export const ROCKET_SPEED_MULT = 3.0;
-export const GRAVITY_PULL = 0.08;
+// Power-up effects — Gravity Well (distance-based pull)
+export const GRAVITY_PULL_NEAR = 0.06;      // max strength at point-blank
+export const GRAVITY_PULL_FAR = 0.015;     // min strength at far range
+export const GRAVITY_PULL_MIN_DIST = 80;   // use NEAR strength at/below this distance
+export const GRAVITY_PULL_MAX_DIST = 500;  // use FAR strength at/above this distance
 export const EMP_FREEZE_MS = 1500;               // ms
 export const EMP_FREEZE_FRAMES = 90;             // frames at ~60fps
 export const VAMPIRE_BONUS = 1;

@@ -26,3 +26,4 @@
 - Dead code: removed laser beamLength condition, sonar fog/aiming conditions
 - Duplicate showScoreMessage('TAG! +5') in triggerTagEvent
 - Power-up duration: now lasts until end of next turn (was expiring same turn)
+- Leaderboard: Firebase SDK ordered query failure fixed by switching to REST API + client-side sorting; added console warnings for debugging.

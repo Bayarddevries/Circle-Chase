@@ -81,9 +81,10 @@ App.tsx (state machine)
 - Colorblind mode (shape overlays on balls)
 - CPU opponent (easy/medium/hard)
 - Mobile viewport meta tags + touch safe hit areas
+ - Leaderboard: global survival scores via Firebase Realtime DB (REST + client-side sorting)
 
 ### Removed / On Hold
-- Meta-progression (shop, leaderboard, badges) — all removed in commit 05e4f93
+ - Shop and badges (removed in commit 05e4f93); leaderboard restored for survival mode via Firebase Realtime DB.
 - Orb respawn (power-up orb currently spawns once and stays)
 - Directional fog (shroud always radial)
 - Cloak & Magnet power-ups (tokens defined but logic removed)
