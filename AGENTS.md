@@ -179,6 +179,33 @@ Break the 1900+ line monolith into focused modules. Pure refactor, NO behavior c
 
 **Progress:** GameCanvas 1951 → 981 lines (-970). All modules extracted, build passes, deployed, verified.
 
+### Phase 1.5 — Text Polish & Rebrand ✓ (Complete)
+Marketing report identified "Chase Tag" as best name, but team preferring "Turn Tag". Text polish campaign executed:
+
+- **Branding**: Title "Turn Tag", tagline "Turn-Based Tag 'Em Up"
+- **File**: `docs/TEXT-POLISH.md` (planned changes before implementation)
+- **Implementation covers 4 UI components**: MainMenu, MatchOverlay, GameCanvas (HUD), HelpManual
+- **50+ string updates**: User-facing text simplified (eliminated jargon)
+- **4 bug fixes** during polish:
+  1. Removed "The" from tagline → "Turn-Based Tag 'Em Up"
+  2. Added name entry prompt below "MATCH SETUP" header
+  3. Fixed bottom content cutoff → `overflow-y-auto` on layout container
+  4. Fog freeze during slow-motion → added `!tagFrozenRef.current` check
+- **Verification**: Browser snapshots via Vite dev server (http://100.108.183.33:8083/)
+- **Deploy**: GitHub Actions auto-deployed commit `86ae6a3` to production
+- **Status**: Live at https://bayarddevries.github.io/Circle-Chase/
+
+### Phase 1.6 — Audio Design Plan ✓ (Complete)
+Researched in-house audio generation options. Decided on procedural Web Audio API synthesis (zero external files).
+
+**Deliverable**: `docs/SOUND-PLAN.md` contains full spec
+- **Architecture**: Procedural synth, no npm packages, works offline
+- **15 sound effects**: whoosh, bumper clang, wall thud, tag explosion, sonar ping, power-up collect/activate, sand/ice enter, cloak, magnet, sudden death sting, round start, match win, UI click/hover
+- **Dynamic music**: Looping ambient pad + bass + arp, tempo shifts with tension
+- **Technical validation**: Tested FluidSynth + `midiutil` pipeline successfully (5 sounds generated: menu theme, round intro, tag hit, victory fanfare, countdown)
+
+**Next**: Implement after mobile UI finalized
+
 ### Phase 2 — AI Opponent (NEXT)
 - `src/game/particles.ts` (283 lines) — updateParticles, drawParticles, spawnTag/Bumper/Orb/Launch ✓
 - `src/game/camera.ts` (47 lines) — updateCamera, applyCameraTransform, restoreCameraTransform ✓
@@ -270,6 +297,4 @@ npm run preview
 git push origin main
 ```
 
----
-
-**Last updated:** 2026-02-15 (Phase 0 complete, Phase 1 in progress — 6/11 modules extracted)
+---\n\n**Last updated:** 2026-05-26 (v0.3.0 deployed, text polish complete, audio plan delivered)

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MatchConfig } from '../types';
-import { Swords, Trophy, Play, Settings, Users, BookOpen } from 'lucide-react';
+import type { GameMode } from '../types';
+import { Play, Settings, Users, BookOpen, Cpu, Zap, Swords } from 'lucide-react';
 import { playUIClick } from '../game/sounds';
 
 interface MainMenuProps {
@@ -15,62 +16,68 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
   const [colorblindMode, setColorblindMode] = useState<boolean>(false);
   const [isCpu, setIsCpu] = useState<boolean>(false);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [gameMode, setGameMode] = useState<GameMode>('standard');
+
+  useEffect(() => {
+    if (gameMode === 'survival') {
+      setIsCpu(true);
+    }
+  }, [gameMode]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onStartGame({
       p1Name: p1Name.trim() || 'Player 1',
-      p2Name: p2Name.trim() || 'Player 2',
-      bestOfRounds: bestOf,
+      p2Name: gameMode === 'survival' ? 'CPU' : (p2Name.trim() || 'Player 2'),
+      bestOfRounds: gameMode === 'survival' ? 1 : bestOf,
       colorblindMode,
-      isCpu,
+      isCpu: gameMode === 'survival' ? true : isCpu,
       difficulty,
+      gameMode,
     });
   };
 
-  return (
-    <div className="relative min-h-screen bg-[#07090e] text-neutral-200 flex flex-col justify-between p-6 overflow-y-auto md:p-12">
-      {/* Decorative Cinematic Amber Halos */}
-      <div className="absolute top-[-10%] left-[-10%] w-[45%] h-[45%] rounded-full bg-amber-600/5 blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[45%] h-[45%] rounded-full bg-yellow-600/5 blur-[140px] pointer-events-none" />
+  const isSurvival = gameMode === 'survival';
 
-      {/* Grid Pattern overlay */}
+  return (
+    <div className="relative min-h-screen bg-[#020502] text-neutral-200 flex flex-col p-4 md:p-8 overflow-y-auto">
+      {/* Decorative glows */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-600/5 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-teal-600/5 blur-[120px] pointer-events-none" />
+
+      {/* Grid overlay */}
       <div 
-        className="absolute inset-0 pointer-events-none opacity-40"
+        className="absolute inset-0 pointer-events-none opacity-30"
         style={{
-          backgroundImage: `linear-gradient(rgba(217, 119, 6, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(217, 119, 6, 0.03) 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(rgba(16, 185, 129, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(16, 185, 129, 0.03) 1px, transparent 1px)`,
           backgroundSize: '48px 48px'
         }}
       />
 
-      {/* Header with Title and Cyber Creds */}
-      <div className="w-full max-w-4xl mx-auto flex flex-col items-center mt-6 relative z-10">
-        <div className="flex items-center gap-2 px-3 py-1 bg-amber-950/20 border border-amber-500/20 rounded-full text-[9px] tracking-[4px] text-amber-500 font-mono uppercase mb-4 shadow-lg shadow-amber-500/5">
-          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" /> TURN TAG
+      <div className="w-full max-w-xl mx-auto relative z-10 flex flex-col items-center">
+        {/* Title — compact */}
+        <div className="flex items-center gap-2 px-2.5 py-1 bg-emerald-950/20 border border-emerald-500/20 rounded-full text-[8px] tracking-[4px] text-emerald-400 font-mono uppercase mb-2 shadow-lg shadow-emerald-500/5">
+          <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" /> TURN TAG
         </div>
 
-        <h1 className="text-4xl md:text-6xl font-black text-center tracking-[8px] font-sans text-transparent bg-clip-text bg-gradient-to-b from-white via-amber-100 to-amber-500 uppercase select-none drop-shadow-2xl">
+        <h1 className="text-3xl md:text-5xl font-display text-center tracking-[8px] text-transparent bg-clip-text bg-gradient-to-b from-white via-emerald-100 to-emerald-400 uppercase select-none drop-shadow-2xl leading-tight">
           Turn Tag
         </h1>
-        <p className="text-xs md:text-sm text-neutral-400 tracking-[4px] font-mono mt-3 uppercase text-center max-w-lg">
+        <p className="text-[10px] text-neutral-500 tracking-[4px] font-mono uppercase mb-4">
           Turn-Based Tag 'Em Up
         </p>
       </div>
 
-      {/* Configuration Form Card */}
-      <form onSubmit={handleSubmit} className="w-full max-w-md mx-auto my-auto relative z-10 bg-[#0c0e14]/90 backdrop-blur-md border border-amber-500/15 rounded-2xl shadow-2xl p-6 md:p-8 space-y-6">
-        <h2 className="flex items-center gap-2 text-[10px] tracking-[3px] font-mono uppercase text-amber-500 font-bold border-b border-amber-500/10 pb-3">
-          <Settings className="w-4 h-4 text-amber-500" /> MATCH SETUP
+      {/* Form Card — compact */}
+      <form onSubmit={handleSubmit} className="w-full max-w-xl mx-auto relative z-10 bg-neutral-950/90 backdrop-blur-md border border-emerald-500/30 rounded-2xl shadow-2xl p-5 md:p-6 space-y-3">
+        <h2 className="flex items-center gap-2 text-[9px] tracking-[3px] font-mono uppercase text-emerald-400 font-bold border-b border-emerald-500/10 pb-2.5">
+          <Settings className="w-3.5 h-3.5 text-emerald-400" /> MATCH SETUP
         </h2>
 
-        <p className="text-[10px] text-neutral-500 tracking-wider font-mono -mt-2">
-          Enter names for each player
-        </p>
-
-        {/* Name Registration Input Grid */}
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="block text-[10px] tracking-widest text-neutral-400 uppercase font-mono font-medium">
+        {/* Name input(s) */}
+        <div className="space-y-2.5">
+          <div className="space-y-1">
+            <label className="block text-[9px] tracking-widest text-neutral-500 uppercase font-mono font-medium">
               Runner
             </label>
             <div className="relative">
@@ -80,146 +87,198 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
                 maxLength={14}
                 value={p1Name}
                 onChange={(e) => setP1Name(e.target.value)}
-                className="w-full bg-[#050609] border border-amber-500/10 focus:border-amber-400/40 outline-none rounded-lg px-4 py-3 text-sm tracking-widest font-semibold focus:ring-1 focus:ring-amber-400/10 text-amber-200 transition-all font-sans"
-                placeholder="Runner name"
+                className="w-full bg-[#040604] border border-emerald-500/10 focus:border-emerald-400/40 outline-none rounded-lg px-3.5 py-2.5 text-sm tracking-widest font-semibold focus:ring-1 focus:ring-emerald-400/10 text-emerald-200 transition-all font-sans"
+                placeholder={isSurvival ? "Your name" : "Runner name"}
               />
-              <Users className="absolute right-3.5 top-3.5 w-4 h-4 text-amber-500/20" />
+              <Users className="absolute right-3 top-2.5 w-4 h-4 text-emerald-500/20" />
             </div>
           </div>
 
+          {!isSurvival && (
+            <div className="space-y-1">
+              <label className="block text-[9px] tracking-widest text-neutral-500 uppercase font-mono font-medium">
+                Chaser
+              </label>
+              <div className="relative">
+                <input
+                  id="p2-name-input"
+                  type="text"
+                  maxLength={14}
+                  value={p2Name}
+                  onChange={(e) => setP2Name(e.target.value)}
+                  className="w-full bg-[#040604] border border-emerald-500/10 focus:border-emerald-400/40 outline-none rounded-lg px-3.5 py-2.5 text-sm tracking-widest font-semibold focus:ring-1 focus:ring-emerald-400/10 text-emerald-200 transition-all font-sans"
+                  placeholder="Chaser name"
+                />
+                <Users className="absolute right-3 top-2.5 w-4 h-4 text-emerald-500/20" />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Best Of (hidden in survival) */}
+        {!isSurvival && (
           <div className="space-y-1.5">
-            <label className="block text-[10px] tracking-widest text-neutral-400 uppercase font-mono font-medium">
-              Chaser
+            <label className="block text-[9px] tracking-widest text-neutral-500 uppercase font-mono font-medium">
+              Best of
             </label>
-            <div className="relative">
-              <input
-                id="p2-name-input"
-                type="text"
-                maxLength={14}
-                value={p2Name}
-                onChange={(e) => setP2Name(e.target.value)}
-                className="w-full bg-[#050609] border border-amber-500/10 focus:border-amber-400/40 outline-none rounded-lg px-4 py-3 text-sm tracking-widest font-semibold focus:ring-1 focus:ring-amber-400/10 text-amber-200 transition-all font-sans"
-                placeholder="Chaser name"
-              />
-              <Users className="absolute right-3.5 top-3.5 w-4 h-4 text-amber-500/20" />
+            <div className="grid grid-cols-3 gap-1.5">
+              {[3, 5, 7].map((rounds) => (
+                <button
+                  key={rounds}
+                  id={`btn-bestof-${rounds}`}
+                  type="button"
+                  onClick={() => setBestOf(rounds)}
+                  className={`py-1.5 px-2 border rounded-lg font-mono text-[10px] font-bold tracking-widest transition-all ${
+                    bestOf === rounds
+                      ? 'bg-emerald-500 text-neutral-950 border-emerald-400 font-extrabold shadow-lg shadow-emerald-500/10'
+                      : 'bg-zinc-900/60 text-neutral-400 border-emerald-500/10 hover:border-emerald-500/30 hover:text-white'
+                  }`}
+                >
+                  {rounds}
+                </button>
+              ))}
             </div>
           </div>
-        </div>
-
-        {/* Series Length Selector */}
-        <div className="space-y-2">
-          <label className="block text-[10px] tracking-widest text-neutral-400 uppercase font-mono font-medium">
-            Best of
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            {[3, 5, 7].map((rounds) => (
-              <button
-                key={rounds}
-                id={`btn-bestof-${rounds}`}
-                type="button"
-                onClick={() => setBestOf(rounds)}
-                className={`py-2 px-3 border rounded-xl font-mono text-xs font-bold tracking-widest transition-all ${
-                  bestOf === roudsCount(rounds)
-                    ? 'bg-amber-500 text-neutral-950 border-amber-400 font-extrabold shadow-lg shadow-amber-500/10'
-                    : 'bg-neutral-900/60 text-neutral-400 border-amber-500/10 hover:border-amber-500/30 hover:text-white'
-                }`}
-              >
-                {rounds}
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
 
         {/* Game Options */}
-        <div className="space-y-3">
-          <span className="block text-[10px] tracking-widest text-neutral-400 uppercase font-mono font-medium">Game Options</span>
+        <div className="space-y-2">
+          <span className="block text-[9px] tracking-widest text-neutral-500 uppercase font-mono font-medium">Options</span>
 
-          {/* Colorblind Mode */}
+          {/* Colorblind */}
           <button
             type="button"
             onClick={() => setColorblindMode(!colorblindMode)}
-            className={`w-full py-2 px-3 border rounded-xl text-xs font-mono tracking-widest transition-all flex items-center justify-between ${
+            className={`w-full py-1.5 px-3 border rounded-lg text-[10px] font-mono tracking-widest transition-all flex items-center justify-between ${
               colorblindMode
                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                : 'bg-neutral-900/60 text-neutral-400 border-amber-500/10 hover:border-amber-500/30'
+                : 'bg-zinc-900/60 text-neutral-400 border-emerald-500/10 hover:border-emerald-500/30'
             }`}
           >
             <span>COLORBLIND</span>
-            <span className={`w-8 h-4 rounded-full transition-colors ${colorblindMode ? 'bg-emerald-500' : 'bg-neutral-700'}`}>
-              <span className={`block w-4 h-4 rounded-full bg-white transition-transform ${colorblindMode ? 'translate-x-4' : 'translate-x-0'}`} />
+            <span className={`w-7 h-3.5 rounded-full transition-colors ${colorblindMode ? 'bg-emerald-500' : 'bg-neutral-700'}`}>
+              <span className={`block w-3.5 h-3.5 rounded-full bg-white transition-transform ${colorblindMode ? 'translate-x-3.5' : 'translate-x-0'}`} />
             </span>
           </button>
 
-          {/* CPU Opponent + Inline Difficulty */}
-          <div className={`w-full border rounded-xl transition-all ${
-            isCpu
-              ? 'bg-amber-500/10 border-amber-500/30'
-              : 'bg-neutral-900/60 border-amber-500/10'
+          {/* CPU (hidden in survival) */}
+          {!isSurvival && (
+            <div className={`w-full border rounded-lg transition-all ${
+              isCpu
+                ? 'bg-emerald-500/10 border-emerald-500/30'
+                : 'bg-zinc-900/60 border-emerald-500/10'
+            }`}>
+              <div className="flex items-center justify-between px-3 py-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Cpu className="w-3.5 h-3.5 text-neutral-500" />
+                  <span className="text-[10px] font-mono tracking-widest text-neutral-400">CPU PLAYER</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCpu(!isCpu)}
+                  className={`w-7 h-3.5 rounded-full transition-colors ${isCpu ? 'bg-emerald-500' : 'bg-neutral-700'}`}
+                >
+                  <span className={`block w-3.5 h-3.5 rounded-full bg-white transition-transform ${isCpu ? 'translate-x-3.5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              {isCpu && (
+                <div className="flex gap-1 px-3 pb-1.5 pt-0 border-t border-emerald-500/10 mt-0">
+                  {(['easy', 'medium', 'hard'] as const).map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setDifficulty(d)}
+                      className={`flex-1 py-1 rounded-lg font-mono text-[9px] font-bold tracking-widest transition-all ${
+                        difficulty === d
+                          ? 'bg-emerald-500 text-neutral-950'
+                          : 'bg-zinc-800/60 text-neutral-400 hover:bg-zinc-700 hover:text-white'
+                      }`}
+                    >
+                      {d === 'easy' ? 'EASY' : d === 'medium' ? 'MED' : 'HARD'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Game Mode */}
+        <div className="space-y-2">
+          <span className="block text-[9px] tracking-widest text-neutral-500 uppercase font-mono font-medium">Mode</span>
+          <div className={`w-full border rounded-lg transition-all ${
+            isSurvival
+              ? 'bg-emerald-500/10 border-emerald-500/30'
+              : 'bg-zinc-900/60 border-emerald-500/10'
           }`}>
-            <div className="flex items-center justify-between px-3 py-2">
-              <span className="text-xs font-mono tracking-widest text-neutral-400">CPU PLAYER</span>
+            <div className="flex items-center justify-between px-3 py-1.5">
+              <div className="flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                <span className={`text-[10px] font-mono tracking-widest ${isSurvival ? 'text-emerald-400' : 'text-neutral-400'}`}>SURVIVAL MODE</span>
+              </div>
               <button
                 type="button"
-                onClick={() => setIsCpu(!isCpu)}
-                className={`w-8 h-4 rounded-full transition-colors ${isCpu ? 'bg-amber-500' : 'bg-neutral-700'}`}
+                onClick={() => setGameMode(isSurvival ? 'standard' : 'survival')}
+                className={`w-7 h-3.5 rounded-full transition-colors ${isSurvival ? 'bg-emerald-500' : 'bg-neutral-700'}`}
               >
-                <span className={`block w-4 h-4 rounded-full bg-white transition-transform ${isCpu ? 'translate-x-4' : 'translate-x-0'}`} />
+                <span className={`block w-3.5 h-3.5 rounded-full bg-white transition-transform ${isSurvival ? 'translate-x-3.5' : 'translate-x-0'}`} />
               </button>
             </div>
-            {isCpu && (
-              <div className="flex gap-1.5 px-3 pb-2 pt-0 border-t border-amber-500/10 mt-0">
-                {(['easy', 'medium', 'hard'] as const).map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setDifficulty(d)}
-                    className={`flex-1 py-1.5 rounded-lg font-mono text-[10px] font-bold tracking-widest transition-all ${
-                      difficulty === d
-                        ? 'bg-amber-500 text-neutral-950'
-                        : 'bg-neutral-800/60 text-neutral-400 hover:bg-neutral-700 hover:text-white'
-                    }`}
-                  >
-                    {d === 'easy' ? 'EASY' : d === 'medium' ? 'MED' : 'HARD'}
-                  </button>
-                ))}
-              </div>
+            {isSurvival && (
+              <>
+                <div className="flex gap-1 px-3 pb-1.5 pt-0 border-t border-emerald-500/10 mt-0">
+                  {(['easy', 'medium', 'hard'] as const).map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setDifficulty(d)}
+                      className={`flex-1 py-1 rounded-lg font-mono text-[9px] font-bold tracking-widest transition-all ${
+                        difficulty === d
+                          ? 'bg-emerald-500 text-neutral-950'
+                          : 'bg-zinc-800/60 text-neutral-400 hover:bg-zinc-700 hover:text-white'
+                      }`}
+                    >
+                      {d === 'easy' ? 'EASY' : d === 'medium' ? 'MED' : 'HARD'}
+                    </button>
+                  ))}
+                </div>
+                <div className="px-3 pb-1.5">
+                  <p className="text-[9px] text-neutral-500 text-left leading-relaxed">
+                    One round vs CPU. Survive as long as possible. Scores appear on the global leaderboard.
+                  </p>
+                </div>
+              </>
             )}
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-3 pt-2">
+        <div className="flex gap-2 pt-1">
           <button
             type="button"
             id="btn-main-help"
             onClick={() => { playUIClick(); onOpenHelp(); }}
-            className="flex-1 py-3 text-xs bg-neutral-900/40 hover:bg-neutral-850 text-neutral-300 font-bold tracking-wider rounded-xl uppercase border border-amber-500/10 transition-colors flex items-center justify-center gap-2"
+            className="flex-1 py-2.5 text-[10px] bg-zinc-900/40 hover:bg-zinc-850 text-neutral-300 font-bold tracking-wider rounded-lg uppercase border border-emerald-500/10 transition-colors flex items-center justify-center gap-1.5"
           >
-            <BookOpen className="w-4 h-4 text-amber-500" /> Manual
+            <BookOpen className="w-3.5 h-3.5 text-emerald-400" /> Manual
           </button>
 
           <button
             type="submit"
             id="btn-main-start"
             onClick={playUIClick}
-            className="flex-[2] py-3 text-xs bg-amber-500 hover:bg-amber-400 text-neutral-950 font-black tracking-widest rounded-xl uppercase border border-amber-400/20 shadow-lg shadow-amber-500/15 transition-all hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer"
+            className="flex-[2] py-2.5 text-[10px] bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-black tracking-widest rounded-lg uppercase border border-emerald-400/20 shadow-lg shadow-emerald-500/15 transition-all hover:scale-[1.02] flex items-center justify-center gap-1.5 cursor-pointer"
           >
-            <Play className="w-4 h-4 fill-current text-neutral-950" /> Start
+            <Play className="w-3.5 h-3.5 fill-current text-neutral-950" /> {isSurvival ? 'SURVIVE' : 'START'}
           </button>
         </div>
       </form>
 
-      {/* Instruction Mini Guide or Footer Card */}
-      <div className="w-full max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center text-[10px] font-mono tracking-wider text-neutral-500 uppercase border-t border-amber-500/10 pt-4 mt-6 gap-2">
-          <span className="flex items-center gap-2"><Trophy className="w-3.5 h-3.5 text-amber-500 animate-pulse" /> Survive as Runner. Catch as Chaser. First to {bestOf} wins.</span>
-        <span>Local Device Pass-and-Play Hotseat</span>
-        <span>© 2026 Bayard deVries</span>
+      {/* Footer — thin */}
+      <div className="w-full max-w-xl mx-auto flex justify-center text-[8px] font-mono tracking-wider text-neutral-600 uppercase border-t border-emerald-500/10 pt-2.5 mt-3 gap-3 flex-wrap">
+        <span>© 2026 Bayard devries</span>
+        <span>Hotseat</span>
       </div>
     </div>
   );
-
-  // Quick helper to strictly cast value
-  function roudsCount(r: number) {
-    return r;
-  }
 }

@@ -39,7 +39,7 @@ export function calculateRoundScore(
   // ── Seeker score ────────────────────────────────────
   const tagBonus = TAG_BASE;
   const quickTagBonus =
-    meta.tagTurn <= 3 ? QUICK_TAG : 0;
+    meta.turnsSurvived <= 3 ? QUICK_TAG : 0;
   const seekerPowerUpBonus = meta.powerUpCollector === 'seeker' ? POWERUP_BONUS : 0;
   const seekerScore = tagBonus + quickTagBonus + seekerPowerUpBonus;
 

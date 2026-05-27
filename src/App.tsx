@@ -70,7 +70,7 @@ export default function App() {
   const handleRoundComplete = (
     data: RoundScoreResult & { suddenDeathWinnerRole?: PlayerRole }
   ) => {
-    const p1IsHider = currentRound % 2 === 0;
+    const p1IsHider = config.gameMode === 'survival' || currentRound % 2 === 0;
     const hiderName = p1IsHider ? config.p1Name : config.p2Name;
     const seekerName = p1IsHider ? config.p2Name : config.p1Name;
 
@@ -104,7 +104,11 @@ export default function App() {
 
     setHistory(prev => [...prev, newRecord]);
     setActiveRoundRecord(newRecord);
-    setPhase(isSuddenDeath ? 'match_over' : 'round_over');
+    if (config.gameMode === 'survival') {
+      setPhase('match_over');
+    } else {
+      setPhase(isSuddenDeath ? 'match_over' : 'round_over');
+    }
   };
 
   const handleRestartGame = () => {
@@ -116,7 +120,7 @@ export default function App() {
   };
 
   // Determine current players as Hider vs Seeker info
-  const p1IsHider = currentRound % 2 === 0;
+  const p1IsHider = config.gameMode === 'survival' || currentRound % 2 === 0;
   const currentHider = {
     name: p1IsHider ? config.p1Name : config.p2Name,
     isP1: p1IsHider,

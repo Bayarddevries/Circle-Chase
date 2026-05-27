@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { GamePhase, RoundRecord, MatchConfig, PlayerRole } from '../types';
 import { Swords, Trophy, Zap, AlertOctagon, RotateCcw, Home, Sparkles } from 'lucide-react';
-import { playUIClick, playRoundOver } from '../game/sounds';
+import { playUIClick, playRoundOver, playMatchOver } from '../game/sounds';
+import { submitSurvivalScore } from '../stats/firebase';
+import { updateStats } from '../stats/storage';
+import { LeaderboardPanel } from '../stats/LeaderboardPanel';
+import { StatsPanel } from '../stats/StatsPanel';
 
 interface MatchOverlayProps {
   phase: GamePhase;
@@ -36,6 +40,35 @@ export function MatchOverlay({
   isP1Turn,
   activeRole,
 }: MatchOverlayProps) {
+  const [activeTab, setActiveTab] = useState<'log' | 'leaderboard' | 'stats'>('log');
+  const scoreSubmittedRef = useRef(false);
+
+  // Submit survival score on match_over
+  const matchOverPlayedRef = useRef(false);
+  useEffect(() => {
+    if (phase === 'match_over') {
+      if (!matchOverPlayedRef.current) {
+        matchOverPlayedRef.current = true;
+        playMatchOver();
+      }
+      if (config.gameMode === 'survival' && roundRecord && !scoreSubmittedRef.current) {
+        scoreSubmittedRef.current = true;
+        submitSurvivalScore(
+          config.p1Name,
+          roundRecord.turnsSurvived,
+          roundRecord.hiderScore,
+          config.difficulty || 'medium',
+        ).catch(() => {});
+        updateStats(
+          roundRecord.turnsSurvived,
+          roundRecord.hiderScore,
+          true,
+          config.difficulty || 'medium',
+        );
+      }
+    }
+  }, [phase, config.gameMode, config.p1Name, config.difficulty, roundRecord]);
+
   if (phase === 'playing' || phase === 'tag_freeze') return null;
 
   const isSuddenDeath = phase === 'sudden_death_intro';
@@ -271,53 +304,105 @@ export function MatchOverlay({
         {/* Phase 4: Match Over / Game Summary */}
         {phase === 'match_over' && (
           <div className="space-y-6">
-            <div className="flex flex-col items-center">
-              <Trophy className="w-14 h-14 text-yellow-400 animate-pulse mb-3" />
-              <span className="text-[10px] tracking-[4px] font-mono font-semibold text-yellow-400 uppercase">
-                Match Over
-              </span>
-              <h2 className="text-3xl md:text-5xl font-black text-white tracking-widest uppercase font-sans mt-2">
-                {matchWinnerName} WINS!
-              </h2>
-            </div>
+            {config.gameMode === 'survival' ? (
+              <SurvivalMatchOver roundRecord={roundRecord} config={config} />
+            ) : (
+              <>
+                <div className="flex flex-col items-center">
+                  <Trophy className="w-14 h-14 text-yellow-400 animate-pulse mb-3" />
+                  <span className="text-[10px] tracking-[4px] font-mono font-semibold text-yellow-400 uppercase">
+                    Match Over
+                  </span>
+                  <h2 className="text-3xl md:text-5xl font-black text-white tracking-widest uppercase font-sans mt-2">
+                    {matchWinnerName} WINS!
+                  </h2>
+                </div>
 
-            {/* Score comparison visual */}
-            <div className="p-6 bg-zinc-900/60 border border-yellow-500/10 rounded-2xl flex items-center justify-around">
-              <div>
-                <span className="text-[10px] font-mono tracking-wider text-yellow-400 font-semibold block uppercase">CHAMPION</span>
-                <span className="text-lg font-bold text-white truncate max-w-[150px] block">{matchWinnerName}</span>
-                <span className="text-3xl font-black text-yellow-400 font-mono">{matchWinnerScore}</span>
-              </div>
-              <div className="text-neutral-600 font-mono font-black text-xl">v</div>
-              <div>
-                <span className="text-[10px] font-mono tracking-wider text-neutral-500 block uppercase">Runner-Up</span>
-                <span className="text-lg font-semibold text-neutral-400 truncate max-w-[150px] block">{matchLoserName}</span>
-                <span className="text-2xl font-bold text-neutral-500 font-mono">{matchLoserScore}</span>
-              </div>
-            </div>
-
-            {/* Matches scorecard index */}
-            <div className="space-y-2 text-left">
-              <span className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase block">Round Log</span>
-              <div className="max-h-36 overflow-y-auto border border-neutral-800 rounded-lg text-xs divide-y divide-neutral-900">
-                {history.map((record, idx) => (
-                  <div key={idx} className="p-2.5 flex justify-between items-center bg-neutral-950/40">
-                    <div>
-                      <span className="font-semibold text-neutral-300 block">Round {record.roundIndex + 1}</span>
-                      <span className="text-[10px] text-neutral-500">
-                        Runner: {record.hiderName}  |  Chaser: {record.seekerName}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-mono text-emerald-400 font-bold block">+{record.turnsSurvived} Turns</span>
-                      <span className="text-[10px] text-neutral-500">Points</span>
-                    </div>
+                {/* Score comparison visual */}
+                <div className="p-6 bg-zinc-900/60 border border-yellow-500/10 rounded-2xl flex items-center justify-around">
+                  <div>
+                    <span className="text-[10px] font-mono tracking-wider text-yellow-400 font-semibold block uppercase">CHAMPION</span>
+                    <span className="text-lg font-bold text-white truncate max-w-[150px] block">{matchWinnerName}</span>
+                    <span className="text-3xl font-black text-yellow-400 font-mono">{matchWinnerScore}</span>
                   </div>
-                ))}
+                  <div className="text-neutral-600 font-mono font-black text-xl">v</div>
+                  <div>
+                    <span className="text-[10px] font-mono tracking-wider text-neutral-500 block uppercase">Runner-Up</span>
+                    <span className="text-lg font-semibold text-neutral-400 truncate max-w-[150px] block">{matchLoserName}</span>
+                    <span className="text-2xl font-bold text-neutral-500 font-mono">{matchLoserScore}</span>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Tabbed content */}
+            <div className="space-y-4">
+              <div className="flex gap-2 border-b border-neutral-800">
+                <button
+                  onClick={() => setActiveTab('log')}
+                  className={`px-4 py-2 text-xs font-mono uppercase transition-colors ${
+                    activeTab === 'log'
+                      ? 'border-b-2 border-emerald-500 text-emerald-300'
+                      : 'text-neutral-500 hover:text-neutral-300'
+                  }`}
+                >
+                  Round Log
+                </button>
+                <button
+                  onClick={() => setActiveTab('leaderboard')}
+                  className={`px-4 py-2 text-xs font-mono uppercase transition-colors ${
+                    activeTab === 'leaderboard'
+                      ? 'border-b-2 border-emerald-500 text-emerald-300'
+                      : 'text-neutral-500 hover:text-neutral-300'
+                  }`}
+                >
+                  Leaderboard
+                </button>
+                <button
+                  onClick={() => setActiveTab('stats')}
+                  className={`px-4 py-2 text-xs font-mono uppercase transition-colors ${
+                    activeTab === 'stats'
+                      ? 'border-b-2 border-emerald-500 text-emerald-300'
+                      : 'text-neutral-500 hover:text-neutral-300'
+                  }`}
+                >
+                  Stats
+                </button>
               </div>
+
+              {/* Tab panels */}
+              {activeTab === 'log' && (
+                <div className="space-y-2 text-left">
+                  <span className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase block">
+                    Round Log
+                  </span>
+                  <div className="max-h-36 overflow-y-auto border border-neutral-800 rounded-lg text-xs divide-y divide-neutral-900">
+                    {history.map((record, idx) => (
+                      <div key={idx} className="p-2.5 flex justify-between items-center bg-neutral-950/40">
+                        <div>
+                          <span className="font-semibold text-neutral-300 block">Round {record.roundIndex + 1}</span>
+                          <span className="text-[10px] text-neutral-500">
+                            Runner: {record.hiderName}  |  Chaser: {record.seekerName}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-mono text-emerald-400 font-bold block">+{record.turnsSurvived} Turns</span>
+                          <span className="text-[10px] text-neutral-500">Points</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {activeTab === 'leaderboard' && (
+                <LeaderboardPanel playerName={config.p1Name} difficulty={config.difficulty} />
+              )}
+              {activeTab === 'stats' && (
+                <StatsPanel playerName={config.p1Name} />
+              )}
             </div>
 
-            {/* Option menus */}
+{/* Option menus */}
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => { playUIClick(); onRestartGame(); }}
@@ -336,8 +421,59 @@ export function MatchOverlay({
             </div>
           </div>
         )}
-
       </div>
     </div>
+  );
+}
+// ── Survival Mode Match Over component ─────────────────────
+function SurvivalMatchOver({
+  roundRecord,
+  config,
+}: {
+  roundRecord: RoundRecord | null;
+  config: MatchConfig;
+}) {
+  const turns = roundRecord?.turnsSurvived ?? 0;
+  const score = roundRecord?.hiderScore ?? 0;
+
+  return (
+    <>
+      <div className="flex flex-col items-center">
+        <Sparkles className="w-14 h-14 text-emerald-400 animate-pulse mb-3" />
+        <span className="text-[10px] tracking-[4px] font-mono font-semibold text-emerald-400 uppercase">
+          Survival Run Complete
+        </span>
+        <h2 className="text-3xl md:text-5xl font-black text-white tracking-widest uppercase font-sans mt-2">
+          {config.p1Name}
+        </h2>
+      </div>
+
+      {/* Two-panel score card */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="p-6 bg-zinc-900/60 border border-emerald-500/20 rounded-2xl flex flex-col items-center">
+          <span className="text-[10px] font-mono tracking-wider text-emerald-400 font-semibold uppercase mb-2">
+            Rounds Survived
+          </span>
+          <span className="text-5xl md:text-6xl font-black text-white font-mono">
+            {turns}
+          </span>
+        </div>
+        <div className="p-6 bg-zinc-900/60 border border-amber-500/20 rounded-2xl flex flex-col items-center">
+          <span className="text-[10px] font-mono tracking-wider text-amber-400 font-semibold uppercase mb-2">
+            Total Score
+          </span>
+          <span className="text-5xl md:text-6xl font-black text-amber-400 font-mono">
+            {score}
+          </span>
+        </div>
+      </div>
+
+      {/* Difficulty badge */}
+      {config.difficulty && (
+        <div className="text-[10px] font-mono tracking-wider text-neutral-500 uppercase">
+          Difficulty: <span className="text-neutral-300 font-bold">{config.difficulty}</span>
+        </div>
+      )}
+    </>
   );
 }

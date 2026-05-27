@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Color Schemes — Turn Tag</title>
+<style>
+  body { margin: 0; min-height: 100vh; background: #020502; font-family: monospace; color: #e2e8f0; display: flex; flex-direction: column; align-items: center; padding: 24px; }
+  h1 { color: #f59e0b; letter-spacing: 4px; margin-bottom: 4px; text-align: center; }
+  .sub { color: #64748b; font-size: 13px; margin-bottom: 24px; text-align: center; max-width: 700px; line-height: 1.5; }
+  .row { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; max-width: 1400px; }
+  .card { background: #0a100a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px; width: 300px; cursor: pointer; transition: border-color 0.2s; }
+  .card:hover { border-color: #38bdf8; }
+  .card.active { border-color: #f59e0b; }
+  .card h3 { margin: 0 0 2px; font-size: 15px; letter-spacing: 2px; }
+  .card .vibe { font-size: 10px; color: #64748b; margin-bottom: 12px; }
+  canvas { border-radius: 8px; width: 260px; height: 160px; display: block; margin: 0 auto; }
+  .swatches { display: flex; gap: 6px; justify-content: center; margin: 10px 0; }
+  .swatch { width: 24px; height: 24px; border-radius: 50%; border: 1px solid #1e293b; }
+  .row-label { color: #94a3b8; font-size: 11px; margin: 20px 0 6px; }
+  .selected-name { color: #f59e0b; font-size: 14px; margin-top: 8px; height: 20px; text-align: center; }
+</style>
+</head>
+<body>
+<h1>◈ COLOR SCHEMES</h1>
+<div class="sub">Click a scheme to preview. Each shows the Runner ball, Chaser ball, bumpers, hazards (sand/ice), and the game vibe.</div>
+<div class="row" id="schemes"></div>
+<div class="selected-name" id="selectedDisplay">Current: Neon</div>
+
+<script>
+const CX = 130, CY = 80;
+const R = 22;
+
+const schemes = [
+  {
+    name: 'Neon',
+    vibe: 'current — cyan vs amber',
+    runner: ['#ffffff','#e0f2fe','#7dd3fc','#38bdf8','#0c4a6e'],
+    chaser: ['#fef3c7','#fde68a','#f59e0b','#d97706','#7c2d12'],
+    bumper: '#f59e0b', bumperGlow: '#f59e0b',
+    sand: '#d4a843', ice: '#22d3ee',
+    bg: '#020502',
+  },
+  {
+    name: 'Matrix',
+    vibe: 'hacker green vs crimson',
+    runner: ['#f0fdf4','#bbf7d0','#4ade80','#22c55e','#14532d'],
+    chaser: ['#fef2f2','#fecaca','#f87171','#ef4444','#7f1d1d'],
+    bumper: '#22c55e', bumperGlow: '#22c55e',
+    sand: '#a3e635', ice: '#34d399',
+    bg: '#020502',
+  },
+  {
+    name: 'Arctic',
+    vibe: 'white vs deep frost',
+    runner: ['#ffffff','#f1f5f9','#cbd5e1','#94a3b8','#1e293b'],
+    chaser: ['#eff6ff','#bfdbfe','#60a5fa','#3b82f6','#1e3a5f'],
+    bumper: '#94a3b8', bumperGlow: '#60a5fa',
+    sand: '#cbd5e1', ice: '#38bdf8',
+    bg: '#0c1117',
+  },
+  {
+    name: 'Lava',
+    vibe: 'ember vs deep magma',
+    runner: ['#fff7ed','#fed7aa','#fb923c','#f97316','#7c2d12'],
+    chaser: ['#fef2f2','#fecaca','#dc2626','#b91c1c','#450a0a'],
+    bumper: '#fb923c', bumperGlow: '#ef4444',
+    sand: '#d97706', ice: '#f87171',
+    bg: '#0a0505',
+  },
+  {
+    name: 'Royal',
+    vibe: 'amethyst vs gold',
+    runner: ['#faf5ff','#e9d5ff','#a855f7','#9333ea','#3b0764'],
+    chaser: ['#fefce8','#fef08a','#eab308','#ca8a04','#713f12'],
+    bumper: '#a855f7', bumperGlow: '#eab308',
+    sand: '#d97706', ice: '#a855f7',
+    bg: '#050208',
+  },
+  {
+    name: 'Synthwave',
+    vibe: 'hot pink vs electric cyan',
+    runner: ['#fdf4ff','#f5d0fe','#e879f9','#d946ef','#701a75'],
+    chaser: ['#ecfeff','#a5f3fc','#22d3ee','#06b6d4','#164e63'],
+    bumper: '#e879f9', bumperGlow: '#22d3ee',
+    sand: '#d946ef', ice: '#22d3ee',
+    bg: '#020208',
+  },
+  {
+    name: 'Forest',
+    vibe: 'moss vs russet',
+    runner: ['#f0fdf4','#bbf7d0','#86efac','#22c55e','#166534'],
+    chaser: ['#fef2f2','#fed7aa','#b45309','#92400e','#431407'],
+    bumper: '#86efac', bumperGlow: '#b45309',
+    sand: '#a3e635', ice: '#86efac',
+    bg: '#020503',
+  },
+];
+
+let selected = 0;
+
+function drawScheme(ctx, s) {
+  ctx.fillStyle = s.bg; ctx.fillRect(0, 0, 260, 160);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)'; ctx.lineWidth = 1;
+  for (let gx = 0; gx < 260; gx += 12) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, 160); ctx.stroke(); }
+  for (let gy = 0; gy < 160; gy += 12) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(260, gy); ctx.stroke(); }
+
+  // Bumpers
+  const bps = [[40, 30], [210, 25], [30, 125], [220, 130], [120, 40], [100, 120]];
+  bps.forEach(([x,y]) => {
+    ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI*2);
+    ctx.strokeStyle = s.bumper; ctx.lineWidth = 2; ctx.shadowBlur = 10; ctx.shadowColor = s.bumperGlow; ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.beginPath(); ctx.moveTo(x-5,y); ctx.lineTo(x+5,y); ctx.moveTo(x,y-5); ctx.lineTo(x,y+5);
+    ctx.strokeStyle = s.bumper; ctx.lineWidth = 1; ctx.stroke();
+  });
+
+  // Hazards
+  // Sand patch (bottom-left)
+  ctx.fillStyle = s.sand; ctx.globalAlpha = 0.15;
+  ctx.beginPath(); ctx.arc(55, 130, 30, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.strokeStyle = s.sand; ctx.lineWidth = 1; ctx.setLineDash([3,4]);
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = s.sand; ctx.font = '8px monospace'; ctx.textAlign = 'center'; ctx.fillText('sand', 55, 134);
+
+  // Ice patch (right side)
+  ctx.fillStyle = s.ice; ctx.globalAlpha = 0.12;
+  ctx.beginPath(); ctx.arc(200, 30, 25, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.strokeStyle = s.ice; ctx.lineWidth = 1; ctx.setLineDash([3,4]);
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = s.ice; ctx.font = '8px monospace'; ctx.textAlign = 'center'; ctx.fillText('ice', 200, 33);
+
+  // Label
+  ctx.fillStyle = s.runner[3]; ctx.font = '9px monospace'; ctx.textAlign = 'left'; ctx.fillText(s.name, 8, 12);
+
+  // Draw Runner ball
+  const rx = 45, ry = 75;
+  const gradR = ctx.createRadialGradient(rx-3, ry-4, 1, rx, ry, R);
+  gradR.addColorStop(0, s.runner[0]); gradR.addColorStop(0.3, s.runner[1]); gradR.addColorStop(0.6, s.runner[2]); gradR.addColorStop(0.8, s.runner[3]); gradR.addColorStop(1, s.runner[4]);
+  ctx.beginPath(); ctx.arc(rx, ry, R, 0, Math.PI*2); ctx.fillStyle = gradR; ctx.fill();
+  ctx.lineWidth = 5; ctx.strokeStyle = s.runner[3]; ctx.shadowBlur = 0; ctx.stroke();
+  ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.shadowBlur = 12; ctx.shadowColor = s.runner[3]; ctx.stroke(); ctx.shadowBlur = 0;
+
+  // Draw Chaser ball
+  const cx = 145, cy = 80;
+  const gradC = ctx.createRadialGradient(cx-3, cy-4, 1, cx, cy, R);
+  gradC.addColorStop(0, s.chaser[0]); gradC.addColorStop(0.3, s.chaser[1]); gradC.addColorStop(0.6, s.chaser[2]); gradC.addColorStop(0.8, s.chaser[3]); gradC.addColorStop(1, s.chaser[4]);
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.fillStyle = gradC; ctx.fill();
+  ctx.lineWidth = 5; ctx.strokeStyle = s.chaser[3]; ctx.shadowBlur = 0; ctx.stroke();
+  ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.shadowBlur = 12; ctx.shadowColor = s.chaser[3]; ctx.stroke(); ctx.shadowBlur = 0;
+}
+
+// Build cards
+const container = document.getElementById('schemes');
+schemes.forEach((s, idx) => {
+  const card = document.createElement('div'); card.className = 'card' + (idx === selected ? ' active' : '');
+  card.innerHTML = `<h3>◈ ${s.name}</h3><div class="vibe">${s.vibe}</div><canvas id="sc${idx}" width="260" height="160"></canvas><div class="swatches">
+    ${s.runner.map(c => `<div class="swatch" style="background:${c}"></div>`).join('')}
+    <div style="width:8px"></div>
+    ${s.chaser.map(c => `<div class="swatch" style="background:${c}"></div>`).join('')}
+  </div>`;
+  container.appendChild(card);
+  const canvas = document.getElementById(`sc${idx}`);
+  const ctx = canvas.getContext('2d');
+  drawScheme(ctx, s);
+  card.addEventListener('click', () => {
+    selected = idx;
+    document.querySelectorAll('.card').forEach((c,i) => c.className = 'card' + (i===idx?' active':''));
+    document.getElementById('selectedDisplay').textContent = `Selected: ${s.name} — ${s.vibe}`;
+  });
+});
+
+</script>
+</body>
+</html>

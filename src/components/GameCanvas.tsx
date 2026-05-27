@@ -162,6 +162,8 @@ import {
   playTag,
   playOrbCollect,
   playTurnIncrement,
+  playTurnStart,
+  playPowerUpActivate,
   playUIClick,
   startDrone,
   updateDrone,
@@ -457,6 +459,10 @@ export function GameCanvas({
             };
             setFloatMessage(`Power-up: ${titles[orbType]}`);
             playOrbCollect();
+            // Immediate activation sounds for passive power-ups (gravity, iron, superball)
+            if (orbType === 'gravity' || orbType === 'iron' || orbType === 'superball') {
+              playPowerUpActivate(orbType);
+            }
             haptics.buzz();
             roundMetaRef.current.powerUpCollector = activeRole;
           },
@@ -471,6 +477,7 @@ export function GameCanvas({
               hiderFrozenRef.current = EMP_FREEZE_FRAMES;
               setActivePowerUp(null);
               setFloatMessage('EMP FREEZE!');
+              playPowerUpActivate('emp');
             }
             roundMetaRef.current.bumperHits++;
             const count = comboCountRef.current;
@@ -499,6 +506,7 @@ export function GameCanvas({
         comboCountRef.current = 0;
         // Clean turn swaps
         toggleTurnFlow();
+        playTurnStart();
       }
 
       // --- AI opponent logic (CPU controls Seeker when P1=Hider) ---
@@ -676,6 +684,7 @@ export function GameCanvas({
         vampireActiveRef.current = true;
         setActivePowerUp(null);
         setFloatMessage('VAMPIRE STEAL!');
+        playPowerUpActivate('vampire');
       }
       showScoreMessage('TAG! +5', 'tag');
       playTag();
@@ -1133,6 +1142,7 @@ export function GameCanvas({
       activeBall.vy *= ROCKET_SPEED_MULT;
       setActivePowerUp(null);
       setFloatMessage('ROCKET BURST!');
+      playPowerUpActivate('rocket');
     }
 
     playLaunch();

@@ -385,6 +385,95 @@ export function playTurnStart(): void {
   pop.stop(c.currentTime + 0.04);
 }
 
+/** Distinct activation sound per power-up type */
+import type { PowerUpType } from '../types';
+
+export function playPowerUpActivate(type: PowerUpType): void {
+  const c = getCtx();
+  const m = getMaster();
+  const t = c.currentTime;
+
+  switch (type) {
+    case 'rocket': {
+      // Ascending whoosh — bandpass noise sweep up
+      const whoosh = c.createBufferSource();
+      whoosh.buffer = getPinkNoise(c);
+      const wf = c.createBiquadFilter();
+      wf.type = 'bandpass';
+      wf.frequency.setValueAtTime(400, t);
+      wf.frequency.exponentialRampToValueAtTime(3000, t + 0.2);
+      wf.Q.value = 1.5;
+      const wg = c.createGain();
+      wg.gain.setValueAtTime(0.25, t);
+      wg.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      whoosh.connect(wf).connect(wg).connect(m);
+      whoosh.start(t);
+      whoosh.stop(t + 0.35);
+      break;
+    }
+    case 'gravity': {
+      // Low sub hum
+      const hum = c.createOscillator();
+      const hg = c.createGain();
+      hum.type = 'sine';
+      hum.frequency.setValueAtTime(80, t);
+      hum.frequency.exponentialRampToValueAtTime(40, t + 0.5);
+      hg.gain.setValueAtTime(0.20, t);
+      hg.gain.linearRampToValueAtTime(0.15, t + 0.2);
+      hg.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+      hum.connect(hg).connect(m);
+      hum.start(t);
+      hum.stop(t + 0.7);
+      break;
+    }
+    case 'vampire': {
+      // Descending chromatic — two quick notes
+      [600, 400].forEach((freq, i) => {
+        const note = c.createOscillator();
+        const ng = c.createGain();
+        note.type = 'triangle';
+        const start = t + i * 0.08;
+        note.frequency.setValueAtTime(freq, start);
+        ng.gain.setValueAtTime(0.18, start);
+        ng.gain.exponentialRampToValueAtTime(0.001, start + 0.15);
+        note.connect(ng).connect(m);
+        note.start(start);
+        note.stop(start + 0.2);
+      });
+      break;
+    }
+    case 'emp': {
+      // Electric zap — highpass noise burst
+      const zap = c.createBufferSource();
+      zap.buffer = getPinkNoise(c);
+      const zf = c.createBiquadFilter();
+      zf.type = 'highpass';
+      zf.frequency.value = 3000;
+      const zg = c.createGain();
+      zg.gain.setValueAtTime(0.30, t);
+      zg.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+      zap.connect(zf).connect(zg).connect(m);
+      zap.start(t);
+      zap.stop(t + 0.15);
+      break;
+    }
+    case 'iron':
+    case 'superball':
+    default: {
+      // Quick spark for other power-ups
+      const spark = c.createOscillator();
+      const sg = c.createGain();
+      spark.type = 'sine';
+      spark.frequency.setValueAtTime(2000, t);
+      sg.gain.setValueAtTime(0.10, t);
+      sg.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+      spark.connect(sg).connect(m);
+      spark.start(t);
+      spark.stop(t + 0.06);
+    }
+  }
+}
+
 // ── Proximity Drone ─────────────────────────────────────────────
 
 interface DroneNodes {
