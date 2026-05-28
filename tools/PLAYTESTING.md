@@ -1,77 +1,100 @@
 # Turn Tag Playtesting Tools
 
-## Quick Start
+## Headless Harness
 
-### 1. Manual Play + Export (Phase C)
+The `headless/` directory contains a Node.js playtesting framework that runs AI-vs-AI matches and collects balance data.
 
-1. Start the dev server: `npm run dev`
-2. Open the game in your browser
-3. Press `D` to enable debug recording (green "● REC" indicator appears in HUD)
-4. Play a match normally
-5. Press `E` at any time to download a JSON file with the full match log
-6. Analyze the export: `python3 tools/analyze_match.py turn-tag-match-*.json`
-
-### 2. Debug Overlay
-
-- `D` — Toggle debug logging on/off
-- `D` (when enabled) — Toggle the visual overlay panel
-- `Shift+D` — Fully disable and clear log
-- `E` — Export match data as JSON download
-
-The overlay panel shows:
-- Phase, turn number, frame count
-- Active role, balls moving state
-- Ball positions and velocities (Hider/Seeker)
-- Round meta (turns survived, bumper hits, power-up collector)
-- Distance between balls
-- Recent events (collisions, tags, power-ups, near misses)
-
-### 3. Analyzer
+### Quick Start
 
 ```bash
-# Single match
-python3 tools/analyze_match.py path/to/match.json
+# Run 100 matches with all 6 AI strategies
+npx tsx headless/runner.ts
 
-# Multiple matches
-python3 tools/analyze_match.py match1.json match2.json match3.json
+# Run 50 matches with a specific strategy
+npx tsx headless/runner.ts --matches 50 --strategy evasive
 
-# Batch (all JSON in a directory)
-python3 tools/analyze_match.py --batch path/to/exports/
+# Run a parameter sweep (e.g. SEEKER_SPEED_MULT)
+npx tsx headless/runner.ts --sweep SEEKER_SPEED_MULT --sweep-values 0.5,1.0,1.5,2.0
+
+# Custom output directory
+npx tsx headless/runner.ts --output tools/results/my-test/
 ```
 
-The analyzer produces:
-- Summary table (frames, events, turns, tags, near misses, bumpers, power-ups)
-- Distance analysis (min/max/avg between balls)
-- Velocity analysis (hider vs seeker speeds)
-- Event breakdown by type
-- Phase timeline with estimated durations
-- **Anomaly detection** (stuck balls, missing events, short matches, frozen positions)
-- Raw event log (last 20 events)
+### AI Strategies (6 total)
 
-Reports are saved as `-report.md` alongside each JSON file.
+| Strategy | Behavior |
+|----------|----------|
+| `random` | Random aim direction/power |
+| `passive` | Aims directly at Hider, no prediction |
+| `aggressive` | Aims at Hider + leads the shot |
+| `evasive` | Hider flees, Seeker chases with prediction |
+| `bumper_chaser` | Uses bumpers to bounce toward Hider |
+| `heuristic` | Adaptive: switches based on distance and obstacles |
 
-## Data Format
+### Output
 
-The exported JSON contains:
-```json
-{
-  "version": 1,
-  "exportedAt": "2025-01-01T00:00:00.000Z",
-  "phase": "match_over",
-  "config": { "p1Name": "...", "p2Name": "...", ... },
-  "debugLog": [
-    { "type": "frame", "frame": 0, "phase": "playing", "hider": { "x": ..., "y": ..., "vx": ..., "vy": ... }, ... },
-    { "type": "event", "eventType": "turn_swap", "data": { "newRole": "seeker" }, ... },
-    ...
-  ]
-}
+Each run produces:
+- Per-match JSON files with full event logs
+- `summary-data-<timestamp>.json` — aggregate stats
+- `summary-report-<timestamp>.markdown` — human-readable report
+
+### Smoke Test
+
+```bash
+npx tsx headless/smoke-test.ts
 ```
 
-## Keyboard Shortcuts Reference
+Runs 5 matches (1 per strategy) and prints a summary. Good for quick verification.
 
-| Key | Action |
-|-----|--------|
-| D | Toggle debug recording |
-| D (when on) | Toggle overlay panel |
-| Shift+D | Fully disable debug |
-| E | Export match JSON |
+### Balance Test
+
+```bash
+npx tsx headless/realistic-balance-test.ts
+```
+
+Runs matches with varied difficulty settings and collects win-rate data.
+
+### Sweep Mode
+
+```bash
+npx tsx headless/sweep.ts --constant SEEKER_SPEED_MULT --values 0.5,0.75,1,1.25,1.5,1.75,2
+```
+
+Sweeps a constant across values, producing per-value result sets for comparison.
+
+## Manual Testing
+
+### Local Play
+
+```bash
+npm run dev
+# Open http://localhost:3000
+```
+
+### Production Play
+
+https://bayarddevries.github.io/Circle-Chase/
+
+## Analysis Tools
+
+### analyze_match.py
+
+Analyze a single match export:
+
+```bash
+python3 tools/analyze_match.py tools/results/<strategy>/match-0000.json
+```
+
+## Adding a New AI Strategy
+
+1. Define the strategy in `headless/ai-strategies.ts`:
+   ```typescript
+   export const myStrategy: AIStrategy = {
+     name: 'my_strategy',
+     description: 'Brief description',
+     hider: (state, config) => { /* return { angle, power } */ },
+     seeker: (state, config) => { /* return { angle, power } */ },
+   };
+   ```
+2. Add it to the `STRATEGIES` array.
+3. Test: `npx tsx headless/smoke-test.ts --strategy my_strategy`

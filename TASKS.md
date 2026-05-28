@@ -1,46 +1,54 @@
-# Circle Chase
+# Circle Chase — Task Tracker
 
-Merged roadmap: original Google Tasks + recent suggestions. Done items marked.
+Done items marked. Active work at top.
+
+## In Progress 🔄
+
+- [ ] **Gravity Well continuous pull** — known issue, under investigation (see KNOWN_ISSUES.md)
+- [ ] **Scoring combos UI** — RoundMeta tracked, calculations done, display not yet wired to round-over screen
 
 ## Done ✅
 
-- [x] Phase 1 — Module extraction (game/*.ts refactor)
-- [x] Phase 2 — AI opponent (easy/medium/hard)
-- [x] Phase 9 — Sound effects + haptics (Web Audio API, procedural)
-- [x] Player piece visual upgrade — Tech Neon (gradient, solid edge, animated rings)
-- [x] Multiple power-up orbs on map — 3-4 orbs spawn per round with different types (laser, superball, iron, sonar, cloak, magnet) | [Phase 3]
-- [x] Cloak + Magnet power-ups — restore removed logic | [Phase 3]
-- [x] Map template system — 6 curated layouts | [Phase 4]
-- [x] Bigger tag explosion — flash burst, dual shockwave, more particles
-- [x] Quick tag bonus fix — within 3 turns, counter was broken
-- [x] PWA — installable, offline, homescreen-ready | [Phase 7]
-- [x] 4 new power-ups: Rocket Burst, Gravity Well, Vampire, EMP
-- [x] 6 new sound effects — power-up activate, match over, turn start
-- [x] Power-up duration fix — lasts until end of next turn
+### Features
+- [x] Phase 0 — Constants file, RoundMeta tracking, colorblind mode, CPU config
+- [x] Phase 1 — GameCanvas refactor into 11 modules (1951 → 981 lines)
+- [x] Phase 1.5 — Text polish & rebrand: "Turn Tag", tagline "Turn-Based Tag 'Em Up"
+- [x] Phase 2 — AI opponent (easy/medium/hard) with difficulty-based aim error
+- [x] Phase 3 — 6 power-ups: Iron, Rocket, Gravity, Vampire, Superball, EMP
+- [x] Phase 4 — Scoring system: hider/seeker score formulas with combo bonuses
 - [x] Leaderboard: Firebase SDK → REST API fix + client-side sorting
-- [x] HelpManual updated — new power-ups + emerald theme
-- [x] Canvas zero-height bug fix
-- [x] Dead code removal (laser/sonar conditions)
-- [x] Gravity visual feedback — pulsing amber rings on Seeker, red pull arrow on Hider
+- [x] Headless playtesting harness (`headless/`) with 6 AI strategies
+- [x] Playtesting analysis tools (`tools/`) — match result analysis, parameter sweep
+- [x] Gravity visual feedback — pulsing rings, pull arrow (fades over 1.5s)
 - [x] Collision clarity — solid white edge boundaries, dashed turn halos removed
 - [x] Replay flow fix — Survival shows "TRY AGAIN", restarts without role swap
+- [x] Canvas zero-height bug fix
+- [x] Dead code removal (old laser/sonar conditions)
+- [x] Power-up duration fix — lasts until end of next turn
+- [x] Input handling refinements
+
+### Fixes
+- [x] Duplicate gravity physics block in physics.ts (applied 3× due to patch collision)
+- [x] Duplicate gravity arrow drawing code removed from GameCanvas.tsx
+- [x] Gravity impulse scaled to match player launch speeds (5-15, not 180-450)
+- [x] Gravity replaced continuous pull with single burst + time-based duration
 
 ## Next Up 🔜
 
-- [ ] **Gravity Well continuous pull** — 🔴 known issue, under investigation (see KNOWN_ISSUES.md)
+- [ ] Scoring combos UI — wire calculateRoundScore into round-over screen display
 - [ ] Sudden death camera fix — known issue in compact map
-- [ ] CPU AI improvement — medium/hard difficulties need obstacle avoidance logic (currently launches directly into obstacles)
-- [ ] Power-up validation — Vampire doesn't make sense in Survival mode; filter power-ups by active game mode
+- [ ] CPU AI improvement — medium/hard need obstacle avoidance (currently launches into obstacles)
+- [ ] Power-up validation — Vampire doesn't make sense in Survival mode; filter by game mode
 
 ## Mid-term ⌛
 
-- [ ] Scoring combos — distance, quick tag, bumper streak | [Phase 5]
-- [ ] Visual facelift — coordinated pass on colors, HUD, fonts, transitions (deferred)
+- [ ] Sound effects — Web Audio API synthesis (all stubs exist, no audio)
+- [ ] Statistics tracking — per-game stats
+- [ ] Game modes — Time Attack, Endless
 
 ## Later 📋
 
-- [ ] Statistics tracking — per-game stats
-- [ ] Game modes — Time Attack, Endless | [Phase 6]
-- [ ] Replay system — record & playback rounds | [Phase 8]
+- [ ] PWA — installable, offline, homescreen-ready
+- [ ] Replay system — record & playback rounds
 - [ ] Capacitor/TWA — Android app store wrap
-- [ ] Meta-progression — shop, leaderboard, badges | [Phase 10]
+- [ ] Meta-progression — shop, badges (optional)

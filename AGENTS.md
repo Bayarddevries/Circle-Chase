@@ -40,7 +40,7 @@ App.tsx (state machine)
 │   ├── Slingshot drag controls
 │   ├── Particle system (sparks, debris, shockwaves) — capped at 500
 │   ├── Sonar ping system (Hider position leak)
-│   ├── Power-up system (laser, superball, iron, sonar) — cloak & magnet planned
+│   ├── Power-up system (iron, rocket, gravity, vampire, superball, emp)
 │   ├── DPI-aware canvas scaling
 │   ├── Colorblind mode overlays (square for Hider, triangle for Seeker)
 │   ├── Camera shake & slow-motion effects
@@ -68,32 +68,34 @@ App.tsx (state machine)
 ## Current Feature Set (Post-Phase 0)
 
 ### Core Working
-- Slingshot physics with sub-stepping
+- Slingshot physics with sub-stepping (5 steps/frame)
 - Bumper collisions with varying restitution and boost
 - Sand & ice hazard patches (friction modifiers)
 - Fog of war (shrouds Hider from Seeker at distance)
-- Sonar power-up reveals Hider position periodically
-- Power-ups: Laser, Superball, Iron, Sonar
-- Particle system (sparks, debris, shockwaves)
+- Power-ups: Iron, Rocket, Gravity, Vampire, Superball, EMP (6 types)
+- Particle system (sparks, debris, shockwaves) — capped at 500
 - Cinematic camera: tracking, zoom, shake
 - Slow-motion freeze on tag
 - Sudden death mode on tied matches (compact map, no fog)
 - Colorblind mode (shape overlays on balls)
 - CPU opponent (easy/medium/hard)
 - Mobile viewport meta tags + touch safe hit areas
- - Leaderboard: global survival scores via Firebase Realtime DB (REST + client-side sorting)
+- Leaderboard: global survival scores via Firebase Realtime DB (REST + client-side sorting)
+- RoundMeta tracking + score calculation (calculateRoundScore in scoring.ts)
+- Headless playtesting harness (headless/) with 6 AI strategies
+- Playtesting analysis tools (tools/)
 
 ### Removed / On Hold
- - Shop and badges (removed in commit 05e4f93); leaderboard restored for survival mode via Firebase Realtime DB.
-- Orb respawn (power-up orb currently spawns once and stays)
+- Shop and badges (removed in commit 05e4f93); leaderboard restored for survival mode via Firebase Realtime DB
+- Orb respawn (power-up orb spawns once per round; respawn timer constant exists but not wired)
 - Directional fog (shroud always radial)
-- Cloak & Magnet power-ups (tokens defined but logic removed)
+- Cloak & Magnet power-ups (existed in v1.3, removed, not yet restored)
 - Map template system
 - Game modes (Time Attack, Endless)
-- Scoring combos (RoundMeta tracking in place, calculations pending)
+- Scoring combos UI (RoundMeta tracked, calculateRoundScore() implemented, round-over display not yet wired)
 - Replay system
-- Sound effects
-- PWA manifest
+- Sound effects (stubs exist, no audio synthesis)
+- PWA manifest (vite-plugin-pwa installed but no manifest/icons configured)
 
 ---
 
@@ -104,7 +106,7 @@ All magic numbers are centralized in `src/constants.ts`. Before editing any valu
 
 ### Types
 Extended types in `src/types.ts`:
-- `PowerUpType`: 'laser' \| 'superball' \| 'iron' \| 'sonar' \| 'cloak' \| 'magnet'
+- `PowerUpType`: 'iron' | 'rocket' | 'gravity' | 'vampire' | 'superball' | 'emp'
 - `AIDifficulty`: 'easy' \| 'medium' \| 'hard'
 - `RoundMeta`: { turnsSurvived, powerUpCollected, bumperHits, tagTurn }
 - `ScoreBreakdown`: breakdown of scoring components
@@ -137,10 +139,12 @@ These are cleared at round start and used when the round over screen appears (se
 ### Branch Previews (feature branches)
 **URL pattern:** https://bayarddevries.github.io/Circle-Chase/preview/<branch-name>/
 
-- Push any `feature/*` branch → GitHub Actions builds → deploys to `gh-pages/preview/<branch-name>/`
+- Feature branches use the `pages.yml` workflow with `workflow_dispatch` trigger only (not automatic on push)
+- Trigger manually: `gh workflow run pages.yml --ref feature/<name>`
 - Build uses `BASE_PATH=/Circle-Chase/preview/<branch-name>/` so assets resolve correctly
-- No external services needed — all on GitHub
+- **Known issue:** GitHub's auto `pages-build-deployment` action runs after Deploy writes to gh-pages and may overwrite preview directories. Previews may not be reliably servable. Use local preview builds for feature testing instead.
 - Preview directories on gh-pages are never cleaned up automatically; old ones can be manually deleted if needed
+- **Recommended:** Always test with `npm run build` (production) or `BASE_PATH=/Circle-Chase/preview/<name>/ npm run build` (preview) locally before merging to main
 
 ### Local Development
 ```bash
@@ -207,64 +211,38 @@ Researched in-house audio generation options. Decided on procedural Web Audio AP
 
 **Next**: Implement after mobile UI finalized
 
-### Phase 2 — AI Opponent (NEXT)
-- `src/game/particles.ts` (283 lines) — updateParticles, drawParticles, spawnTag/Bumper/Orb/Launch ✓
-- `src/game/camera.ts` (47 lines) — updateCamera, applyCameraTransform, restoreCameraTransform ✓
-- `src/game/sonar.ts` (76 lines) — updateSonarPings, maybeSpawnSonarPing, drawSonarPings ✓
-- `src/game/input.ts` (65 lines) — screenToMap, calculateLaunch ✓
-- `src/game/trails.ts` (61 lines) — updateTrail, drawTrail ✓
-- `src/game/fog.ts` (39 lines) — drawFogOfWar ✓
-- `src/game/map.ts` — procedural generation (pending)
-- `src/game/minimap.ts` — minimap HUD (pending)
-- `src/game/powerups.ts` — orb collection, pulse, drawing (pending)
-- `src/game/renderer.ts` — ball/bumper/hazard drawing (pending, largest)
-- `src/game/physics.ts` — substepping, collisions, friction (pending, do last)
+## Phase Roadmap
 
-**Progress:** GameCanvas 1951 → 1636 lines (-315). 6/11 modules done.
-**Gate: GameCanvas ~200 lines, build passes, deploy, verify.**
+### Completed ✓
 
-### Phase 2 — AI Opponent
-Implement the actual AI behavior using the existing config:
-- AI aims at Hider + error margin based on difficulty
-- AI delay (think time) before firing
-- AI selects launch direction/power
-- AI respects power-ups (e.g., uses laser if available)
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 0 | Constants, types, colorblind, CPU config | ✓ Done |
+| 1 | GameCanvas → 11 modules (1951→981 lines) | ✓ Done |
+| 1.5 | Text Polish & Rebrand: "Turn Tag" | ✓ Done |
+| 1.6 | Audio design plan (Web Audio API) | ✓ Done |
+| 2 | CPU AI opponent (easy/medium/hard) | ✓ Done |
+| 3 | 6 power-ups: Iron, Rocket, Gravity, Vampire, Superball, EMP | ✓ Done |
+| 4 | Score calculation (`calculateRoundScore()` in `src/game/scoring.ts`) | ✓ Done |
 
-### Phase 3 — Restore Lost Powers
-Add back Cloak and Magnet:
-- Cloak: Hider becomes invisible to Seeker canvas rendering (but sonar still works)
-- Magnet: Seeker pulls ball toward Hider (seems reversed based on v1.3? verify: magnet might draw Hider toward orb? Need to check original v1.3 logic)
-- Orb respawn timer (10s after collection)
+### Active / Pending
 
-### Phase 4 — Map Templates
-Define 3-5 distinct map layouts (symmetrical, wide, tall, obstacle-heavy) instead of full procedural randomness.
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 5 | Scoring combos UI — wire `calculateRoundScore` into round-over screen | 🔴 Pending |
+| 6 | Gravity Well continuous pull fix — intermittent bug, under investigation | 🔴 Pending |
+| 7 | Sound effects — Web Audio API synthesis (stubs exist) | ⏳ Pending |
+| 8 | Game modes — Time Attack, Endless | ⏳ Pending |
+| 9 | PWA — installable, offline (vite-plugin-pwa installed, needs manifest/icons) | ⏳ Pending |
+| 10 | Replay system — record/playback rounds | ⏳ Pending |
+| 11 | Capacitor/TWA — Android app store wrap | ⏳ Pending |
+| 12 | Statistics tracking — per-game stats | ⏳ Pending |
 
-### Phase 5 — Scoring Combos
-Calculate score using RoundMeta:
-- Base: turnsSurvived
-- Quick tag penalty/bonus
-- Combo bonus for consecutive bumper hits
-- Near miss bonus (seeker within 50px)
-- Power-up collection bonus
-- Survival streak bonus
-
-Show breakdown in round over screen.
-
-### Phase 6 — Game Modes
-- Time Attack: survive X seconds with Hider
-- Endless: infinite rounds, escalating difficulty (more hazards, smaller maps?)
-
-### Phase 7 — PWA
-Add `manifest.webmanifest`, service worker for offline play. Prepare for Android app (TWA/Capacitor).
-
-### Phase 8 — Replay System
-Record input events (slingshot drag per turn) and play back. Not full state serialization — just inputs allow deterministic replay.
-
-### Phase 9 — Sound
-Simple sound effects using Web Audio API or howler.js.
-
-### Phase 10 — Meta-progression (optional)
-If desired, reintroduce shop/leaderboard/badges with persistent storage (localStorage for now).
+### One-Shot Fixes (No Phase)
+- Sudden death camera fix — known issue in compact map
+- CPU AI improvement — medium/hard need obstacle avoidance
+- Power-up validation — filter Vampire from Survival mode
+- Orb respawn wiring — timer constant exists, not connected to game loop
 
 ---
 
