@@ -82,10 +82,6 @@ export function debugToggleEnabled(state: DebugState): boolean {
   if (state.enabled) {
     state.log = [];
     state.frameCounter = 0;
-    // Expose log globally for Playwright extraction
-    (window as any).__gameLog = state.log;
-  } else {
-    (window as any).__gameLog = [];
   }
   return state.enabled;
 }

@@ -322,13 +322,10 @@ export function GameCanvas({
 
   // Controls lock during active flings
   const [ballsMoving, setBallsMoving] = useState<boolean>(false);
-  // Ref for stale-closure-safe detection in the RAF loop
-  const ballsMovingRef = useRef(false);
-  // Keep ref in sync with state
-  useEffect(() => { ballsMovingRef.current = ballsMoving; }, [ballsMoving]);
 
   // Debug Overlay State
   const debugStateRef = useRef(createDebugState());
+  const [debugOn, setDebugOn] = useState(false);
 
   // AI opponent state
   const aiStateRef = useRef<AimingState>(resetAIAiming());
@@ -551,14 +548,9 @@ export function GameCanvas({
         },
       );
 
-      // Debug frame logging — also check window.__forceDebug as fallback
+      // Debug frame logging
       const ds = debugStateRef.current;
-      const forceDebug = (window as any).__forceDebug;
-      if (ds.enabled || forceDebug) {
-        if (forceDebug && !ds.enabled) {
-          ds.enabled = true;
-          (window as any).__gameLog = ds.log;
-        }
+      if (ds.enabled) {
         debugIncrementFrame(ds);
         debugLogFrame(ds, {
           timestamp: _time,
@@ -574,30 +566,18 @@ export function GameCanvas({
         });
       }
 
-      // Expose game state for automated playtesting
-      if (ds.enabled) {
-        (window as any).__gameState = {
-          hider: { x: hiderBallRef.current.x, y: hiderBallRef.current.y },
-          seeker: { x: seekerBallRef.current.x, y: seekerBallRef.current.y },
-          activeRole,
-          ballsMoving,
-          phase,
-        };
-      }
-
       // Check if balls have come to rest
       const hSpeed = Math.hypot(hiderBallRef.current.vx, hiderBallRef.current.vy);
       const sSpeed = Math.hypot(seekerBallRef.current.vx, seekerBallRef.current.vy);
       const isMoving = hSpeed > 0 || sSpeed > 0;
 
-      if (isMoving && !ballsMovingRef.current) {
+      if (isMoving && !ballsMoving) {
         setBallsMoving(true);
       }
 
       // Detect state transition from motion to resting
-      if (!isMoving && ballsMovingRef.current) {
+      if (!isMoving && ballsMoving) {
         setBallsMoving(false);
-        ballsMovingRef.current = false;
         // Reset combo counter — combos are per-flight
         comboCountRef.current = 0;
         // Clean turn swaps
@@ -900,67 +880,6 @@ export function GameCanvas({
       cancelAnimationFrame(animFrame);
     };
   }, [phase, activeRole, ballsMoving, activePowerUp, isSuddenDeath]);
-
-  // ── Playtesting: direct shoot helper ──────────────────────────────────────
-  // Exposed as window.__shoot(angleDeg, power) for automated runners.
-  // angleDeg: 0=right, 90=down, 180=left, 27=up (canvas/screen space, map-aligned when camera is at default)
-  // power: 0.0 to 1.0 (fraction of MAX_DRAG)
-  // This bypasses mouse events entirely and directly computes the launch.
-  useEffect(() => {
-    (window as any).__shoot = (angleDeg: number, power: number) => {
-      // Only works during playing phase
-      if (phase !== 'playing') return { ok: false, reason: 'not playing' };
-
-      const activeBall = activeRole === 'hider' ? hiderBallRef.current : seekerBallRef.current;
-      const maxDrag = 180; // MAX_DRAG from constants (slingshot max pull distance in map pixels)
-      const dragDist = Math.max(10, Math.min(1, power) * maxDrag);
-      const angleRad = (angleDeg * Math.PI) / 180;
-
-      // Drag point is pull-back from ball: opposite to aim direction
-      const dragX = activeBall.x - dragDist * Math.cos(angleRad);
-      const dragY = activeBall.y - dragDist * Math.sin(angleRad);
-
-      const launch = calculateLaunch(activeBall.x, activeBall.y, dragX, dragY, activeRole);
-      if (!launch) return { ok: false, reason: 'launch calculation failed' };
-
-      activeBall.vx = launch.vx;
-      activeBall.vy = launch.vy;
-
-      // Trigger particles/effects manually (best-effort; skip rocket since we can't read it from here)
-      // Rocket burst is rare in random play; not worth the ref plumbing
-
-      return { ok: true, role: activeRole, vx: launch.vx, vy: launch.vy };
-    };
-
-    // Expose a manual turn-swap helper for automated runners.
-    // Calls the same toggleTurnFlow() that the physics loop uses,
-    // but works even if the stale-closure detection missed the transition.
-    (window as any).__nextTurn = () => {
-      if (phase !== 'playing') return { ok: false, reason: 'not playing' };
-      // Only swap if balls are at rest
-      const hSpeed = Math.hypot(hiderBallRef.current.vx, hiderBallRef.current.vy);
-      const sSpeed = Math.hypot(seekerBallRef.current.vx, seekerBallRef.current.vy);
-      if (hSpeed > 0.1 || sSpeed > 0.1) return { ok: false, reason: 'balls still moving' };
-      toggleTurnFlow();
-      return { ok: true, newRole: activeRoleRef?.current || 'unknown' };
-    };
-
-    // Expose a full state snapshot for the runner
-    (window as any).__getState = () => ({
-      phase,
-      activeRole,
-      ballsMoving: ballsMovingRef.current,
-      hider: { x: hiderBallRef.current.x, y: hiderBallRef.current.y, vx: hiderBallRef.current.vx, vy: hiderBallRef.current.vy },
-      seeker: { x: seekerBallRef.current.x, y: seekerBallRef.current.y, vx: seekerBallRef.current.vx, vy: seekerBallRef.current.vy },
-      logLen: (window as any).__gameLog?.length || 0,
-    });
-
-    return () => {
-      delete (window as any).__shoot;
-      delete (window as any).__nextTurn;
-      delete (window as any).__getState;
-    };
-  }, [phase, activeRole]);
 
   // Handle active aiming line projections + reflect wall trajectories
   const getAimPoints = () => {
@@ -1379,20 +1298,6 @@ export function GameCanvas({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Debug overlay: consume __debugRequested flag (set by automated runner or pre-mount keypress)
-  // This must run BEFORE the keyboard handler so it catches flags set while game was on menu/intro phases.
-  useEffect(() => {
-    const requested = (window as any).__debugRequested;
-    if (requested) {
-      const state = debugStateRef.current;
-      if (!state.enabled) {
-        debugToggleEnabled(state);
-        console.log('[DebugOverlay] Auto-enabled via __debugRequested flag.');
-      }
-      (window as any).__debugRequested = false;
-    }
-  }, []);
-
   // Keyboard handler for debug overlay toggle (D = enable/toggle panel, Shift+D = full disable)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1404,7 +1309,7 @@ export function GameCanvas({
           if (state.enabled) {
             state.enabled = false;
             state.visible = false;
-            (window as any).__gameLog = [];
+            setDebugOn(false);
             console.log('[DebugOverlay] Fully disabled.');
           }
         } else {
@@ -1413,6 +1318,7 @@ export function GameCanvas({
           if (!state.enabled) {
             const enabled = debugToggleEnabled(state);
             if (enabled) {
+              setDebugOn(true);
               console.log('[DebugOverlay] Enabled — logging started.');
             }
           } else {
@@ -1421,10 +1327,39 @@ export function GameCanvas({
           }
         }
       }
+      // E = export match data as JSON download
+      if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        const state = debugStateRef.current;
+        const exportData = {
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          phase,
+          config: {
+            p1Name: config.p1Name,
+            p2Name: config.p2Name,
+            bestOfRounds: config.bestOfRounds,
+            isCpu: config.isCpu,
+            difficulty: config.difficulty,
+            gameMode: config.gameMode,
+          },
+          debugLog: state.enabled ? state.log : [],
+        };
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `turn-tag-match-${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log(`[MatchRecorder] Exported ${state.log.length} log entries.`);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [phase, config]);
 
   return (
     <div className="relative flex flex-col flex-1 select-none overflow-hidden bg-[#020502]">
@@ -1511,6 +1446,13 @@ export function GameCanvas({
           >
             QUIT
           </button>
+
+          {/* Debug/Record status indicator */}
+          {debugOn && (
+            <span className="px-2 py-1 bg-green-950/30 border border-green-500/20 text-green-400 rounded text-[9px] font-bold tracking-widest uppercase animate-pulse">
+              ● REC
+            </span>
+          )}
         </div>
       </div>
 

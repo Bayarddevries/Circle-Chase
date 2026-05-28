@@ -22,5 +22,8 @@ bun.lock
 .vscode/
 .idea/
 
+# Generated test data
+tools/results/
+
 # OS
 Thumbs.db

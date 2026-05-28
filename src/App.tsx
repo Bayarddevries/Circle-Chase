@@ -20,16 +20,6 @@ export default function App() {
     (window as any).__gamePhase = phase;
   }, [phase]);
 
-  // Global debug toggle — works before GameCanvas mounts
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'd' || e.key === 'D') {
-        (window as any).__debugRequested = true;
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
   const [config, setConfig] = useState<MatchConfig>({
     p1Name: 'Player 1',
     p2Name: 'Player 2',
