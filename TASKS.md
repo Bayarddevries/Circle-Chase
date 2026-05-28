@@ -21,13 +21,13 @@ Merged roadmap: original Google Tasks + recent suggestions. Done items marked.
 - [x] HelpManual updated — new power-ups + emerald theme
 - [x] Canvas zero-height bug fix
 - [x] Dead code removal (laser/sonar conditions)
-- [x] Gravity power-up balance — inverse-distance pull formula, time-based (10 s) duration
 - [x] Gravity visual feedback — pulsing amber rings on Seeker, red pull arrow on Hider
 - [x] Collision clarity — solid white edge boundaries, dashed turn halos removed
 - [x] Replay flow fix — Survival shows "TRY AGAIN", restarts without role swap
 
 ## Next Up 🔜
 
+- [ ] **Gravity Well continuous pull** — 🔴 known issue, under investigation (see KNOWN_ISSUES.md)
 - [ ] Sudden death camera fix — known issue in compact map
 - [ ] CPU AI improvement — medium/hard difficulties need obstacle avoidance logic (currently launches directly into obstacles)
 - [ ] Power-up validation — Vampire doesn't make sense in Survival mode; filter power-ups by active game mode
