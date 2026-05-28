@@ -218,12 +218,42 @@ To instrument a new game event for playtesting:
 3. If needed, add anomaly detection in `analyze.py` `detect_anomalies()`
 4. If needed, add balance metrics in `analyze.py` `analyze_balance()`
 
+## How the Playtesting Bridge Works
+
+The runner doesn't use mouse events to play the game. Instead, GameCanvas exposes
+two helpers that the runner calls via `page.evaluate()`:
+
+### `window.__shoot(angleDeg, power)`
+Directly fires a shot from the active ball toward a computed drag point.
+- `angleDeg`: Aim direction in degrees (0=right, 90=down, 180=left, 270=up)
+- `power`: 0.0 to 1.0 (fraction of maximum slingshot pull)
+- Returns `{ ok: bool, role: string, vx: number, vy: number }` on success
+
+The runner's `smart_shoot()` function reads ball positions from `__gameState`,
+calculates an aim angle toward the opponent (with ±30° randomness), and calls
+`__shoot()` with 0.4–0.95 power. This produces varied but purposeful shots.
+
+### `window.__gameState`
+Updated every frame while debug is enabled. Contains:
+```js
+{
+  hider: { x, y },      // Hider ball map position
+  seeker: { x, y },     // Seeker ball map position
+  activeRole: string,   // 'hider' or 'seeker'
+  ballsMoving: boolean, // true while physics is simulating
+  phase: string,        // current game phase
+}
+```
+
+### `window.__debugRequested`
+Set to `true` before GameCanvas mounts to auto-enable debug logging.
+Consumed by GameCanvas's useEffect on mount. Idempotent (safe to set multiple times).
+
 ## Known Issues
 
-- **Slingshot simulation is random**: The runner drags in random directions from
-  random start positions. It does NOT aim at the opponent ball. This means matches
-  are not "smart" — they test physics and collision correctness, not game balance
-  against optimal play. Smart AI playtesting is a future enhancement.
+- **Slingshot simulation is semi-random**: The runner aims toward the opponent
+  with ±30° randomness and 40–95% power. It's not "smart" — it tests physics
+  and collision correctness, not game balance against optimal play.
 
 - **No `window.__ballsMoving`**: The runner's `wait_for_balls_stop` was written
   for a `__ballsMoving` global that doesn't exist. It falls back to polling
@@ -242,10 +272,11 @@ To instrument a new game event for playtesting:
 | File | Purpose |
 |------|---------|
 | `src/game/debugOverlay.ts` | Debug state management, frame/event logging, canvas overlay drawing |
-| `src/components/GameCanvas.tsx` | Debug event calls at game logic points; keyboard/flag activation |
+| `src/components/GameCanvas.tsx` | Debug event calls at game logic points; keyboard/flag activation; `__shoot` and `__gameState` bridge |
 | `src/App.tsx` | `__gamePhase` exposure; `__debugRequested` global keydown handler |
-| `tests/playtest/run_matches.py` | Playwright runner — runs matches, extracts logs |
+| `tests/playtest/run_matches.py` | Playwright runner — runs matches via `__shoot()` API, extracts logs |
 | `tests/playtest/analyze.py` | Log analyzer — anomaly detection, balance, reports |
 | `tests/playtest/playtest.sh` | Pipeline convenience script |
 | `tests/playtest/results/` | JSON results output directory |
 | `tests/playtest/reports/` | Markdown report output directory |
+| `docs/PLAYTESTING.md` | This file — full documentation |

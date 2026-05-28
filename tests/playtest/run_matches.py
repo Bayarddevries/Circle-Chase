@@ -8,9 +8,9 @@ game logs via the debug overlay, and outputs JSON for analysis.
 Architecture:
   1. Opens headless Chromium via Playwright
   2. Navigates to the game URL
-  3. Sets window.__debugRequested = true (enables debug logging on GameCanvas mount)
-  4. Clicks through menu → round_intro → playing → ... → match_over
-  5. Simulates slingshot shots via canvas mouse events
+  3. Sets window.__debugRequested = true (enables debug logging)
+  4. Clicks through: menu → round_intro → playing → ... → match_over
+  5. Shots are fired via window.__shoot(angle, power) — direct game API, no mouse events
   6. Extracts window.__gameLog after each match
   7. Outputs structured JSON for analyze.py
 
@@ -43,7 +43,7 @@ TIMEOUT_BALLS_STOP = 5
 TIMEOUT_OVERLAY = 5
 
 # Delay after shooting before checking if balls stopped (seconds)
-SHOT_SETTLE_TIME = 1.5
+SHOT_SETTLE_TIME = 2.0
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -100,99 +100,106 @@ async def click_element(page, selector, timeout=TIMEOUT_OVERLAY):
 async def wait_for_balls_stop(page, timeout=TIMEOUT_BALLS_STOP):
     """Wait until balls stop moving (physics settled).
 
-    Polls the game at 200ms intervals by checking if the frame counter
-    in window.__gameLog has stopped advancing (indicating physics is idle).
-    Falls back to a fixed delay if no game log data is available.
+    Polls the game's frame counter via window.__gameLog to detect when
+    physics has settled. Falls back to a fixed delay if no log data.
     """
-    # If we have game log entries, check if frame counter is still advancing
     initial_count = await page.evaluate("() => (window.__gameLog || []).length")
     if initial_count > 0:
         for _ in range(int(timeout * 5)):  # check every 200ms
             await asyncio.sleep(0.2)
             current_count = await page.evaluate("() => (window.__gameLog || []).length")
             if current_count == initial_count:
-                # No new frames → balls likely stopped
                 return True
             initial_count = current_count
         return True
 
-    # Fallback: fixed delay
     await asyncio.sleep(timeout)
     return True
 
 
-async def simulate_slingshot(page, canvas_selector="canvas"):
-    """Simulate a slingshot shot: click-drag-release on the canvas.
+async def get_ball_positions(page):
+    """Read current ball positions from the game's exposed state.
 
-    Generates a random aim direction and power, then dispatches
-    mouse down → move → mouse up events to the canvas element.
-
-    Returns True if the shot was dispatched, False if canvas not found.
-
-    Note: The game's slingshot expects drag start near the active ball
-    and drag away from it (pull-back). This simulation drags in a random
-    direction which may not perfectly mimic player behavior but is
-    sufficient for playtesting physics and collision systems.
+    Returns dict with hider {x,y} and seeker {x,y} positions, or None.
     """
-    canvas = await page.query_selector(canvas_selector)
-    if not canvas:
+    try:
+        state = await page.evaluate("() => window.__gameState || null")
+        if state and 'hider' in state and 'seeker' in state:
+            return {
+                'hider': (state['hider']['x'], state['hider']['y']),
+                'seeker': (state['seeker']['x'], state['seeker']['y']),
+                'activeRole': state.get('activeRole', 'hider'),
+            }
+    except Exception:
+        pass
+    return None
+
+
+async def smart_shoot(page):
+    """Fire a shot using the game's __shoot() API with aiming toward the opponent.
+
+    Reads ball positions from window.__gameState, calculates an aim angle
+    toward the opponent ball (with some randomness for variety), and calls
+    window.__shoot(angleDeg, power).
+
+    Returns True if shot was fired, False on failure.
+    """
+    try:
+        positions = await get_ball_positions(page)
+        if not positions:
+            # Fallback: random shot
+            angle = random.uniform(0, 360)
+            power = random.uniform(0.4, 0.9)
+            result = await page.evaluate(f"() => window.__shoot({angle}, {power})")
+            return result and result.get('ok', False)
+
+        active_role = positions['activeRole']
+        if active_role == 'hider':
+            ax, ay = positions['hider']
+            tx, ty = positions['seeker']
+        else:
+            ax, ay = positions['seeker']
+            tx, ty = positions['hider']
+
+        # Aim toward opponent with random offset (±30 degrees)
+        base_angle = math.degrees(math.atan2(ty - ay, tx - ax))
+        angle = base_angle + random.uniform(-30, 30)
+        power = random.uniform(0.4, 0.95)
+
+        result = await page.evaluate(f"() => window.__shoot({angle}, {power})")
+        if result and result.get('ok'):
+            return True
+        else:
+            # Fallback: random shot
+            angle = random.uniform(0, 360)
+            power = random.uniform(0.4, 0.9)
+            result2 = await page.evaluate(f"() => window.__shoot({angle}, {power})")
+            return result2 and result2.get('ok', False)
+
+    except Exception as e:
+        print(f"  [smart_shoot error: {e}]")
         return False
-
-    box = await canvas.bounding_box()
-    if not box:
-        return False
-
-    # Random start position (somewhere on the canvas)
-    start_x = box["x"] + box["width"] * random.uniform(0.2, 0.8)
-    start_y = box["y"] + box["height"] * random.uniform(0.2, 0.8)
-
-    # Random drag direction and power
-    angle = random.uniform(0, 2 * math.pi)
-    power = random.uniform(30, 120)
-    end_x = start_x + power * math.cos(angle)
-    end_y = start_y + power * math.sin(angle)
-
-    # Clamp to canvas bounds
-    end_x = max(box["x"] + 10, min(box["x"] + box["width"] - 10, end_x))
-    end_y = max(box["y"] + 10, min(box["y"] + box["height"] - 10, end_y))
-
-    # Perform drag: move → down → move → up
-    await page.mouse.move(start_x, start_y)
-    await page.mouse.down()
-    await asyncio.sleep(random.uniform(0.05, 0.15))
-    await page.mouse.move(end_x, end_y)
-    await asyncio.sleep(random.uniform(0.05, 0.15))
-    await page.mouse.up()
-    return True
 
 
 # ── Match Flow ─────────────────────────────────────────────────────────────
 
 async def run_one_match(page, match_num, game_url):
-    """Run a single match from menu to match_or match_over.
+    """Run a single match from menu to match_over.
 
     Flow:
       1. Navigate to game URL
       2. Set __debugRequested flag (picked up by GameCanvas on mount)
       3. Click START to begin match
-      4. For each round: click ENGAGE → simulate shots until round ends → click PROCEED
+      4. For each round: click "Start Round N" → shoot until round ends → click "PROCEED"
       5. Extract __gameLog at match_over
 
-    Returns structured dict with:
-      - match_num: int
-      - completed: bool (reached match_over)
-      - duration: float (seconds)
-      - game_log: list of DebugEntry
-      - log_entries: int (count)
-      - event_counts: dict of event type → count
-      - console_errors: list of js error strings
-      - errors: list of python-side error strings
+    Returns structured dict with match data.
     """
     match_data = {
         "match_num": match_num,
         "start_time": time.time(),
-        "events": [],
-        "rounds": [],
+        "rounds_played": 0,
+        "shots_fired": 0,
         "errors": [],
         "completed": False,
     }
@@ -202,17 +209,14 @@ async def run_one_match(page, match_num, game_url):
         await page.goto(game_url, wait_until="networkidle")
         await asyncio.sleep(1)
 
-        # ── Step 2: Enable debug overlay via JS flag ──
-        # This sets a global that GameCanvas reads on mount.
-        # The flag is in App.tsx's global keydown handler, AND consumed
-        # by GameCanvas's useEffect on mount. Either path enables it.
+        # Enable debug overlay via JS flags
         await page.evaluate("window.__debugRequested = true")
+        await page.evaluate("window.__forceDebug = true")
         await asyncio.sleep(0.3)
 
         # ── Step 3: Start match ──
         started = False
 
-        # Try clicking the main START button (selector from MainMenu)
         if await click_element(page, "#btn-main-start", timeout=5):
             started = True
         elif await click_element(page, "button:has-text('START')", timeout=3):
@@ -221,17 +225,17 @@ async def run_one_match(page, match_num, game_url):
             started = True
 
         if not started:
-            # Fallback: press Enter which may trigger the focused button
             await page.keyboard.press("Enter")
             await asyncio.sleep(1)
 
         # ── Step 4: Play rounds until match_over ──
         max_rounds = 10
-        round_num = 0
-        max_iterations = 300  # Safety limit to prevent infinite loops
+        rounds_played = 0
+        shots_fired = 0
+        max_iterations = 300
         iteration = 0
 
-        while round_num < max_rounds and iteration < max_iterations:
+        while rounds_played < max_rounds and iteration < max_iterations:
             iteration += 1
             phase = await get_game_phase(page)
 
@@ -240,39 +244,46 @@ async def run_one_match(page, match_num, game_url):
                 break
 
             if phase == "menu":
-                # Still on menu — try clicking START again
                 await click_element(page, "#btn-main-start", timeout=2)
                 await asyncio.sleep(1)
                 continue
 
             if phase == "round_intro" or phase == "sudden_death_intro":
-                round_num += 1
-                # Ensure debug is enabled (in case it didn't catch on first mount)
-                await page.evaluate("""
-                    if (!window.__gameLog || window.__gameLog.length === 0) {
-                        window.__debugRequested = true;
-                    }
-                """)
-                await click_element(page, "button:has-text('ENGAGE')", timeout=3)
+                rounds_played += 1
+                # Re-enable debug (flags persist but re-set as safety)
+                await page.evaluate("window.__debugRequested = true; window.__forceDebug = true")
+                # Click "Start Round N" button (button text from MatchOverlay)
+                clicked = await click_element(page, "button:has-text('Start Round')", timeout=3)
+                if not clicked:
+                    # Fallback: try ENGAGE (old name, may not exist)
+                    clicked = await click_element(page, "button:has-text('ENGAGE')", timeout=2)
+                if not clicked:
+                    # Fallback: try any button that looks like a start/proceed action
+                    clicked = await click_element(page, "button:has-text('CONTINUE')", timeout=2)
                 await asyncio.sleep(0.5)
                 # Wait for playing phase
                 await wait_for_phase(page, "playing", timeout=5)
                 continue
 
             if phase == "round_over":
-                await click_element(page, "button:has-text('PROCEED')", timeout=3)
+                clicked = await click_element(page, "button:has-text('PROCEED')", timeout=3)
+                if not clicked:
+                    clicked = await click_element(page, "button:has-text('Continue')", timeout=2)
                 await asyncio.sleep(0.5)
                 continue
 
             if phase == "playing":
-                # Simulate a shot
-                shot_ok = await simulate_slingshot(page)
+                # Fire a shot using the direct API
+                shot_ok = await smart_shoot(page)
                 if shot_ok:
+                    shots_fired += 1
                     await asyncio.sleep(SHOT_SETTLE_TIME)
+                else:
+                    # If __shoot failed, wait and retry next iteration
+                    await asyncio.sleep(0.5)
                 continue
 
             if phase == "tag_freeze":
-                # Tag animation playing — wait for it to resolve
                 await asyncio.sleep(0.5)
                 continue
 
@@ -283,6 +294,8 @@ async def run_one_match(page, match_num, game_url):
         game_log = await extract_game_log(page)
         match_data["game_log"] = game_log
         match_data["log_entries"] = len(game_log)
+        match_data["rounds_played"] = rounds_played
+        match_data["shots_fired"] = shots_fired
 
         # Count event types
         event_counts = {}
@@ -364,9 +377,10 @@ async def main():
             status = "OK" if match_data["completed"] else "FAIL"
             duration = match_data.get("duration", 0)
             log_entries = match_data.get("log_entries", 0)
+            shots = match_data.get("shots_fired", 0)
             errors = len(match_data.get("errors", [])) + len(console_errors)
 
-            print(f"{status} {duration:.1f}s | {log_entries} log entries | {errors} errors")
+            print(f"{status} {duration:.1f}s | {shots} shots | {log_entries} logs | {errors} errors")
 
             all_results["matches"].append(match_data)
             await page.close()
@@ -378,12 +392,14 @@ async def main():
     total_errors = sum(len(m.get("errors", [])) for m in all_results["matches"])
     total_console = sum(len(m.get("console_errors", [])) for m in all_results["matches"])
     total_log_entries = sum(m.get("log_entries", 0) for m in all_results["matches"])
+    total_shots = sum(m.get("shots_fired", 0) for m in all_results["matches"])
     avg_duration = (sum(m.get("duration", 0) for m in all_results["matches"])
                     / max(len(all_results["matches"]), 1))
 
     all_results["summary"] = {
         "matches_completed": completed,
         "matches_failed": args.matches - completed,
+        "total_shots_fired": total_shots,
         "total_game_errors": total_errors,
         "total_console_errors": total_console,
         "total_log_entries": total_log_entries,
@@ -395,6 +411,7 @@ async def main():
 
     print()
     print(f"Summary: {completed}/{args.matches} matches completed")
+    print(f"   Total shots fired: {total_shots}")
     print(f"   Total log entries: {total_log_entries}")
     print(f"   Game errors: {total_errors} | Console errors: {total_console}")
     print(f"   Avg duration: {avg_duration:.1f}s")

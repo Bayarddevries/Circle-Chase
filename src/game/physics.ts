@@ -166,19 +166,6 @@ export function physicsStep(
     }
   }
 
-  // Gravity well (distance-based, applied once per frame)
-  if (activePowerUp === 'gravity') {
-    const dx = seeker.x - hider.x;
-    const dy = seeker.y - hider.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist > 0) {
-      const clampedDist = Math.max(GRAVITY_PULL_MIN_DIST, Math.min(dist, GRAVITY_PULL_MAX_DIST));
-      const pullPerFrame = GRAVITY_PULL_BASE * (GRAVITY_PULL_MAX_DIST / clampedDist);
-      hider.vx += (dx / dist) * pullPerFrame;
-      hider.vy += (dy / dist) * pullPerFrame;
-    }
-  }
-
   // --- Friction ---
 
   const applyFriction = (ball: PlayerBall, isSeeker: boolean) => {

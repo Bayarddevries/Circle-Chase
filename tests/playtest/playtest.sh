@@ -6,7 +6,7 @@
 #   ./playtest.sh [matches] [game-url]
 #
 # Examples:
-#   ./playtest.sh 10                              # 10 matches on localhost:5173 (Vite dev server)
+#   ./playtest.sh 10                              # 10 matches on localhost:3000
 #   ./playtest.sh 5 https://bayarddevries.github.io/Circle-Chase/  # 5 matches on live site
 
 set -e

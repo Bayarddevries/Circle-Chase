@@ -108,7 +108,11 @@ import {
   VAMPIRE_BONUS,
   ORBIT_SPEED,
   ORBIT_RADIUS,
-  GRAVITY_DURATION_MS,
+  GRAVITY_BURST_BASE,
+  GRAVITY_BURST_MAX,
+  GRAVITY_BURST_MIN_DIST,
+  GRAVITY_BURST_MAX_DIST,
+  GRAVITY_VISUAL_MS,
   AI_EASY_ERROR,
   AI_THINK_DELAY,
   FLOAT_MESSAGE_DURATION,
@@ -235,8 +239,8 @@ export function GameCanvas({
   const [activePowerUp, setActivePowerUp] = useState<PowerUpType | null>(null);
   const [powerUpDuration, setPowerUpDuration] = useState<number>(0); // turns remaining (decrements on seeker→hider swap)
 
-  // Gravity power-up timer (ms remaining) — time-based, not turn-based
-  const gravityTimerRef = useRef<number>(0);  
+  // Gravity visual timer (ms) — how long rings/arrow show after burst; 0 = not active
+  const gravityVisualRef = useRef<number>(0);  
   // Floating status message
   const [floatMessage, setFloatMessage] = useState<string | null>(null);
   const [floatTimer, setFloatTimer] = useState<number>(0);
@@ -318,6 +322,10 @@ export function GameCanvas({
 
   // Controls lock during active flings
   const [ballsMoving, setBallsMoving] = useState<boolean>(false);
+  // Ref for stale-closure-safe detection in the RAF loop
+  const ballsMovingRef = useRef(false);
+  // Keep ref in sync with state
+  useEffect(() => { ballsMovingRef.current = ballsMoving; }, [ballsMoving]);
 
   // Debug Overlay State
   const debugStateRef = useRef(createDebugState());
@@ -423,12 +431,11 @@ export function GameCanvas({
       const delta = Math.min(DELTA_CAP, time - lastTime);
       lastTime = time;
 
-      // Decay gravity timer — clear power-up when it expires
-      if (gravityTimerRef.current > 0) {
-        gravityTimerRef.current = Math.max(0, gravityTimerRef.current - delta);
-        if (gravityTimerRef.current === 0) {
+      // Decay gravity visual timer — clear visual when it expires
+      if (gravityVisualRef.current > 0) {
+        gravityVisualRef.current = Math.max(0, gravityVisualRef.current - delta);
+        if (gravityVisualRef.current === 0) {
           setActivePowerUp(prev => prev === 'gravity' ? null : prev);
-          setFloatMessage('GRAVITY EXPIRED');
         }
       }
 
@@ -481,7 +488,22 @@ export function GameCanvas({
             setActivePowerUp(orbType);
             setPowerUpDuration(2); // lasts through next full turn
             if (orbType === 'gravity') {
-              gravityTimerRef.current = GRAVITY_DURATION_MS;
+              // Single burst impulse: pull Hider toward Seeker based on distance
+              const h = hiderBallRef.current;
+              const s = seekerBallRef.current;
+              const dx = s.x - h.x;
+              const dy = s.y - h.y;
+              const dist = Math.hypot(dx, dy);
+              if (dist > 0) {
+                const clampedDist = Math.max(GRAVITY_BURST_MIN_DIST, Math.min(dist, GRAVITY_BURST_MAX_DIST));
+                // Linear interpolation: close = strong, far = weak
+                const t = 1 - (clampedDist - GRAVITY_BURST_MIN_DIST) / (GRAVITY_BURST_MAX_DIST - GRAVITY_BURST_MIN_DIST);
+                const impulse = GRAVITY_BURST_BASE + t * (GRAVITY_BURST_MAX - GRAVITY_BURST_BASE);
+                h.vx += (dx / dist) * impulse;
+                h.vy += (dy / dist) * impulse;
+              }
+              gravityVisualRef.current = GRAVITY_VISUAL_MS;
+              setFloatMessage('GRAVITY BURST!');
             }
             const titles: Record<PowerUpType, string> = {
               iron: 'IRON BALL',
@@ -526,12 +548,17 @@ export function GameCanvas({
         },
       );
 
-      // Debug frame logging
+      // Debug frame logging — also check window.__forceDebug as fallback
       const ds = debugStateRef.current;
-      if (ds.enabled) {
+      const forceDebug = (window as any).__forceDebug;
+      if (ds.enabled || forceDebug) {
+        if (forceDebug && !ds.enabled) {
+          ds.enabled = true;
+          (window as any).__gameLog = ds.log;
+        }
         debugIncrementFrame(ds);
         debugLogFrame(ds, {
-          timestamp: time,
+          timestamp: _time,
           frame: ds.frameCounter,
           phase,
           turnNumber: currentTurnNumberRef.current,
@@ -544,18 +571,30 @@ export function GameCanvas({
         });
       }
 
+      // Expose game state for automated playtesting
+      if (ds.enabled) {
+        (window as any).__gameState = {
+          hider: { x: hiderBallRef.current.x, y: hiderBallRef.current.y },
+          seeker: { x: seekerBallRef.current.x, y: seekerBallRef.current.y },
+          activeRole,
+          ballsMoving,
+          phase,
+        };
+      }
+
       // Check if balls have come to rest
       const hSpeed = Math.hypot(hiderBallRef.current.vx, hiderBallRef.current.vy);
       const sSpeed = Math.hypot(seekerBallRef.current.vx, seekerBallRef.current.vy);
       const isMoving = hSpeed > 0 || sSpeed > 0;
 
-      if (isMoving && !ballsMoving) {
+      if (isMoving && !ballsMovingRef.current) {
         setBallsMoving(true);
       }
 
       // Detect state transition from motion to resting
-      if (!isMoving && ballsMoving) {
+      if (!isMoving && ballsMovingRef.current) {
         setBallsMoving(false);
+        ballsMovingRef.current = false;
         // Reset combo counter — combos are per-flight
         comboCountRef.current = 0;
         // Clean turn swaps
@@ -859,6 +898,67 @@ export function GameCanvas({
     };
   }, [phase, activeRole, ballsMoving, activePowerUp, isSuddenDeath]);
 
+  // ── Playtesting: direct shoot helper ──────────────────────────────────────
+  // Exposed as window.__shoot(angleDeg, power) for automated runners.
+  // angleDeg: 0=right, 90=down, 180=left, 27=up (canvas/screen space, map-aligned when camera is at default)
+  // power: 0.0 to 1.0 (fraction of MAX_DRAG)
+  // This bypasses mouse events entirely and directly computes the launch.
+  useEffect(() => {
+    (window as any).__shoot = (angleDeg: number, power: number) => {
+      // Only works during playing phase
+      if (phase !== 'playing') return { ok: false, reason: 'not playing' };
+
+      const activeBall = activeRole === 'hider' ? hiderBallRef.current : seekerBallRef.current;
+      const maxDrag = 180; // MAX_DRAG from constants (slingshot max pull distance in map pixels)
+      const dragDist = Math.max(10, Math.min(1, power) * maxDrag);
+      const angleRad = (angleDeg * Math.PI) / 180;
+
+      // Drag point is pull-back from ball: opposite to aim direction
+      const dragX = activeBall.x - dragDist * Math.cos(angleRad);
+      const dragY = activeBall.y - dragDist * Math.sin(angleRad);
+
+      const launch = calculateLaunch(activeBall.x, activeBall.y, dragX, dragY, activeRole);
+      if (!launch) return { ok: false, reason: 'launch calculation failed' };
+
+      activeBall.vx = launch.vx;
+      activeBall.vy = launch.vy;
+
+      // Trigger particles/effects manually (best-effort; skip rocket since we can't read it from here)
+      // Rocket burst is rare in random play; not worth the ref plumbing
+
+      return { ok: true, role: activeRole, vx: launch.vx, vy: launch.vy };
+    };
+
+    // Expose a manual turn-swap helper for automated runners.
+    // Calls the same toggleTurnFlow() that the physics loop uses,
+    // but works even if the stale-closure detection missed the transition.
+    (window as any).__nextTurn = () => {
+      if (phase !== 'playing') return { ok: false, reason: 'not playing' };
+      // Only swap if balls are at rest
+      const hSpeed = Math.hypot(hiderBallRef.current.vx, hiderBallRef.current.vy);
+      const sSpeed = Math.hypot(seekerBallRef.current.vx, seekerBallRef.current.vy);
+      if (hSpeed > 0.1 || sSpeed > 0.1) return { ok: false, reason: 'balls still moving' };
+      toggleTurnFlow();
+      return { ok: true, newRole: activeRoleRef?.current || 'unknown' };
+    };
+
+    // Expose a full state snapshot for the runner
+    (window as any).__getState = () => ({
+      phase,
+      activeRole,
+      ballsMoving: ballsMovingRef.current,
+      hider: { x: hiderBallRef.current.x, y: hiderBallRef.current.y, vx: hiderBallRef.current.vx, vy: hiderBallRef.current.vy },
+      seeker: { x: seekerBallRef.current.x, y: seekerBallRef.current.y, vx: seekerBallRef.current.vx, vy: seekerBallRef.current.vy },
+      logLen: (window as any).__gameLog?.length || 0,
+    });
+
+    return () => {
+      delete (window as any).__shoot;
+      delete (window as any).__nextTurn;
+      delete (window as any).__getState;
+    };
+  }, [phase, activeRole]);
+
   // Handle active aiming line projections + reflect wall trajectories
   const getAimPoints = () => {
     if (!isDraggingRef.current) return [];
@@ -1147,7 +1247,7 @@ export function GameCanvas({
     }
 
     // --- DRAW SEEKER BALL ---
-    drawSeekerBall(ctx, seeker, config.colorblindMode, ballsMoving, activePowerUp === 'gravity');
+    drawSeekerBall(ctx, seeker, config.colorblindMode, ballsMoving, gravityVisualRef.current > 0);
 
     // --- DRAW FOG OF WAR SHROUD ---
     if (activeRole === 'seeker' && !isSuddenDeath && !tagFrozenRef.current) {
@@ -1155,16 +1255,17 @@ export function GameCanvas({
     }
 
     // --- DRAW GRAVITY PULL ARROW ---
-    if (activePowerUp === 'gravity') {
+    if (gravityVisualRef.current > 0) {
       const startX = hider.x;
       const startY = hider.y;
       const endX = seeker.x;
       const endY = seeker.y;
+      const alpha = Math.min(1, gravityVisualRef.current / 500);
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(startX, startY);
       ctx.lineTo(endX, endY);
-      ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
+      ctx.strokeStyle = `rgba(239, 68, 68, ${0.8 * alpha})`;
       ctx.lineWidth = 3;
       ctx.stroke();
       const angle = Math.atan2(endY - startY, endX - startX);
@@ -1174,32 +1275,7 @@ export function GameCanvas({
       ctx.lineTo(endX - headLen * Math.cos(angle - Math.PI/6), endY - headLen * Math.sin(angle - Math.PI/6));
       ctx.lineTo(endX - headLen * Math.cos(angle + Math.PI/6), endY - headLen * Math.sin(angle + Math.PI/6));
       ctx.closePath();
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
-      ctx.fill();
-      ctx.restore();
-    }
-
-    // --- DRAW GRAVITY PULL ARROW ---
-    if (activePowerUp === 'gravity') {
-      const startX = hider.x;
-      const startY = hider.y;
-      const endX = seeker.x;
-      const endY = seeker.y;
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(startX, startY);
-      ctx.lineTo(endX, endY);
-      ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      const angle = Math.atan2(endY - startY, endX - startX);
-      const headLen = 12;
-      ctx.beginPath();
-      ctx.moveTo(endX, endY);
-      ctx.lineTo(endX - headLen * Math.cos(angle - Math.PI/6), endY - headLen * Math.sin(angle - Math.PI/6));
-      ctx.lineTo(endX - headLen * Math.cos(angle + Math.PI/6), endY - headLen * Math.sin(angle + Math.PI/6));
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
+      ctx.fillStyle = `rgba(239, 68, 68, ${0.8 * alpha})`;
       ctx.fill();
       ctx.restore();
     }
