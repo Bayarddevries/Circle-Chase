@@ -27,8 +27,15 @@ import sys
 import time
 import argparse
 from pathlib import Path
-from playwright.async_api import async_playwright
+try:
+    from patchright.async_api import async_playwright
+except ImportError:
+    from playwright.async_api import async_playwright
 import math
+
+# Retry settings for EPIPE / browser crashes
+MAX_RETRIES = 2
+BROWSER_RESTART_WAIT = 5
 
 # ── Configuration ──────────────────────────────────────────────────────────
 
@@ -273,14 +280,51 @@ async def run_one_match(page, match_num, game_url):
                 continue
 
             if phase == "playing":
-                # Fire a shot using the direct API
-                shot_ok = await smart_shoot(page)
-                if shot_ok:
-                    shots_fired += 1
-                    await asyncio.sleep(SHOT_SETTLE_TIME)
-                else:
-                    # If __shoot failed, wait and retry next iteration
+                # Read full game state
+                state = await page.evaluate("() => window.__getState ? window.__getState() : null")
+                if not state:
                     await asyncio.sleep(0.5)
+                    continue
+
+                h_speed = math.hypot(state['hider']['vx'], state['hider']['vy'])
+                s_speed = math.hypot(state['seeker']['vx'], state['seeker']['vy'])
+                balls_still = h_speed < 0.1 and s_speed < 0.1
+
+                if balls_still:
+                    # Balls settled — time to fire for the current active role
+                    active_role = state['activeRole']
+                    # Read positions for aiming
+                    ax = state[active_role]['x']
+                    ay = state[active_role]['y']
+                    opponent = 'seeker' if active_role == 'hider' else 'hider'
+                    tx = state[opponent]['x']
+                    ty = state[opponent]['y']
+
+                    # Aim toward opponent with randomness
+                    base_angle = math.degrees(math.atan2(ty - ay, tx - ax))
+                    angle = base_angle + random.uniform(-30, 30)
+                    power = random.uniform(0.4, 0.95)
+
+                    result = await page.evaluate(f"() => window.__shoot({angle:.1f}, {power:.2f})")
+                    if result and result.get('ok'):
+                        shots_fired += 1
+                        # Wait for balls to settle after shot
+                        await asyncio.sleep(SHOT_SETTLE_TIME)
+                        # Check if the game auto-swapped turns; if not, force it
+                        state2 = await page.evaluate("() => window.__getState ? window.__getState() : null")
+                        if state2 and state2['phase'] == 'playing':
+                            # Check if role changed
+                            if state2['activeRole'] == active_role:
+                                # Turn didn't auto-swap — try force it
+                                h2 = math.hypot(state2['hider']['vx'], state2['hider']['vy'])
+                                s2 = math.hypot(state2['seeker']['vx'], state2['seeker']['vy'])
+                                if h2 < 0.1 and s2 < 0.1:
+                                    await page.evaluate("() => window.__nextTurn()")
+                    else:
+                        await asyncio.sleep(0.5)
+                else:
+                    # Balls still moving — wait
+                    await asyncio.sleep(0.3)
                 continue
 
             if phase == "tag_freeze":
@@ -355,15 +399,20 @@ async def main():
     }
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=headless)
-        context = await browser.new_context(
-            viewport={"width": 1280, "height": 720},
-            locale="en-US",
-        )
-
         for i in range(1, args.matches + 1):
             print(f"  Match {i}/{args.matches}...", end=" ", flush=True)
 
+            # Launch a fresh browser per match with sandbox disabled
+            # to avoid EPIPE crashes on Pop!_OS + Node 24 + Chromium 148
+            browser = await p.chromium.launch(
+                headless=headless,
+                args=["--no-sandbox", "--disable-setuid-sandbox",
+                      "--disable-dev-shm-usage", "--disable-gpu"],
+            )
+            context = await browser.new_context(
+                viewport={"width": 1280, "height": 720},
+                locale="en-US",
+            )
             page = await context.new_page()
 
             # Capture console errors
@@ -384,8 +433,8 @@ async def main():
 
             all_results["matches"].append(match_data)
             await page.close()
-
-        await browser.close()
+            await context.close()
+            await browser.close()
 
     # ── Summary ──
     completed = sum(1 for m in all_results["matches"] if m["completed"])
