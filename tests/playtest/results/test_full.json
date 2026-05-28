@@ -1,0 +1,33 @@
+{
+  "metadata": {
+    "game": "Turn Tag (Circle Chase)",
+    "url": "http://localhost:3000",
+    "matches_requested": 1,
+    "timestamp": "2026-05-27 19:32:29"
+  },
+  "matches": [
+    {
+      "match_num": 1,
+      "start_time": 1779928351.1949325,
+      "rounds_played": 0,
+      "shots_fired": 0,
+      "errors": [],
+      "completed": false,
+      "game_log": [],
+      "log_entries": 0,
+      "event_counts": {},
+      "end_time": 1779928505.899412,
+      "duration": 154.70447945594788,
+      "console_errors": []
+    }
+  ],
+  "summary": {
+    "matches_completed": 0,
+    "matches_failed": 1,
+    "total_shots_fired": 0,
+    "total_game_errors": 0,
+    "total_console_errors": 0,
+    "total_log_entries": 0,
+    "avg_match_duration": 154.7
+  }
+}

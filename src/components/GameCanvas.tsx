@@ -488,7 +488,7 @@ export function GameCanvas({
             setActivePowerUp(orbType);
             setPowerUpDuration(2); // lasts through next full turn
             if (orbType === 'gravity') {
-              // Single burst impulse: pull Hider toward Seeker based on distance
+              // Teleport Hider toward Seeker by a fixed distance (not velocity)
               const h = hiderBallRef.current;
               const s = seekerBallRef.current;
               const dx = s.x - h.x;
@@ -498,12 +498,15 @@ export function GameCanvas({
                 const clampedDist = Math.max(GRAVITY_BURST_MIN_DIST, Math.min(dist, GRAVITY_BURST_MAX_DIST));
                 // Linear interpolation: close = strong, far = weak
                 const t = 1 - (clampedDist - GRAVITY_BURST_MIN_DIST) / (GRAVITY_BURST_MAX_DIST - GRAVITY_BURST_MIN_DIST);
-                const impulse = GRAVITY_BURST_BASE + t * (GRAVITY_BURST_MAX - GRAVITY_BURST_BASE);
-                h.vx += (dx / dist) * impulse;
-                h.vy += (dy / dist) * impulse;
+                const offset = GRAVITY_BURST_BASE + t * (GRAVITY_BURST_MAX - GRAVITY_BURST_BASE);
+                const moveDist = Math.min(offset, dist - h.radius - s.radius - 5); // don't overshoot into Seeker
+                if (moveDist > 0) {
+                  h.x += (dx / dist) * moveDist;
+                  h.y += (dy / dist) * moveDist;
+                }
               }
               gravityVisualRef.current = GRAVITY_VISUAL_MS;
-              setFloatMessage('GRAVITY BURST!');
+              setFloatMessage('GRAVITY SLING!');
             }
             const titles: Record<PowerUpType, string> = {
               iron: 'IRON BALL',
