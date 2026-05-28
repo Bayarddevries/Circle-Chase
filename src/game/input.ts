@@ -43,6 +43,7 @@ export function calculateLaunch(
   dragX: number,
   dragY: number,
   role: PlayerRole,
+  overrides?: { HIDER_BASE_SPEED?: number; SEEKER_SPEED_MULT?: number },
 ): LaunchResult | null {
   const dx = ballX - dragX;
   const dy = ballY - dragY;
@@ -51,8 +52,9 @@ export function calculateLaunch(
   if (dist < MIN_DRAG_DIST) return null;
 
   const dragPower = Math.min(1.0, dist / MAX_DRAG);
-  const baseVMax = HIDER_BASE_SPEED;
-  const seekerVMax = HIDER_BASE_SPEED * SEEKER_SPEED_MULT;
+  const baseVMax = overrides?.HIDER_BASE_SPEED ?? HIDER_BASE_SPEED;
+  const seekerMult = overrides?.SEEKER_SPEED_MULT ?? SEEKER_SPEED_MULT;
+  const seekerVMax = baseVMax * seekerMult;
   const currentLimit = role === 'seeker' ? seekerVMax : baseVMax;
   const launchSpeed = currentLimit * dragPower;
 

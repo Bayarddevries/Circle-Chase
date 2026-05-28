@@ -130,8 +130,8 @@ export function drawHiderBall(
   ctx: CanvasRenderingContext2D,
   hider: PlayerBall,
   colorblindMode: boolean,
-  isHiderTurn: boolean,
   ballsMoving: boolean,
+  hasGravity: boolean = false,
 ): void {
   const { x, y, radius: r } = hider;
   const t = performance.now() / 1000;
@@ -148,21 +148,7 @@ export function drawHiderBall(
     ctx.stroke();
   }
 
-  // ── Rotating dashed outer ring ──
-  const rot = -t * 0.5;
-  ctx.beginPath();
-  ctx.arc(x, y, r + 5, 0, Math.PI * 2);
-  ctx.strokeStyle = '#38bdf8';
-  ctx.lineWidth = 2;
-  ctx.globalAlpha = 0.45;
-  ctx.setLineDash([4, 6]);
-  ctx.lineDashOffset = rot;
-  ctx.shadowBlur = 14;
-  ctx.shadowColor = '#38bdf8';
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.globalAlpha = 1;
-  ctx.shadowBlur = 0;
+
 
   // ── Solid gradient body ──
   const bodyGrad = ctx.createRadialGradient(x - 6, y - 8, 2, x, y, r);
@@ -178,7 +164,7 @@ export function drawHiderBall(
 
   // ── Solid edge boundary (opaque, know where to hit) ──
   ctx.lineWidth = 6;
-  ctx.strokeStyle = '#38bdf8';
+  ctx.strokeStyle = '#ffffff';
   ctx.shadowBlur = 0;
   ctx.stroke();
   // Glow pass on top
@@ -232,24 +218,6 @@ export function drawHiderBall(
     ctx.strokeRect(x - s, y - s, s * 2, s * 2);
   }
 
-  // ── Turn halo (rotating dashed, only when active) ──
-  if (isHiderTurn && !ballsMoving) {
-    const haloRot = t * 0.6;
-    ctx.beginPath();
-    ctx.arc(x, y, r + 14, 0, Math.PI * 2);
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = 0.5;
-    ctx.setLineDash([3, 5]);
-    ctx.lineDashOffset = -haloRot;
-    ctx.shadowBlur = 12;
-    ctx.shadowColor = '#38bdf8';
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
-  }
-
   ctx.restore();
 }
 
@@ -259,8 +227,8 @@ export function drawSeekerBall(
   ctx: CanvasRenderingContext2D,
   seeker: PlayerBall,
   colorblindMode: boolean,
-  isSeekerTurn: boolean,
   ballsMoving: boolean,
+  hasGravity: boolean = false,
 ): void {
   const { x, y, radius: r } = seeker;
   const t = performance.now() / 1000;
@@ -277,21 +245,7 @@ export function drawSeekerBall(
     ctx.stroke();
   }
 
-  // ── Rotating dashed outer ring (faster) ──
-  const rot = -t * 0.7;
-  ctx.beginPath();
-  ctx.arc(x, y, r + 5, 0, Math.PI * 2);
-  ctx.strokeStyle = '#f59e0b';
-  ctx.lineWidth = 2;
-  ctx.globalAlpha = 0.5;
-  ctx.setLineDash([4, 6]);
-  ctx.lineDashOffset = rot;
-  ctx.shadowBlur = 16;
-  ctx.shadowColor = '#f59e0b';
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.globalAlpha = 1;
-  ctx.shadowBlur = 0;
+
 
   // ── Solid gradient body ──
   const bodyGrad = ctx.createRadialGradient(x - 6, y - 8, 2, x, y, r);
@@ -307,7 +261,7 @@ export function drawSeekerBall(
 
   // ── Solid edge boundary (opaque, know where to hit) ──
   ctx.lineWidth = 6;
-  ctx.strokeStyle = '#d97706';
+  ctx.strokeStyle = '#ffffff';
   ctx.shadowBlur = 0;
   ctx.stroke();
   // Glow pass on top
@@ -373,22 +327,34 @@ export function drawSeekerBall(
     ctx.shadowBlur = 0;
   }
 
-  // ── Turn halo (rotating dashed, only when active) ──
-  if (isSeekerTurn && !ballsMoving) {
-    const haloRot = t * 0.8;
-    ctx.beginPath();
-    ctx.arc(x, y, r + 14, 0, Math.PI * 2);
-    ctx.strokeStyle = '#f59e0b';
-    ctx.lineWidth = 2.5;
-    ctx.globalAlpha = 0.55;
-    ctx.setLineDash([3, 5]);
-    ctx.lineDashOffset = -haloRot;
-    ctx.shadowBlur = 14;
-    ctx.shadowColor = '#f59e0b';
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
+  // ── Gravity well pulsing rings (active when Seeker has gravity) ──
+  if (hasGravity) {
+    const t = performance.now() / 1000;
+    const pulse = t % 1;
+    for (let i = 1; i <= 3; i++) {
+      const ringRadius = r + 10 + i * 15;
+      const alpha = Math.max(0, 0.3 - pulse * 0.25 - i * 0.08);
+      ctx.beginPath();
+      ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(245, 158, 11, ${alpha})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  // ── Gravity well pulsing rings (active when Seeker has gravity) ──
+  if (hasGravity) {
+    const t = performance.now() / 1000;
+    const pulse = t % 1;
+    for (let i = 1; i <= 3; i++) {
+      const ringRadius = r + 10 + i * 15;
+      const alpha = Math.max(0, 0.3 - pulse * 0.25 - i * 0.08);
+      ctx.beginPath();
+      ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(245, 158, 11, ${alpha})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
   }
 
   ctx.restore();

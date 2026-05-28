@@ -118,7 +118,12 @@ export const DRIP_PARTICLE_SPEED = 0.5;
 
 // ── Power-up effects ────────────────────────────
 export const ROCKET_SPEED_MULT = 3.0;
-export const GRAVITY_PULL = 0.08;
+// Power-up effects — Gravity Well (single burst impulse on orb collect)
+export const GRAVITY_BURST_BASE = 60;               // teleport distance at max range (pixels)
+export const GRAVITY_BURST_MAX = 150;              // teleport distance at point-blank (pixels)
+export const GRAVITY_BURST_MIN_DIST = 100;         // min distance for clamp
+export const GRAVITY_BURST_MAX_DIST = 500;         // max distance for clamp
+export const GRAVITY_VISUAL_MS = 1500;             // how long the ring/arrow visual persists (ms)
 export const EMP_FREEZE_MS = 1500;               // ms
 export const EMP_FREEZE_FRAMES = 90;             // frames at ~60fps
 export const VAMPIRE_BONUS = 1;
