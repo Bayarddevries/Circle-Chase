@@ -40,7 +40,7 @@ App.tsx (state machine)
 │   ├── Slingshot drag controls
 │   ├── Particle system (sparks, debris, shockwaves) — capped at 500
 │   ├── Sonar ping system (Hider position leak)
-│   ├── Power-up system (iron, rocket, gravity, vampire, superball, emp)
+│   ├── Power-up system (iron, gravity, magnet, smoke, tracker — see Phase 1)
 │   ├── DPI-aware canvas scaling
 │   ├── Colorblind mode overlays (square for Hider, triangle for Seeker)
 │   ├── Camera shake & slow-motion effects
@@ -72,7 +72,16 @@ App.tsx (state machine)
 - Bumper collisions with varying restitution and boost
 - Sand & ice hazard patches (friction modifiers)
 - Fog of war (shrouds Hider from Seeker at distance)
-- Power-ups: Iron, Rocket, Gravity, Vampire, Superball, EMP (6 types)
+- Power-ups: Iron Ball, Gravity Well, Magnet, Smoke Screen, Tracker (5 types — Seeker-only)
+- Runner can steal/deny orbs by touching them first
+- 8 orbs per round, one of each type guaranteed, bumper-safe spawn positions
+- Manual activation (Space/HUD button) for Iron, Magnet, Tracker
+- Auto-activation for Gravity, Smoke
+- Iron: 50% friction reduction for 2 rounds (all surfaces)
+- Magnet: 35% homing curve toward Runner on next launch (pulsing blue ring indicator)
+- Smoke: 50% fog-of-war radius reduction for 1 round
+- Tracker: reveals Runner exact position for 3s (green ring)
+- Gravity: 80px instant pull toward Seeker
 - Particle system (sparks, debris, shockwaves) — capped at 500
 - Cinematic camera: tracking, zoom, shake
 - Slow-motion freeze on tag
@@ -106,7 +115,7 @@ All magic numbers are centralized in `src/constants.ts`. Before editing any valu
 
 ### Types
 Extended types in `src/types.ts`:
-- `PowerUpType`: 'iron' | 'rocket' | 'gravity' | 'vampire' | 'superball' | 'emp'
+- `PowerUpType`: 'iron' | 'gravity' | 'magnet' | 'smoke' | 'tracker'
 - `AIDifficulty`: 'easy' \| 'medium' \| 'hard'
 - `RoundMeta`: { turnsSurvived, powerUpCollected, bumperHits, tagTurn }
 - `ScoreBreakdown`: breakdown of scoring components

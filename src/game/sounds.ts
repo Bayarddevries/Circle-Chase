@@ -394,23 +394,6 @@ export function playPowerUpActivate(type: PowerUpType): void {
   const t = c.currentTime;
 
   switch (type) {
-    case 'rocket': {
-      // Ascending whoosh — bandpass noise sweep up
-      const whoosh = c.createBufferSource();
-      whoosh.buffer = getPinkNoise(c);
-      const wf = c.createBiquadFilter();
-      wf.type = 'bandpass';
-      wf.frequency.setValueAtTime(400, t);
-      wf.frequency.exponentialRampToValueAtTime(3000, t + 0.2);
-      wf.Q.value = 1.5;
-      const wg = c.createGain();
-      wg.gain.setValueAtTime(0.25, t);
-      wg.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-      whoosh.connect(wf).connect(wg).connect(m);
-      whoosh.start(t);
-      whoosh.stop(t + 0.35);
-      break;
-    }
     case 'gravity': {
       // Low sub hum
       const hum = c.createOscillator();
@@ -426,41 +409,66 @@ export function playPowerUpActivate(type: PowerUpType): void {
       hum.stop(t + 0.7);
       break;
     }
-    case 'vampire': {
-      // Descending chromatic — two quick notes
-      [600, 400].forEach((freq, i) => {
+    case 'iron': {
+      // Metallic clang
+      const clang = c.createOscillator();
+      const cg = c.createGain();
+      clang.type = 'square';
+      clang.frequency.setValueAtTime(200, t);
+      cg.gain.setValueAtTime(0.15, t);
+      cg.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+      clang.connect(cg).connect(m);
+      clang.start(t);
+      clang.stop(t + 0.2);
+      break;
+    }
+    case 'magnet': {
+      // Magnetic hum
+      const mag = c.createOscillator();
+      const mg = c.createGain();
+      mag.type = 'sawtooth';
+      mag.frequency.setValueAtTime(150, t);
+      mag.frequency.linearRampToValueAtTime(400, t + 0.3);
+      mg.gain.setValueAtTime(0.10, t);
+      mg.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      mag.connect(mg).connect(m);
+      mag.start(t);
+      mag.stop(t + 0.4);
+      break;
+    }
+    case 'smoke': {
+      // Soft whoosh
+      const p = c.createBufferSource();
+      p.buffer = getPinkNoise(c);
+      const pf = c.createBiquadFilter();
+      pf.type = 'lowpass';
+      pf.frequency.value = 800;
+      const pg = c.createGain();
+      pg.gain.setValueAtTime(0.15, t);
+      pg.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      p.connect(pf).connect(pg).connect(m);
+      p.start(t);
+      p.stop(t + 0.45);
+      break;
+    }
+    case 'tracker': {
+      // Twin ping
+      [1200, 1800].forEach((freq, i) => {
         const note = c.createOscillator();
         const ng = c.createGain();
-        note.type = 'triangle';
-        const start = t + i * 0.08;
+        note.type = 'sine';
+        const start = t + i * 0.1;
         note.frequency.setValueAtTime(freq, start);
-        ng.gain.setValueAtTime(0.18, start);
-        ng.gain.exponentialRampToValueAtTime(0.001, start + 0.15);
+        ng.gain.setValueAtTime(0.12, start);
+        ng.gain.exponentialRampToValueAtTime(0.001, start + 0.1);
         note.connect(ng).connect(m);
         note.start(start);
-        note.stop(start + 0.2);
+        note.stop(start + 0.15);
       });
       break;
     }
-    case 'emp': {
-      // Electric zap — highpass noise burst
-      const zap = c.createBufferSource();
-      zap.buffer = getPinkNoise(c);
-      const zf = c.createBiquadFilter();
-      zf.type = 'highpass';
-      zf.frequency.value = 3000;
-      const zg = c.createGain();
-      zg.gain.setValueAtTime(0.30, t);
-      zg.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-      zap.connect(zf).connect(zg).connect(m);
-      zap.start(t);
-      zap.stop(t + 0.15);
-      break;
-    }
-    case 'iron':
-    case 'superball':
     default: {
-      // Quick spark for other power-ups
+      // Quick spark for future power-ups
       const spark = c.createOscillator();
       const sg = c.createGain();
       spark.type = 'sine';
@@ -473,8 +481,6 @@ export function playPowerUpActivate(type: PowerUpType): void {
     }
   }
 }
-
-// ── Proximity Drone ─────────────────────────────────────────────
 
 interface DroneNodes {
   noise: AudioBufferSourceNode;

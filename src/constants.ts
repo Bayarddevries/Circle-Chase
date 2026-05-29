@@ -103,30 +103,35 @@ export const HAZARD_MIN_SEP = 200;               // min dist between hazards
 export const HAZARD_BUMPER_CLEAR = 100;          // min dist from bumper edge
 
 // ── Power-up orb ─────────────────────────────────────
-export const ORB_COUNT_MIN = 6;
-export const ORB_COUNT_MAX = 8;
+export const ORB_COUNT = 8;                       // fixed count per round
 export const ORB_RADIUS = 18;
 export const ORB_SPAWN_RANGE = 150;              // +/- from map center
 export const ORB_PULSE_SPEED = 0.006;
 export const ORB_PULSE_AMP = 0.12;
-export const ORB_RESPAWN_TIME = 10000;           // ms
 export const ORB_COLLECT_PARTICLES = 20;
 export const ORBIT_SPEED = 0.002;                // rad/ms for orbiting label
 export const ORBIT_RADIUS = 32;                  // px from orb center
 export const ORB_DRIP_INTERVAL = 400;            // ms between drip particles
 export const DRIP_PARTICLE_SPEED = 0.5;
+export const ORB_BUMPER_CLEAR = 40;              // min px between orb and bumper edge
 
 // ── Power-up effects ────────────────────────────
-export const ROCKET_SPEED_MULT = 3.0;
-// Power-up effects — Gravity Well (single burst impulse on orb collect)
-export const GRAVITY_BURST_BASE = 60;               // teleport distance at max range (pixels)
-export const GRAVITY_BURST_MAX = 150;              // teleport distance at point-blank (pixels)
-export const GRAVITY_BURST_MIN_DIST = 100;         // min distance for clamp
-export const GRAVITY_BURST_MAX_DIST = 500;         // max distance for clamp
-export const GRAVITY_VISUAL_MS = 1500;             // how long the ring/arrow visual persists (ms)
-export const EMP_FREEZE_MS = 1500;               // ms
-export const EMP_FREEZE_FRAMES = 90;             // frames at ~60fps
-export const VAMPIRE_BONUS = 1;
+// Iron Ball: manual activate, reduces friction for N rounds
+export const IRON_DURATION_ROUNDS = 2;
+export const IRON_FRICTION_MULT = 0.5;           // 50% friction while active
+
+// Gravity Well: auto-activate on collect, pulls hiker toward seeker briefly
+export const GRAVITY_PULL_DISTANCE = 80;         // px to pull hider toward seeker
+
+// Magnet: manual activate, next launch curves toward hider
+export const MAGNET_HOMING_STRENGTH = 0.35;      // 35% curve toward hider (deprecated - magnet now pulls runner)
+export const MAGNET_PULL_DISTANCE = 120;         // px to pull runner toward seeker on magnet activate
+export const MAGNET_PULL_DURATION_MS = 800;       // ms the pull force is applied
+export const TRACKER_REVEAL_MS = 5000;            // ms to show runner direction/distance line
+
+// Smoke: removed for now — will be redesigned after fog-of-war rethink
+// export const SMOKE_FOG_MULT = 0.5;
+export const SMOKE_DURATION_ROUNDS = 1;
 
 // ── Particles ────────────────────────────────────────
 export const TAG_SPARKS = 120;

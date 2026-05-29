@@ -30,11 +30,8 @@ import {
   DELTA_CAP,
   BOUNCE_REST_NORMAL,
   BOUNCE_REST_SLOWMO,
-  BOUNCE_REST_SUPERBALL,
   BUMPER_REST,
-  BUMPER_REST_SUPERBALL,
   BUMPER_BOOST_NORMAL,
-  BUMPER_BOOST_SUPERBALL,
   BUMPER_MIN_SPEED,
   BUMPER_KICK_SPEED,
   MAX_DRAG,
@@ -67,7 +64,6 @@ import {
   ORB_SPAWN_RANGE,
   ORB_PULSE_SPEED,
   ORB_PULSE_AMP,
-  ORB_RESPAWN_TIME,
   ORB_COLLECT_PARTICLES,
   TAG_SPARKS,
   TAG_DEBRIS,
@@ -102,17 +98,15 @@ import {
   SLOWMO_RECOVERY,
   HIDER_BASE_SPEED,
   SEEKER_SPEED_MULT,
-  ROCKET_SPEED_MULT,
-  EMP_FREEZE_MS,
-  EMP_FREEZE_FRAMES,
-  VAMPIRE_BONUS,
   ORBIT_SPEED,
   ORBIT_RADIUS,
-  GRAVITY_BURST_BASE,
-  GRAVITY_BURST_MAX,
-  GRAVITY_BURST_MIN_DIST,
-  GRAVITY_BURST_MAX_DIST,
-  GRAVITY_VISUAL_MS,
+  GRAVITY_PULL_DISTANCE,
+  MAGNET_PULL_DISTANCE,
+  MAGNET_PULL_DURATION_MS,
+  SMOKE_DURATION_ROUNDS,
+  IRON_FRICTION_MULT,
+  IRON_DURATION_ROUNDS,
+  TRACKER_REVEAL_MS,
   AI_EASY_ERROR,
   AI_THINK_DELAY,
   FLOAT_MESSAGE_DURATION,
@@ -153,7 +147,6 @@ import {
 } from '../game/sonar';
 import { screenToMap, calculateLaunch } from '../game/input';
 import { updateTrail, drawTrail, HIDER_TRAIL_COLOR, SEEKER_TRAIL_COLOR } from '../game/trails';
-import { drawFogOfWar } from '../game/fog';
 import { generateMap as generateMapModule } from '../game/map';
 import { drawMinimap, getDefaultConfig } from '../game/minimap';
 import { updateOrbPulse, drawOrb } from '../game/powerups';
@@ -237,11 +230,19 @@ export function GameCanvas({
   const [activeRole, setActiveRole] = useState<PlayerRole>('hider');
   const [turnsSurvived, setTurnsSurvived] = useState<number>(0);
   const [activePowerUp, setActivePowerUp] = useState<PowerUpType | null>(null);
-  const [powerUpDuration, setPowerUpDuration] = useState<number>(0); // turns remaining (decrements on seeker→hider swap)
+  // Power-up state
+  // storedPowerUp: collected by seeker, waiting for manual activation (iron, magnet, tracker)
+  // null = no stored power-up
+  const [storedPowerUp, setStoredPowerUp] = useState<PowerUpType | null>(null);
+  // Active power-up effects with turn-based expiry
+  const ironRoundsRef = useRef<number>(0);        // remaining rounds of iron effect
+  const smokeRoundsRef = useRef<number>(0);       // remaining rounds of smoke effect
+  const trackerEndRef = useRef<number>(0);        // timestamp (ms) when tracker reveal ends
+  const magnetReadyRef = useRef<boolean>(false);   // true when magnet is armed for next launch
+  const magnetPullStartRef = useRef<number>(0);    // timestamp when magnet pull started
 
-  // Gravity visual timer (ms) — how long rings/arrow show after burst; 0 = not active
-  const gravityVisualRef = useRef<number>(0);  
-  // Floating status message
+  // Smoke: removed for now — will be redesigned after fog-of-war rethink
+  // const smokeRoundsRef = useRef<number>(0);
   const [floatMessage, setFloatMessage] = useState<string | null>(null);
   const [floatTimer, setFloatTimer] = useState<number>(0);
 
@@ -317,8 +318,6 @@ export function GameCanvas({
 
   // Freeze timer for EMP power-up (frames)
   const hiderFrozenRef = useRef(0);
-  // Vampire: flag when active to add point steal on tag
-  const vampireActiveRef = useRef(false);
 
   // Controls lock during active flings
   const [ballsMoving, setBallsMoving] = useState<boolean>(false);
@@ -428,11 +427,35 @@ export function GameCanvas({
       const delta = Math.min(DELTA_CAP, time - lastTime);
       lastTime = time;
 
-      // Decay gravity visual timer — clear visual when it expires
-      if (gravityVisualRef.current > 0) {
-        gravityVisualRef.current = Math.max(0, gravityVisualRef.current - delta);
-        if (gravityVisualRef.current === 0) {
-          setActivePowerUp(prev => prev === 'gravity' ? null : prev);
+      // Decrement smoke duration
+      if (smokeRoundsRef.current > 0) {
+        // smokeRoundsRef is decremented on turn swap, not per-frame
+      }
+      // Tracker expiry check
+      if (trackerEndRef.current > 0 && time > trackerEndRef.current) {
+        trackerEndRef.current = 0;
+        setStoredPowerUp(prev => prev === 'tracker' ? null : prev);
+      }
+
+      // Magnet pull: continuous force pulling hider toward seeker
+      if (magnetReadyRef.current && activeRole === 'seeker') {
+        const h = hiderBallRef.current;
+        const s = seekerBallRef.current;
+        const dx = s.x - h.x;
+        const dy = s.y - h.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 0) {
+          const pullStrength = MAGNET_PULL_DISTANCE / MAGNET_PULL_DURATION_MS;
+          h.vx += (dx / dist) * pullStrength * delta;
+          h.vy += (dy / dist) * pullStrength * delta;
+        }
+        if (!magnetPullStartRef.current) {
+          magnetPullStartRef.current = time;
+        }
+        if (time - magnetPullStartRef.current >= MAGNET_PULL_DURATION_MS) {
+          magnetReadyRef.current = false;
+          magnetPullStartRef.current = 0;
+          setActivePowerUp(null);
         }
       }
 
@@ -482,46 +505,51 @@ export function GameCanvas({
         {
           onTag: triggerTagEvent,
           onOrbCollect: (orbType: PowerUpType) => {
-            setActivePowerUp(orbType);
-            setPowerUpDuration(2); // lasts through next full turn
-            if (orbType === 'gravity') {
-              // Teleport Hider toward Seeker by a fixed distance (not velocity)
-              const h = hiderBallRef.current;
-              const s = seekerBallRef.current;
-              const dx = s.x - h.x;
-              const dy = s.y - h.y;
-              const dist = Math.hypot(dx, dy);
-              if (dist > 0) {
-                const clampedDist = Math.max(GRAVITY_BURST_MIN_DIST, Math.min(dist, GRAVITY_BURST_MAX_DIST));
-                // Linear interpolation: close = strong, far = weak
-                const t = 1 - (clampedDist - GRAVITY_BURST_MIN_DIST) / (GRAVITY_BURST_MAX_DIST - GRAVITY_BURST_MIN_DIST);
-                const offset = GRAVITY_BURST_BASE + t * (GRAVITY_BURST_MAX - GRAVITY_BURST_BASE);
-                const moveDist = Math.min(offset, dist - h.radius - s.radius - 5); // don't overshoot into Seeker
-                if (moveDist > 0) {
-                  h.x += (dx / dist) * moveDist;
-                  h.y += (dy / dist) * moveDist;
+            const collector = activeRole;
+            roundMetaRef.current.powerUpCollector = 'seeker'; // only Seeker collects for effects
+
+            if (collector === 'hider') {
+              // Hider "steals" the orb — denies it to the Seeker, no effect
+              setFloatMessage('STOLEN!');
+              playOrbCollect();
+              haptics.buzz();
+              debugLogEvent(debugStateRef.current, 'powerup_stolen', { orbType });
+              return;
+            }
+
+            // Seeker collects — activate based on type
+            const autoTypes: PowerUpType[] = ['gravity'];
+            const manualTypes: PowerUpType[] = ['iron', 'magnet', 'tracker'];
+
+            if (autoTypes.includes(orbType)) {
+              // Auto-activate on collection
+              if (orbType === 'gravity') {
+                // Pull Hider toward Seeker by fixed distance
+                const h = hiderBallRef.current;
+                const s = seekerBallRef.current;
+                const dx = s.x - h.x;
+                const dy = s.y - h.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist > 0) {
+                  const moveDist = Math.min(GRAVITY_PULL_DISTANCE, dist - h.radius - s.radius - 5);
+                  if (moveDist > 0) {
+                    h.x += (dx / dist) * moveDist;
+                    h.y += (dy / dist) * moveDist;
+                  }
                 }
+                setFloatMessage('GRAVITY PULL!');
               }
-              gravityVisualRef.current = GRAVITY_VISUAL_MS;
-              setFloatMessage('GRAVITY SLING!');
+              setActivePowerUp(orbType);
+            } else if (manualTypes.includes(orbType)) {
+              // Store for manual activation
+              setStoredPowerUp(orbType);
+              setFloatMessage(`${orbType.toUpperCase()} — PRESS SPACE`);
             }
-            const titles: Record<PowerUpType, string> = {
-              iron: 'IRON BALL',
-              rocket: 'ROCKET BURST',
-              gravity: 'GRAVITY WELL',
-              vampire: 'VAMPIRE',
-              superball: 'SUPERBALL',
-              emp: 'EMP',
-            };
-            setFloatMessage(`Power-up: ${titles[orbType]}`);
+
             playOrbCollect();
-            // Immediate activation sounds for passive power-ups (gravity, iron, superball)
-            if (orbType === 'gravity' || orbType === 'iron' || orbType === 'superball') {
-              playPowerUpActivate(orbType);
-            }
+            playPowerUpActivate(orbType);
             haptics.buzz();
-            roundMetaRef.current.powerUpCollector = activeRole;
-            debugLogEvent(debugStateRef.current, 'powerup_collect', { orbType, collector: activeRole });
+            debugLogEvent(debugStateRef.current, 'powerup_collect', { orbType, collector });
           },
           onBumperHit: () => {
             if (tagFrozenRef.current) return;
@@ -529,15 +557,8 @@ export function GameCanvas({
             haptics.tap();
             comboCountRef.current++;
             // Track total bumper hits for end-of-round scoring
-            // EMP freeze if active
-            if (activePowerUp === 'emp') {
-              hiderFrozenRef.current = EMP_FREEZE_FRAMES;
-              setActivePowerUp(null);
-              setFloatMessage('EMP FREEZE!');
-              playPowerUpActivate('emp');
-            }
             roundMetaRef.current.bumperHits++;
-            debugLogEvent(debugStateRef.current, 'bumper_hit', { comboCount: comboCount.current, hitter: activeRole, totalBumperHits: roundMetaRef.current.bumperHits });
+            debugLogEvent(debugStateRef.current, 'bumper_hit', { comboCount: comboCountRef.current, hitter: activeRole, totalBumperHits: roundMetaRef.current.bumperHits });
             const count = comboCountRef.current;
             if (count <= 1) {
               showScoreMessage('+1 BUMPER', 'combo');
@@ -740,16 +761,20 @@ export function GameCanvas({
         roundStartTimeRef.current = performance.now();
         debugLogEvent(debugStateRef.current, 'turn_swap', { newRole: 'hider', turnsSurvived: roundMetaRef.current.turnsSurvived });
 
-        // Check if Seeker consumed their active single-use powerup
-        if (activePowerUp) {
-          setPowerUpDuration(prev => {
-            const next = prev - 1;
-            if (next <= 0) {
-              setActivePowerUp(null);
-              setFloatMessage('PERK EXPIRED');
-            }
-            return next;
-          });
+        // Decrement round-based power-up durations on turn swap
+        if (ironRoundsRef.current > 0) {
+          ironRoundsRef.current--;
+          if (ironRoundsRef.current === 0) {
+            setActivePowerUp(prev => prev === 'iron' ? null : prev);
+            setFloatMessage('IRON EXPIRED');
+          }
+        }
+        if (smokeRoundsRef.current > 0) {
+          smokeRoundsRef.current--;
+          if (smokeRoundsRef.current === 0) {
+            setActivePowerUp(prev => prev === 'smoke' ? null : prev);
+            setFloatMessage('SMOKE CLEARED');
+          }
         }
       }
     };
@@ -762,13 +787,6 @@ export function GameCanvas({
       // Record tag turn for quick-tag bonus
       roundMetaRef.current.tagTurn = currentTurnNumberRef.current;
       tagFrozenRef.current = true; // freeze scoring — no more combos during slow-mo
-      // Vampire: steal an extra point on tag
-      if (activePowerUp === 'vampire') {
-        vampireActiveRef.current = true;
-        setActivePowerUp(null);
-        setFloatMessage('VAMPIRE STEAL!');
-        playPowerUpActivate('vampire');
-      }
       showScoreMessage('TAG! +5', 'tag');
       playTag();
       haptics.strong();
@@ -777,7 +795,7 @@ export function GameCanvas({
         hiderPos: { x: h.x, y: h.y },
         seekerPos: { x: s.x, y: s.y },
         distance: Math.hypot(h.x - s.x, h.y - s.y),
-        vampireActive: vampireActiveRef.current,
+        vampireActive: false, // vampire removed
       });
 
       // Set hiderExploded to true so the solid ball core shatters out of sight
@@ -830,15 +848,7 @@ export function GameCanvas({
            comboCountRef.current,
            p1IsHider,
          );
-         // Vampire bonus: add 1 point to seeker's score
-         if (vampireActiveRef.current) {
-           if (p1IsHider) {
-             scoreResult.seekerScore += VAMPIRE_BONUS;
-           } else {
-             scoreResult.hiderScore += VAMPIRE_BONUS;
-           }
-         }
- 
+         // Power-up bonuses are handled in calculateRoundScore via powerUpCollector 
          if (isSuddenDeath) {
           onRoundComplete({ ...scoreResult, suddenDeathWinnerRole: 'seeker' });
         } else {
@@ -907,7 +917,8 @@ export function GameCanvas({
     const points: { x: number; y: number }[] = [{ x: activeBall.x, y: activeBall.y }];
     
     // Calculate laser sight projection with reflections if active
-    const beamLength = 180;
+    // Scale beam length by drag power so users can visually gauge shot strength
+    const beamLength = 60 + 180 * dragPower;  // 60px (min) → 240px (max)
     let cx = activeBall.x;
     let cy = activeBall.y;
     let cvx = vx;
@@ -1121,6 +1132,26 @@ export function GameCanvas({
 
     // --- AIMING SLINGSHOT VECTOR LINE gradient DRAW ---
     if (isDraggingRef.current && !ballsMoving) {
+      const activeBall = activeRole === 'hider' ? hiderBallRef.current : seekerBallRef.current;
+      const dx = activeBall.x - dragCurrentRef.current.x;
+      const dy = activeBall.y - dragCurrentRef.current.y;
+      const dist = Math.hypot(dx, dy);
+      const dragPower = Math.min(1.0, dist / MAX_DRAG);
+
+      // Charge ring around ball (power level arc)
+      if (dragPower > 0.05) {
+        ctx.save();
+        const ringR = activeBall.radius + 8;
+        ctx.beginPath();
+        ctx.arc(activeBall.x, activeBall.y, ringR, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * dragPower);
+        ctx.strokeStyle = dragPower > 0.66 ? '#ef4444' : dragPower > 0.33 ? '#f97316' : '#22c55e';
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.stroke();
+        ctx.restore();
+      }
+
       const pts = getAimPoints();
       if (pts.length >= 2) {
         ctx.save();
@@ -1130,27 +1161,42 @@ export function GameCanvas({
           ctx.lineTo(pts[i].x, pts[i].y);
         }
 
-        // Create gradient stroke based on stretch pull distance
+        // Create gradient stroke — shifts green→yellow→red as power increases
         const startBall = pts[0];
         const endTarget = pts[pts.length - 1];
         const g = ctx.createLinearGradient(startBall.x, startBall.y, endTarget.x, endTarget.y);
-        g.addColorStop(0, '#eab308'); // Amber start
-        g.addColorStop(0.5, '#f97316'); // Orange mid
-        g.addColorStop(1, '#ef4444'); // Crimson finish (heavy tension)
+        if (dragPower < 0.33) {
+          // Low power: green → yellow
+          g.addColorStop(0, '#22c55e');
+          g.addColorStop(0.5, '#84cc16');
+          g.addColorStop(1, '#eab308');
+        } else if (dragPower < 0.66) {
+          // Mid power: yellow → orange
+          g.addColorStop(0, '#eab308');
+          g.addColorStop(0.5, '#f97316');
+          g.addColorStop(1, '#ef4444');
+        } else {
+          // High power: orange → red → crimson
+          g.addColorStop(0, '#f97316');
+          g.addColorStop(0.4, '#ef4444');
+          g.addColorStop(0.7, '#dc2626');
+          g.addColorStop(1, '#991b1b');
+        }
 
         ctx.strokeStyle = g;
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 2 + 4 * dragPower;  // 2px (min) → 6px (max)
         ctx.setLineDash([5, 4]);
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#f97316';
+        ctx.shadowBlur = 6 + 10 * dragPower;
+        ctx.shadowColor = dragPower > 0.66 ? '#ef4444' : dragPower > 0.33 ? '#f97316' : '#eab308';
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.restore();
 
-        // Draw aiming ring node
+        // Draw aiming ring node — grows with power
+        const ringRadius = 4 + 6 * dragPower;
         ctx.beginPath();
-        ctx.arc(endTarget.x, endTarget.y, 6, 0, Math.PI * 2);
-        ctx.fillStyle = '#ef4444';
+        ctx.arc(endTarget.x, endTarget.y, ringRadius, 0, Math.PI * 2);
+        ctx.fillStyle = dragPower > 0.66 ? '#ef4444' : dragPower > 0.33 ? '#f97316' : '#eab308';
         ctx.fill();
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1.5;
@@ -1169,38 +1215,93 @@ export function GameCanvas({
     }
 
     // --- DRAW SEEKER BALL ---
-    drawSeekerBall(ctx, seeker, config.colorblindMode, ballsMoving, gravityVisualRef.current > 0);
+    drawSeekerBall(ctx, seeker, config.colorblindMode, ballsMoving);
+
+    // Magnet pull visual: pulsing ring around hider while being pulled
+    if (magnetReadyRef.current && activeRole === 'seeker') {
+      const t = performance.now() / 1000;
+      const pulse = 0.5 + 0.5 * Math.sin(t * 8);
+      const r = hider.radius + 10 + pulse * 8;
+      ctx.beginPath();
+      ctx.arc(hider.x, hider.y, r, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(59, 130, 246, ${0.5 + pulse * 0.5})`;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      // Draw directional arrows along the pull line
+      const dx = seeker.x - hider.x;
+      const dy = seeker.y - hider.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 0) {
+        const nx = dx / dist;
+        const ny = dy / dist;
+        // Draw 3 small arrows along the line pointing toward seeker
+        for (let i = 1; i <= 3; i++) {
+          const t2 = (i / 4) * 0.8 + 0.1;
+          const ax = hider.x + dx * t2;
+          const ay = hider.y + dy * t2;
+          const angle = Math.atan2(ny, nx);
+          ctx.save();
+          ctx.translate(ax, ay);
+          ctx.rotate(angle);
+          ctx.beginPath();
+          ctx.moveTo(8, 0);
+          ctx.lineTo(-4, -5);
+          ctx.lineTo(-4, 5);
+          ctx.closePath();
+          ctx.fillStyle = `rgba(59, 130, 246, ${0.6 + pulse * 0.3})`;
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+    }
+
+    // Tracker reveal: directional line + distance from seeker to hider
+    if (trackerEndRef.current > 0 && performance.now() < trackerEndRef.current && activeRole === 'seeker') {
+      const dx = hider.x - seeker.x;
+      const dy = hider.y - seeker.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 0) {
+        const nx = dx / dist;
+        const ny = dy / dist;
+        // Draw dashed line from seeker toward hider (stops at fog edge or hider)
+        ctx.save();
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        ctx.moveTo(seeker.x + nx * seeker.radius, seeker.y + ny * seeker.radius);
+        const lineEnd = Math.min(dist - hider.radius, FOG_RADIUS * 1.5);
+        ctx.lineTo(seeker.x + nx * lineEnd, seeker.y + ny * lineEnd);
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.6)';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // Arrow head at end
+        const endX = seeker.x + nx * lineEnd;
+        const endY = seeker.y + ny * lineEnd;
+        const angle = Math.atan2(ny, nx);
+        ctx.beginPath();
+        ctx.moveTo(endX, endY);
+        ctx.lineTo(endX - 12 * Math.cos(angle - 0.4), endY - 12 * Math.sin(angle - 0.4));
+        ctx.lineTo(endX - 12 * Math.cos(angle + 0.4), endY - 12 * Math.sin(angle + 0.4));
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.8)';
+        ctx.fill();
+        // Distance label
+        const midX = seeker.x + nx * (lineEnd / 2);
+        const midY = seeker.y + ny * (lineEnd / 2);
+        ctx.font = 'bold 11px monospace';
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.9)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(`${Math.round(dist)}px`, midX + ny * 14, midY - nx * 14);
+        ctx.restore();
+      }
+    }
 
     // --- DRAW FOG OF WAR SHROUD ---
     if (activeRole === 'seeker' && !isSuddenDeath && !tagFrozenRef.current) {
-      drawFogOfWar(ctx, seeker.x, seeker.y, mapWidth, mapHeight);
     }
 
-    // --- DRAW GRAVITY PULL ARROW ---
-    if (gravityVisualRef.current > 0) {
-      const startX = hider.x;
-      const startY = hider.y;
-      const endX = seeker.x;
-      const endY = seeker.y;
-      const alpha = Math.min(1, gravityVisualRef.current / 500);
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(startX, startY);
-      ctx.lineTo(endX, endY);
-      ctx.strokeStyle = `rgba(239, 68, 68, ${0.8 * alpha})`;
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      const angle = Math.atan2(endY - startY, endX - startX);
-      const headLen = 12;
-      ctx.beginPath();
-      ctx.moveTo(endX, endY);
-      ctx.lineTo(endX - headLen * Math.cos(angle - Math.PI/6), endY - headLen * Math.sin(angle - Math.PI/6));
-      ctx.lineTo(endX - headLen * Math.cos(angle + Math.PI/6), endY - headLen * Math.sin(angle + Math.PI/6));
-      ctx.closePath();
-      ctx.fillStyle = `rgba(239, 68, 68, ${0.8 * alpha})`;
-      ctx.fill();
-      ctx.restore();
-    }
+    // (power-up visuals removed from render loop)
 
     restoreCameraTransform(ctx); // Restore camera matrices
 
@@ -1265,15 +1366,6 @@ export function GameCanvas({
 
     activeBall.vx = launch.vx;
     activeBall.vy = launch.vy;
-
-    // Rocket Burst: 3x speed boost on next launch
-    if (activeRole === 'seeker' && activePowerUp === 'rocket') {
-      activeBall.vx *= ROCKET_SPEED_MULT;
-      activeBall.vy *= ROCKET_SPEED_MULT;
-      setActivePowerUp(null);
-      setFloatMessage('ROCKET BURST!');
-      playPowerUpActivate('rocket');
-    }
 
     playLaunch();
     haptics.launch();
@@ -1414,21 +1506,52 @@ export function GameCanvas({
           </div>
         )}
 
-        {/* Right Side: Active power-up badge item */}
+        {/* Right Side: Active power-up badge + stored power-up with activation */}
         <div className="flex items-center gap-2">
+          {/* Auto-active power-up (gravity, smoke) */}
           {activePowerUp && (
             <div className={`px-2.5 py-1 rounded border leading-none text-[9px] font-bold tracking-widest uppercase flex items-center gap-1.5 ${
               activePowerUp === 'iron' ? 'bg-yellow-950/20 text-yellow-400 border-yellow-500/20' :
-              activePowerUp === 'rocket' ? 'bg-rose-950/20 text-rose-400 border-rose-500/20' :
               activePowerUp === 'gravity' ? 'bg-violet-950/20 text-violet-400 border-violet-500/20' :
-              activePowerUp === 'vampire' ? 'bg-red-950/20 text-red-400 border-red-500/20' :
-              activePowerUp === 'superball' ? 'bg-fuchsia-950/20 text-fuchsia-400 border-fuchsia-500/20' :
-              activePowerUp === 'emp' ? 'bg-amber-950/20 text-amber-400 border-amber-500/20' :
+              activePowerUp === 'smoke' ? 'bg-slate-700/20 text-slate-300 border-slate-500/20' :
               'bg-purple-950/30 text-purple-400 border-purple-500/20'
             }`}>
               <Zap className="w-3 h-3 fill-current" /> {activePowerUp.toUpperCase()}
             </div>
           )}
+
+          {/* Stored power-up (manual activation: iron, magnet, tracker) */}
+          {storedPowerUp && activeRole === 'seeker' && (
+            <button
+              onClick={() => {
+                if (storedPowerUp === 'iron') {
+                  ironRoundsRef.current = IRON_DURATION_ROUNDS;
+                  setActivePowerUp('iron');
+                  setStoredPowerUp(null);
+                  setFloatMessage('IRON BALL — 2 ROUNDS');
+                } else                if (storedPowerUp === 'magnet') {
+                  magnetReadyRef.current = true;
+                  magnetPullStartRef.current = 0;
+                  setStoredPowerUp(null);
+                  setFloatMessage('MAGNET PULL!');
+                  setActivePowerUp('magnet');
+                } else if (storedPowerUp === 'tracker') {
+                  trackerEndRef.current = performance.now() + TRACKER_REVEAL_MS;
+                  setStoredPowerUp(null);
+                  setFloatMessage('TRACKER ACTIVE');
+                }
+              }}
+              className={`px-2.5 py-1 rounded border leading-none text-[9px] font-bold tracking-widest uppercase flex items-center gap-1.5 cursor-pointer transition-colors ${
+                storedPowerUp === 'iron' ? 'bg-yellow-950/20 text-yellow-400 border-yellow-500/20 hover:bg-yellow-900/40' :
+                storedPowerUp === 'magnet' ? 'bg-blue-950/20 text-blue-400 border-blue-500/20 hover:bg-blue-900/40' :
+                'bg-emerald-950/20 text-emerald-400 border-emerald-500/20 hover:bg-emerald-900/40'
+              }`}
+              title="Click to activate (Space)"
+            >
+              <Zap className="w-3 h-3 fill-current" /> {storedPowerUp.toUpperCase()} — TAP
+            </button>
+          )}
+
 
           <button
             onClick={onOpenHelp}

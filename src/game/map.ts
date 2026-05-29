@@ -30,8 +30,8 @@ import {
   HAZARD_BUMPER_CLEAR,
   ORB_RADIUS,
   ORB_SPAWN_RANGE,
-  ORB_COUNT_MIN,
-  ORB_COUNT_MAX,
+  ORB_COUNT,
+  ORB_BUMPER_CLEAR,
 } from '../constants';
 import { NeonBumper, HazardPatch, PowerUpOrb, PowerUpType, PlayerBall, PlayerRole } from '../types';
 import { getRandomTemplate } from './templates';
@@ -121,25 +121,54 @@ export function generateMap(
   }
 
   // --- Power-Up Orbs ---
-  const orbCount = isSuddenDeath ? 0 : ORB_COUNT_MIN + Math.floor(Math.random() * (ORB_COUNT_MAX - ORB_COUNT_MIN + 1));
-  const allTypes: PowerUpType[] = ['iron', 'rocket', 'gravity', 'vampire', 'superball', 'emp'];
+  const allTypes: PowerUpType[] = ['iron', 'gravity', 'magnet', 'smoke', 'tracker'];
   const orbs: PowerUpOrb[] = [];
 
-  for (let i = 0; i < orbCount; i++) {
-    const randomType = allTypes[Math.floor(Math.random() * allTypes.length)];
-    const orbRange = isSuddenDeath ? 0 : ORB_SPAWN_RANGE;
-    
-    // Distribute orbs across the map, not all at center
-    const regionX = (i / orbCount) * mapWidth;
+  // Guarantee one of each type, then fill remaining with random
+  const guaranteedTypes = [...allTypes];
+  const remainingCount = ORB_COUNT - guaranteedTypes.length;
+  for (let i = 0; i < remainingCount; i++) {
+    guaranteedTypes.push(allTypes[Math.floor(Math.random() * allTypes.length)]);
+  }
+
+  for (let i = 0; i < ORB_COUNT; i++) {
+    const orbType = guaranteedTypes[i];
+
+    // Distribute orbs across the map regions
+    const regionX = (i / ORB_COUNT) * mapWidth;
     const regionY = (i % 2 === 0) ? mapHeight * 0.3 : mapHeight * 0.7;
-    const ox = regionX + (Math.random() - 0.5) * orbRange * 1.5;
-    const oy = regionY + (Math.random() - 0.5) * orbRange * 1.5;
-    
+    let ox = regionX + (Math.random() - 0.5) * ORB_SPAWN_RANGE * 1.5;
+    let oy = regionY + (Math.random() - 0.5) * ORB_SPAWN_RANGE * 1.5;
+
+    // Clamp to map bounds
+    ox = Math.max(ORB_RADIUS + 10, Math.min(mapWidth - ORB_RADIUS - 10, ox));
+    oy = Math.max(ORB_RADIUS + 10, Math.min(mapHeight - ORB_RADIUS - 10, oy));
+
+    // Reject positions too close to bumpers (retry up to 10 times)
+    let attempts = 0;
+    while (attempts < 10) {
+      let tooClose = false;
+      for (const b of bumpers) {
+        const dist = Math.hypot(ox - b.x, oy - b.y);
+        if (dist < b.radius + ORB_RADIUS + ORB_BUMPER_CLEAR) {
+          tooClose = true;
+          break;
+        }
+      }
+      if (!tooClose) break;
+      // Retry with new random position
+      ox = regionX + (Math.random() - 0.5) * ORB_SPAWN_RANGE * 1.5;
+      oy = regionY + (Math.random() - 0.5) * ORB_SPAWN_RANGE * 1.5;
+      ox = Math.max(ORB_RADIUS + 10, Math.min(mapWidth - ORB_RADIUS - 10, ox));
+      oy = Math.max(ORB_RADIUS + 10, Math.min(mapHeight - ORB_RADIUS - 10, oy));
+      attempts++;
+    }
+
     orbs.push({
-      x: isSuddenDeath ? -1000 : Math.max(ORB_RADIUS + 10, Math.min(mapWidth - ORB_RADIUS - 10, ox)),
-      y: isSuddenDeath ? -1000 : Math.max(ORB_RADIUS + 10, Math.min(mapHeight - ORB_RADIUS - 10, oy)),
+      x: isSuddenDeath ? -1000 : ox,
+      y: isSuddenDeath ? -1000 : oy,
       radius: ORB_RADIUS,
-      type: randomType,
+      type: orbType,
       active: !isSuddenDeath,
       pulseScale: 1,
     });

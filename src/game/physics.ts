@@ -11,11 +11,11 @@ import { spawnBumperParticles, spawnOrbParticles } from './particles';
 import {
   SUBSTEPS, FRICTION_BASE, FRICTION_SEEKER, FRICTION_SLOWMO,
   FRICTION_SAND_MULT, FRICTION_ICE, STOP_THRESHOLD,
-  BOUNCE_REST_NORMAL, BOUNCE_REST_SLOWMO, BOUNCE_REST_SUPERBALL,
-  BUMPER_REST, BUMPER_REST_SUPERBALL, BUMPER_BOOST_NORMAL, BUMPER_BOOST_SUPERBALL,
+  BOUNCE_REST_NORMAL, BOUNCE_REST_SLOWMO,
+  BUMPER_REST, BUMPER_BOOST_NORMAL,
   BUMPER_MIN_SPEED, BUMPER_KICK_SPEED, BUMPER_PULSE_DURATION,
   SHAKE_BUMPER_ADD, SHAKE_MAX, ORB_RADIUS,
-  GRAVITY_PULL_BASE, GRAVITY_PULL_MAX, GRAVITY_PULL_MIN_DIST, GRAVITY_PULL_MAX_DIST,
+  IRON_FRICTION_MULT,
 } from '../constants';
 
 export interface PhysicsState {
@@ -68,7 +68,7 @@ export function physicsStep(
     // --- Boundary collisions ---
     const isExploding = slowMotionRef.current < 1.0;
     const hiderRest = isExploding ? BOUNCE_REST_SLOWMO : BOUNCE_REST_NORMAL;
-    const seekerRest = isExploding ? BOUNCE_REST_SLOWMO : ((activePowerUp === 'superball') ? BOUNCE_REST_SUPERBALL : BOUNCE_REST_NORMAL);
+    const seekerRest = isExploding ? BOUNCE_REST_SLOWMO : BOUNCE_REST_NORMAL;
 
     // Hider borders
     if (hider.x - hider.radius < 0) {
@@ -115,15 +115,12 @@ export function physicsStep(
 
           const vn = ball.vx * nx + ball.vy * ny;
           if (vn < 0) {
-            let e = BUMPER_REST;
-            if (isSeeker && activePowerUp === 'superball') {
-              e = BUMPER_REST_SUPERBALL;
-            }
+            const e = BUMPER_REST;
             ball.vx = ball.vx - (1 + e) * vn * nx;
             ball.vy = ball.vy - (1 + e) * vn * ny;
 
             const currentSpeed = Math.hypot(ball.vx, ball.vy);
-            const boostFactor = (isSeeker && activePowerUp === 'superball') ? BUMPER_BOOST_SUPERBALL : BUMPER_BOOST_NORMAL;
+            const boostFactor = BUMPER_BOOST_NORMAL;
             if (currentSpeed < BUMPER_MIN_SPEED) {
               ball.vx = nx * BUMPER_KICK_SPEED * boostFactor;
               ball.vy = ny * BUMPER_KICK_SPEED * boostFactor;
@@ -153,11 +150,20 @@ export function physicsStep(
       return;
     }
 
-    // --- Orb pickup ---
+    // --- Orb pickup (check both seeker and hider) ---
     for (const orb of orbs) {
       if (orb.active) {
-        const distToOrb = Math.hypot(seeker.x - orb.x, seeker.y - orb.y);
-        if (distToOrb < seeker.radius + orb.radius) {
+        // Check seeker collision
+        const distToOrbSeeker = Math.hypot(seeker.x - orb.x, seeker.y - orb.y);
+        if (distToOrbSeeker < seeker.radius + orb.radius) {
+          orb.active = false;
+          callbacks.onOrbCollect(orb.type);
+          particlesRef.current.push(...spawnOrbParticles(orb.x, orb.y));
+          continue;
+        }
+        // Check hider collision
+        const distToOrbHider = Math.hypot(hider.x - orb.x, hider.y - orb.y);
+        if (distToOrbHider < hider.radius + orb.radius) {
           orb.active = false;
           callbacks.onOrbCollect(orb.type);
           particlesRef.current.push(...spawnOrbParticles(orb.x, orb.y));
@@ -171,6 +177,9 @@ export function physicsStep(
   const applyFriction = (ball: PlayerBall, isSeeker: boolean) => {
     let baseFriction = isSeeker ? FRICTION_SEEKER : FRICTION_BASE;
     if (slowMotionRef.current < 1.0) baseFriction = FRICTION_SLOWMO;
+    if (isSeeker && activePowerUp === 'iron') {
+      baseFriction *= IRON_FRICTION_MULT;
+    }
 
     let enteredSand = false;
     let enteredIce = false;

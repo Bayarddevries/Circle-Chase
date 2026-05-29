@@ -80,8 +80,8 @@ export default function App() {
     const hiderName = p1IsHider ? config.p1Name : config.p2Name;
     const seekerName = p1IsHider ? config.p2Name : config.p1Name;
 
-    // Determine round winner role (sudden death overrides)
-    const roundWinnerRole: 'hider' | 'seeker' =
+    // Determine round winner role (sudden death overrides) — can be 'hider', 'seeker', or 'tie'
+    const roundWinnerRole: 'hider' | 'seeker' | 'tie' =
       data.suddenDeathWinnerRole || data.roundWinner;
 
     // Add scores to totals based on roles
@@ -147,7 +147,7 @@ export default function App() {
       )}
 
       {/* 2. Active playing canvas screens */}
-      {(phase === 'playing' || phase === 'round_over' || phase === 'round_intro' || phase === 'sudden_death_intro' || phase === 'match_over') && phase !== 'menu' && (
+      {(phase === 'playing' || phase === 'round_over' || phase === 'round_intro' || phase === 'sudden_death_intro' || phase === 'match_over') && (
         <div className="w-full h-screen flex flex-col justify-between">
           <GameCanvas
             phase={phase}

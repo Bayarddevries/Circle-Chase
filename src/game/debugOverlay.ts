@@ -29,7 +29,7 @@ export interface DebugEventEntry {
   type: 'event';
   timestamp: number;
   frame: number;
-  eventType: 'collision' | 'score_change' | 'tag_attempt' | 'powerup_collect' | 'turn_swap' | 'round_start' | 'round_end' | 'tag_freeze' | 'near_miss' | 'bumper_hit';
+  eventType: 'collision' | 'score_change' | 'tag_attempt' | 'powerup_collect' | 'powerup_stolen' | 'turn_swap' | 'round_start' | 'round_end' | 'tag_freeze' | 'near_miss' | 'bumper_hit';
   data: Record<string, unknown>;
 }
 

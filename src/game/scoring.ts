@@ -33,7 +33,7 @@ export function calculateRoundScore(
   const base = meta.turnsSurvived;
   const hiderBumperBonus = meta.bumperHits * BUMPER_POINTS;
   const nearMissBonus = nearMissTriggered ? NEAR_MISS_BONUS : 0;
-  const hiderPowerUpBonus = meta.powerUpCollector === 'hider' ? POWERUP_BONUS : 0;
+  const hiderPowerUpBonus = 0; // power-ups are seeker-only; hider collection = denial, no points yet
   const hiderScore = base + hiderBumperBonus + nearMissBonus + hiderPowerUpBonus;
 
   // ── Seeker score ────────────────────────────────────

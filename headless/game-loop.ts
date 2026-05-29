@@ -153,7 +153,7 @@ function runRound(
     onTag: () => {
       tagOccurred = true;
       state.roundMeta.tagTurn = state.turnNumber;
-      state.vampireActive = state.activePowerUp === 'vampire';
+      state.vampireActive = false; // vampire removed
       // Apply tag recoil
       const h = state.hider;
       const s = state.seeker;
@@ -178,8 +178,7 @@ function runRound(
     },
     onOrbCollect: (orbType: PowerUpType) => {
       state.activePowerUp = orbType;
-      state.powerUpDuration = 2;
-      state.roundMeta.powerUpCollector = state.activeRole;
+      state.roundMeta.powerUpCollector = 'seeker'; // power-ups are seeker-only
       events.push({
         type: 'event', frame: frameCount, timestamp: frameCount * FIXED_DELTA,
         eventType: 'powerup_collect',

@@ -104,34 +104,60 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
               <Award className="w-4 h-4" /> Chaser Power-ups
             </h3>
             <p className="mb-3 text-xs text-neutral-400">
-              A glowing orb appears on the map. Collection gives the Chaser a single-use ability for the current turn:
+              <span className="text-white font-semibold">8 glowing orbs</span> spawn on the map each round. Only the <span className="text-orange-400 font-semibold">Chaser</span> gains abilities from collecting them.
+              If the <span className="text-white font-semibold">Runner</span> touches an orb first, they <span className="text-yellow-400 font-semibold">steal it</span> — denying the Chaser that power-up for the round.
+              Some power-ups activate immediately on collection; others are stored for manual activation (press <span className="text-white font-semibold">SPACE</span> or tap the HUD button).
             </p>
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-2.5 rounded bg-neutral-900 border border-yellow-500/25">
-                <span className="text-xs font-semibold text-yellow-400 uppercase block">Iron Ball</span>
-                <span className="text-xs text-zinc-400">Massive weight — plows through sand completely unaffected.</span>
-              </div>
-              <div className="p-2.5 rounded bg-neutral-900 border border-fuchsia-500/25">
-                <span className="text-xs font-semibold text-fuchsia-400 uppercase block">Superball</span>
-                <span className="text-xs text-zinc-400">Rebounds off walls and hazards with 2x bounce intensity.</span>
-              </div>
-              <div className="p-2.5 rounded bg-neutral-900 border border-rose-500/25">
-                <span className="text-xs font-semibold text-rose-400 uppercase block">Rocket Burst</span>
-                <span className="text-xs text-zinc-400">Next fling launches at 3x speed — close the gap instantly.</span>
-              </div>
+              {/* Gravity — violet */}
               <div className="p-2.5 rounded bg-neutral-900 border border-violet-500/25">
                 <span className="text-xs font-semibold text-violet-400 uppercase block">Gravity Well</span>
-                <span className="text-xs text-zinc-400">Pulls the Runner toward you for the rest of the round.</span>
+                <span className="text-xs text-zinc-400">
+                  <span className="text-violet-300">Auto-activate.</span> Pulls the Runner <span className="text-white font-semibold">80px</span> toward the Chaser instantly on collection. Short-range but immediate.
+                </span>
               </div>
-              <div className="p-2.5 rounded bg-neutral-900 border border-red-500/25">
-                <span className="text-xs font-semibold text-red-400 uppercase block">Vampire</span>
-                <span className="text-xs text-zinc-400">Tagging the Runner steals 1 extra point from their score.</span>
+              {/* Magnet — blue */}
+              <div className="p-2.5 rounded bg-neutral-900 border border-blue-500/25">
+                <span className="text-xs font-semibold text-blue-400 uppercase block">Magnet</span>
+                <span className="text-xs text-zinc-400">
+                  <span className="text-blue-300">Manual activate.</span> Pulls the Runner toward the Chaser for <span className="text-white font-semibold">~120px</span> over <span className="text-white font-semibold">0.8 seconds</span>. A pulsing blue ring and directional arrows on the Runner show the pull in action. Use it to drag them out of hiding.
+                </span>
               </div>
-              <div className="p-2.5 rounded bg-neutral-900 border border-amber-500/25">
-                <span className="text-xs font-semibold text-amber-400 uppercase block">EMP</span>
-                <span className="text-xs text-zinc-400">Hit a bumper to freeze the Runner in place for 1.5 seconds.</span>
+              {/* Iron — yellow/gray */}
+              <div className="p-2.5 rounded bg-neutral-900 border border-yellow-500/25">
+                <span className="text-xs font-semibold text-yellow-400 uppercase block">Iron Ball</span>
+                <span className="text-xs text-zinc-400">
+                  <span className="text-yellow-300">Manual activate.</span> Reduces all surface friction by <span className="text-white font-semibold">50%</span> for <span className="text-white font-semibold">2 rounds</span>. Plows through sand and glides on ice.
+                </span>
+              </div>
+              {/* Tracker — emerald */}
+              <div className="p-2.5 rounded bg-neutral-900 border border-emerald-500/25">
+                <span className="text-xs font-semibold text-emerald-400 uppercase block">Tracker</span>
+                <span className="text-xs text-zinc-400">
+                  <span className="text-emerald-300">Manual activate.</span> Shows a <span className="text-white font-semibold">directional line</span> from the Chaser toward the Runner with exact distance (px) for <span className="text-white font-semibold">5 seconds</span>. Essential for finding hidden Runners.
+                </span>
               </div>
             </div>
+          </div>
+
+          {/* Smoke — coming later */}
+          <div className="p-4 rounded-xl bg-neutral-900/50 border border-neutral-700/30">
+            <h4 className="flex items-center gap-2 text-neutral-400 font-semibold tracking-wider mb-2 uppercase">
+              <Award className="w-4 h-4" /> More Power-ups Coming
+            </h4>
+            <p className="text-xs text-neutral-500">
+              Additional Chaser power-ups are being designed. The fog-of-war system is also being rethought to create more interesting chase dynamics.
+            </p>
+          </div>
+
+          {/* Runner Orb Denial */}
+          <div className="p-4 rounded-xl bg-yellow-950/20 border border-yellow-500/20">
+            <h4 className="flex items-center gap-2 text-yellow-400 font-semibold tracking-wider mb-2 uppercase">
+              <ShieldAlert className="w-4 h-4" /> Runner: Orb Denial
+            </h4>
+            <p className="text-xs text-neutral-400">
+              The Runner can <span className="text-yellow-300 font-semibold">touch orbs first</span> to steal them before the Chaser collects it. Each stolen orb displays <span className="text-white font-semibold">"STOLEN!"</span> and denies that power-up to the Chaser for the entire round. Strategic denial is a key defensive tool — deny the Gravity Well and Magnet first!
+            </p>
           </div>
 
         </div>

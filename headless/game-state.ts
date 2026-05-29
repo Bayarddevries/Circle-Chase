@@ -10,7 +10,7 @@ import { AimingState, resetAIAiming } from '../src/game/ai';
 
 export interface RoundMeta {
   turnsSurvived: number;
-  powerUpCollector: 'hider' | 'seeker' | null;
+  powerUpCollector: 'seeker' | null; // power-ups are seeker-only; hider collection = denial
   bumperHits: number;
   tagTurn: number;
 }

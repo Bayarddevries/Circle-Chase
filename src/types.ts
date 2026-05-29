@@ -5,7 +5,7 @@
 
 export type PlayerRole = 'hider' | 'seeker';
 
-export type PowerUpType = 'iron' | 'rocket' | 'gravity' | 'vampire' | 'superball' | 'emp';
+export type PowerUpType = 'iron' | 'gravity' | 'magnet' | 'smoke' | 'tracker';
 
 export type AIDifficulty = 'easy' | 'medium' | 'hard';
 export type GameMode = 'standard' | 'survival';
@@ -101,7 +101,7 @@ export interface RoundRecord {
 
 export interface RoundMeta {
   turnsSurvived: number;
-  powerUpCollector: 'hider' | 'seeker' | null;
+  powerUpCollector: 'seeker' | null;  // power-ups are seeker-only; hider collection = denial
   bumperHits: number;
   tagTurn: number;
 }

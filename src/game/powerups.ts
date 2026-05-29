@@ -20,20 +20,18 @@ export function updateOrbPulse(orb: PowerUpOrb, time: number): void {
 
 const typeColor: Record<string, string> = {
   iron: '#6b7280',
-  rocket: '#ef4444',
   gravity: '#a855f7',
-  vampire: '#e11d48',
-  superball: '#22c55e',
-  emp: '#f59e0b',
+  magnet: '#3b82f6',
+  smoke: '#64748b',
+  tracker: '#10b981',
 };
 
 const typeLabels: Record<string, string> = {
   iron: 'IRON',
-  rocket: 'ROCKET',
   gravity: 'GRAVITY',
-  vampire: 'VAMPIRE',
-  superball: 'SUPERBALL',
-  emp: 'EMP',
+  magnet: 'MAGNET',
+  smoke: 'SMOKE',
+  tracker: 'TRACKER',
 };
 
 function hexToRgb(hex: string): string {

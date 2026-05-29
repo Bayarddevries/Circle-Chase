@@ -131,7 +131,6 @@ export function drawHiderBall(
   hider: PlayerBall,
   colorblindMode: boolean,
   ballsMoving: boolean,
-  hasGravity: boolean = false,
 ): void {
   const { x, y, radius: r } = hider;
   const t = performance.now() / 1000;
@@ -228,7 +227,6 @@ export function drawSeekerBall(
   seeker: PlayerBall,
   colorblindMode: boolean,
   ballsMoving: boolean,
-  hasGravity: boolean = false,
 ): void {
   const { x, y, radius: r } = seeker;
   const t = performance.now() / 1000;
@@ -327,35 +325,7 @@ export function drawSeekerBall(
     ctx.shadowBlur = 0;
   }
 
-  // ── Gravity well pulsing rings (active when Seeker has gravity) ──
-  if (hasGravity) {
-    const t = performance.now() / 1000;
-    const pulse = t % 1;
-    for (let i = 1; i <= 3; i++) {
-      const ringRadius = r + 10 + i * 15;
-      const alpha = Math.max(0, 0.3 - pulse * 0.25 - i * 0.08);
-      ctx.beginPath();
-      ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(245, 158, 11, ${alpha})`;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
-  }
-
-  // ── Gravity well pulsing rings (active when Seeker has gravity) ──
-  if (hasGravity) {
-    const t = performance.now() / 1000;
-    const pulse = t % 1;
-    for (let i = 1; i <= 3; i++) {
-      const ringRadius = r + 10 + i * 15;
-      const alpha = Math.max(0, 0.3 - pulse * 0.25 - i * 0.08);
-      ctx.beginPath();
-      ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(245, 158, 11, ${alpha})`;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
-  }
+  // (power-up visual effects removed — they are handled elsewhere now)
 
   ctx.restore();
 }
