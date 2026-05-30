@@ -41,33 +41,53 @@ export function MatchOverlay({
   activeRole,
 }: MatchOverlayProps) {
   const [activeTab, setActiveTab] = useState<'log' | 'leaderboard' | 'stats'>('log');
-  const scoreSubmittedRef = useRef(false);
 
-  // Submit survival score on match_over
+  // Submit score to leaderboard when hider's round ends
+  // In survival mode: fires on round_over (single round then match_over)
+  // In standard mode: fires on match_over (last round's hider score)
+  const scoreSubmittedRef = useRef(false);
+  useEffect(() => {
+    // On round_over from survival mode: hider just finished, submit immediately
+    if (phase === 'round_over' && config.gameMode === 'survival' && roundRecord && !scoreSubmittedRef.current) {
+      scoreSubmittedRef.current = true;
+      submitSurvivalScore(
+        config.p1Name,
+        roundRecord.turnsSurvived,
+        roundRecord.hiderScore,
+        config.difficulty || 'medium',
+      ).catch(() => {});
+      updateStats(
+        roundRecord.turnsSurvived,
+        roundRecord.hiderScore,
+        true,
+        config.difficulty || 'medium',
+      );
+    }
+  }, [phase, config.gameMode, config.p1Name, config.difficulty, roundRecord]);
+
+  // On match_over in standard mode: submit hider score from the last round
   const matchOverPlayedRef = useRef(false);
+  const standardScoreSubmittedRef = useRef(false);
   useEffect(() => {
     if (phase === 'match_over') {
       if (!matchOverPlayedRef.current) {
         matchOverPlayedRef.current = true;
         playMatchOver();
       }
-      if (config.gameMode === 'survival' && roundRecord && !scoreSubmittedRef.current) {
-        scoreSubmittedRef.current = true;
+      // Submit hider's score from the final round of a standard match
+      if (config.gameMode !== 'survival' && roundRecord && !standardScoreSubmittedRef.current) {
+        standardScoreSubmittedRef.current = true;
+        const p1WasHiderLastRound = roundRecord.p1Role === 'hider';
+        const hiderName = p1WasHiderLastRound ? config.p1Name : config.p2Name;
         submitSurvivalScore(
-          config.p1Name,
+          hiderName,
           roundRecord.turnsSurvived,
           roundRecord.hiderScore,
           config.difficulty || 'medium',
         ).catch(() => {});
-        updateStats(
-          roundRecord.turnsSurvived,
-          roundRecord.hiderScore,
-          true,
-          config.difficulty || 'medium',
-        );
       }
     }
-  }, [phase, config.gameMode, config.p1Name, config.difficulty, roundRecord]);
+  }, [phase, config.gameMode, config.p1Name, config.p2Name, config.difficulty, roundRecord]);
 
   if (phase === 'playing' || phase === 'tag_freeze') return null;
 
