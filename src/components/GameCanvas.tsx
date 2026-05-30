@@ -543,7 +543,7 @@ export function GameCanvas({
             } else if (manualTypes.includes(orbType)) {
               // Store for manual activation
               setStoredPowerUp(orbType);
-              setFloatMessage(`${orbType.toUpperCase()} — PRESS SPACE`);
+              setFloatMessage(`${orbType.toUpperCase()} (PRESS SPACE)`);
             }
 
             playOrbCollect();
@@ -1454,7 +1454,7 @@ export function GameCanvas({
   }, [phase, config]);
 
   return (
-    <div className="relative flex flex-col flex-1 select-none overflow-hidden bg-[#020502]">
+    <div className="relative flex flex-col flex-1 select-none overflow-hidden bg-[var(--color-bg)]">
       
       {/* Top Banner HUD display */}
       <div className="w-full bg-neutral-950/80 backdrop-blur-md border-b border-emerald-500/25 px-4 py-3 flex justify-between items-center z-10 font-mono text-[11px] h-14 shrink-0 shadow-lg">
@@ -1528,7 +1528,7 @@ export function GameCanvas({
                   ironRoundsRef.current = IRON_DURATION_ROUNDS;
                   setActivePowerUp('iron');
                   setStoredPowerUp(null);
-                  setFloatMessage('IRON BALL — 2 ROUNDS');
+                  setFloatMessage('IRON BALL (2 ROUNDS)');
                 } else                if (storedPowerUp === 'magnet') {
                   magnetReadyRef.current = true;
                   magnetPullStartRef.current = 0;
@@ -1548,7 +1548,7 @@ export function GameCanvas({
               }`}
               title="Click to activate (Space)"
             >
-              <Zap className="w-3 h-3 fill-current" /> {storedPowerUp.toUpperCase()} — TAP
+              <Zap className="w-3 h-3 fill-current" /> {storedPowerUp.toUpperCase()} (TAP)
             </button>
           )}
 
@@ -1581,7 +1581,7 @@ export function GameCanvas({
 
       {/* Floating Alerts Container */}
       {floatMessage && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-emerald-500/10 border border-emerald-400/40 text-emerald-400 rounded-full font-mono text-xs font-bold tracking-widest shadow-lg shadow-emerald-500/5 animate-bounce">
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-emerald-500/10 border border-emerald-400/40 text-emerald-400 rounded-full font-mono text-xs font-bold tracking-widest shadow-lg shadow-emerald-500/5 animate-pulse">
           {floatMessage}
         </div>
       )}
@@ -1616,9 +1616,13 @@ export function GameCanvas({
       )}
 
       {/* Canvas Element Container */}
-      <div className="flex-1 w-full bg-[#020502] relative touch-none outline-none">
+      <div className="flex-1 w-full bg-[var(--color-bg)] relative touch-none outline-none">
         <canvas
           ref={canvasRef}
+          role="application"
+          aria-label="Circle Chase game board. Drag to aim, release to launch."
+          aria-live="polite"
+          aria-atomic="true"
           onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
           onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
           onMouseUp={handleEnd}

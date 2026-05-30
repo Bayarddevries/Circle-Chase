@@ -135,7 +135,7 @@ export function MatchOverlay({
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent to-orange-500/2 pointer-events-none" />
                 <span className="text-[10px] text-orange-500/60 font-mono tracking-widest uppercase">Chaser</span>
                 <span className="text-lg font-bold text-white tracking-wide">{currentSeeker.name}</span>
-                <span className="text-xs font-black px-3 py-1 bg-[#ff6600] text-black rounded-lg uppercase tracking-widest leading-none mt-2 shadow-lg shadow-orange-500/20">
+                <span className="text-xs font-black px-3 py-1 bg-[var(--color-alert)] text-black rounded-lg uppercase tracking-widest leading-none mt-2 shadow-lg shadow-orange-500/20">
                   Chaser
                 </span>
                 <p className="text-zinc-500 text-[10px] leading-relaxed pt-2">
@@ -165,8 +165,8 @@ export function MatchOverlay({
         {isSuddenDeath && (
           <div className="space-y-6">
             <div className="flex flex-col items-center">
-              <AlertOctagon className="w-16 h-16 text-fuchsia-500 animate-bounce mb-3" />
-              <h2 className="text-3xl md:text-4xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 to-rose-500 uppercase font-sans">
+              <AlertOctagon className="w-16 h-16 text-fuchsia-500 mb-3" />
+              <h2 className="text-3xl md:text-4xl font-black tracking-widest text-fuchsia-400 uppercase font-sans">
                 SUDDEN DEATH
               </h2>
               <p className="text-xs text-neutral-500 tracking-[2px] mt-1 font-mono uppercase">

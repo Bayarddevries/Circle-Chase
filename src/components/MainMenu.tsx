@@ -40,7 +40,7 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
   const isSurvival = gameMode === 'survival';
 
   return (
-    <div className="relative min-h-screen bg-[#020502] text-neutral-200 flex flex-col p-4 md:p-8 overflow-y-auto">
+      <div className="relative min-h-screen bg-[var(--color-bg)] text-neutral-200 flex flex-col p-4 md:p-8 overflow-y-auto">
       {/* Decorative glows */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-600/5 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-teal-600/5 blur-[120px] pointer-events-none" />
@@ -60,7 +60,7 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
           <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" /> TURN TAG
         </div>
 
-        <h1 className="text-3xl md:text-5xl font-display text-center tracking-[8px] text-transparent bg-clip-text bg-gradient-to-b from-white via-emerald-100 to-emerald-400 uppercase select-none drop-shadow-2xl leading-tight">
+        <h1 className="text-3xl md:text-5xl font-display text-center tracking-[8px] text-emerald-400 uppercase select-none drop-shadow-2xl leading-tight">
           Turn Tag
         </h1>
         <p className="text-[10px] text-neutral-500 tracking-[4px] font-mono uppercase mb-4">
@@ -87,7 +87,7 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
                 maxLength={14}
                 value={p1Name}
                 onChange={(e) => setP1Name(e.target.value)}
-                className="w-full bg-[#040604] border border-emerald-500/10 focus:border-emerald-400/40 outline-none rounded-lg px-3.5 py-2.5 text-sm tracking-widest font-semibold focus:ring-1 focus:ring-emerald-400/10 text-emerald-200 transition-all font-sans"
+                className="w-full bg-[var(--color-surface)] border border-emerald-500/10 focus:border-emerald-400/40 outline-none rounded-lg px-3.5 py-2.5 text-sm tracking-widest font-semibold focus:ring-1 focus:ring-emerald-400/10 text-emerald-200 transition-all font-sans"
                 placeholder={isSurvival ? "Your name" : "Runner name"}
               />
               <Users className="absolute right-3 top-2.5 w-4 h-4 text-emerald-500/20" />
@@ -106,7 +106,7 @@ export function MainMenu({ onStartGame, onOpenHelp }: MainMenuProps) {
                   maxLength={14}
                   value={p2Name}
                   onChange={(e) => setP2Name(e.target.value)}
-                  className="w-full bg-[#040604] border border-emerald-500/10 focus:border-emerald-400/40 outline-none rounded-lg px-3.5 py-2.5 text-sm tracking-widest font-semibold focus:ring-1 focus:ring-emerald-400/10 text-emerald-200 transition-all font-sans"
+                  className="w-full bg-[var(--color-surface)] border border-emerald-500/10 focus:border-emerald-400/40 outline-none rounded-lg px-3.5 py-2.5 text-sm tracking-widest font-semibold focus:ring-1 focus:ring-emerald-400/10 text-emerald-200 transition-all font-sans"
                   placeholder="Chaser name"
                 />
                 <Users className="absolute right-3 top-2.5 w-4 h-4 text-emerald-500/20" />

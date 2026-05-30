@@ -137,7 +137,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#020502] text-neutral-200 font-sans antialiased overflow-x-hidden selection:bg-emerald-500/30 selection:text-white">
+    <div className="min-h-screen bg-[var(--color-bg)] text-neutral-200 font-sans antialiased overflow-x-hidden selection:bg-emerald-500/30 selection:text-white">
       {/* 1. Main configuration terminal */}
       {phase === 'menu' && (
         <MainMenu 

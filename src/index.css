@@ -5,6 +5,9 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   --font-display: "Bungee", sans-serif;
+  --color-bg: #020502;
+  --color-surface: #040604;
+  --color-alert: #ff6600;
 }
 
 @keyframes fadeIn {
@@ -22,7 +25,7 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #020502;
+  background: var(--color-bg);
 }
 ::-webkit-scrollbar-thumb {
   background: #10b98133;
@@ -40,7 +43,7 @@ body, html, #root {
   padding: 0;
   -webkit-user-select: none;
   user-select: none;
-  background-color: #020502;
+  background-color: var(--color-bg);
 }
 
 canvas {
