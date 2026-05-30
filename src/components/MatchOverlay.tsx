@@ -42,12 +42,9 @@ export function MatchOverlay({
 }: MatchOverlayProps) {
   const [activeTab, setActiveTab] = useState<'log' | 'leaderboard' | 'stats'>('log');
 
-  // Submit score to leaderboard when hider's round ends
-  // In survival mode: fires on round_over (single round then match_over)
-  // In standard mode: fires on match_over (last round's hider score)
+  // On round_over from survival mode: single round, submit immediately
   const scoreSubmittedRef = useRef(false);
   useEffect(() => {
-    // On round_over from survival mode: hider just finished, submit immediately
     if (phase === 'round_over' && config.gameMode === 'survival' && roundRecord && !scoreSubmittedRef.current) {
       scoreSubmittedRef.current = true;
       submitSurvivalScore(
