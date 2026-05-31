@@ -23,11 +23,11 @@ const typeColor: Record<string, string> = {
   gravity: '#a855f7',
   magnet: '#3b82f6',
   smoke: '#64748b',
-  tracker: '#10b981',
+  tracker: '#22d3ee',
 };
 
 const typeLabels: Record<string, string> = {
-  iron: 'IRON',
+  iron: 'IRON BALL',
   gravity: 'GRAVITY',
   magnet: 'MAGNET',
   smoke: 'SMOKE',

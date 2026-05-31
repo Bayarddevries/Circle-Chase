@@ -773,7 +773,7 @@ export function GameCanvas({
           smokeRoundsRef.current--;
           if (smokeRoundsRef.current === 0) {
             setActivePowerUp(prev => prev === 'smoke' ? null : prev);
-            setFloatMessage('SMOKE CLEARED');
+            setFloatMessage('TRAIL CLEARED');
           }
         }
       }
