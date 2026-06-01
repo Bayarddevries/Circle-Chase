@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { GamePhase, RoundRecord, MatchConfig, PlayerRole } from '../types';
-import { Swords, Trophy, Zap, AlertOctagon, RotateCcw, Home, Sparkles } from 'lucide-react';
+import { Swords, Trophy, Zap, AlertOctagon, RotateCcw, Home, Sparkles, Crosshair, GaugeCircle, TrendingDown, Layers } from 'lucide-react';
 import { playUIClick, playRoundOver, playMatchOver } from '../game/sounds';
 import { submitSurvivalScore } from '../stats/firebase';
 import { updateStats } from '../stats/storage';
@@ -240,24 +240,49 @@ export function MatchOverlay({
                     <span className="text-neutral-400">Turns Survived</span>
                     <span className="text-emerald-300">+{roundRecord.hiderBreakdown.base}</span>
                   </div>
-                  {roundRecord.hiderBreakdown.comboBonus > 0 && (
-                    <div className="flex justify-between text-emerald-300">
-                      <span>Bumper Combos</span>
-                      <span>+{roundRecord.hiderBreakdown.comboBonus}</span>
-                    </div>
-                  )}
-                  {roundRecord.hiderBreakdown.nearMissBonus > 0 && (
-                    <div className="flex justify-between text-amber-300">
-                      <span>Near Miss</span>
-                      <span>+{roundRecord.hiderBreakdown.nearMissBonus}</span>
-                    </div>
-                  )}
-                  {roundRecord.hiderBreakdown.powerUpBonus > 0 && (
-                    <div className="flex justify-between text-purple-300">
-                      <span>Power-up</span>
-                      <span>+{roundRecord.hiderBreakdown.powerUpBonus}</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const h = roundRecord.hiderBreakdown;
+                    const base = typeof h.base === 'number' ? h.base : 0;
+                    const comboBonus = 'comboBonus' in h ? (h.comboBonus as number) : 0;
+                    const nearMissBonus = 'nearMissBonus' in h ? (h.nearMissBonus as number) : 0;
+                    const powerUpBonus = 'powerUpBonus' in h ? (h.powerUpBonus as number) : 0;
+                    const total = typeof h.total === 'number' ? h.total : base + comboBonus + nearMissBonus + powerUpBonus;
+                    const derived: { label: string; value: number; positive: boolean }[] = [
+                      { label: 'Bumper Combos', value: comboBonus, positive: true },
+                      { label: 'Near Miss', value: nearMissBonus, positive: true },
+                      { label: 'Power-up', value: powerUpBonus, positive: true },
+                    ];
+                    const gaps = derived.filter(d => d.value === 0);
+                    const shown = derived.filter(d => d.value !== 0);
+                    return (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-neutral-400">Total</span>
+                          <span className="text-white">{total}</span>
+                        </div>
+                        {shown.length === 0 && gaps.length > 0 ? (
+                          <div className="text-[10px] text-neutral-600">No combo bonuses this round</div>
+                        ) : null}
+                      </>
+                    );
+                  })()}
+                  {(() => {
+                    const h = roundRecord.hiderBreakdown;
+                    const comboBonus = 'comboBonus' in h ? (h.comboBonus as number) : 0;
+                    const nearMissBonus = 'nearMissBonus' in h ? (h.nearMissBonus as number) : 0;
+                    const powerUpBonus = 'powerUpBonus' in h ? (h.powerUpBonus as number) : 0;
+                    const shown = [
+                      ...(comboBonus ? [{ label: 'Bumper Combos', value: comboBonus }] : []),
+                      ...(nearMissBonus ? [{ label: 'Near Miss', value: nearMissBonus }] : []),
+                      ...(powerUpBonus ? [{ label: 'Power-up', value: powerUpBonus }] : []),
+                    ];
+                    return shown.map(item => (
+                      <div key={item.label} className="flex justify-between">
+                        <span>{item.label}</span>
+                        <span className="text-emerald-300">+{item.value}</span>
+                      </div>
+                    ));
+                  })()}
                 </div>
               </div>
               {/* Seeker summary */}
@@ -273,18 +298,33 @@ export function MatchOverlay({
                     <span className="text-neutral-400">Tag</span>
                     <span className="text-yellow-300">+{roundRecord.seekerBreakdown.base}</span>
                   </div>
-                  {roundRecord.seekerBreakdown.quickTagBonus > 0 && (
-                    <div className="flex justify-between text-yellow-200">
-                      <span>Quick Tag Bonus</span>
-                      <span>+{roundRecord.seekerBreakdown.quickTagBonus}</span>
-                    </div>
-                  )}
-                  {roundRecord.seekerBreakdown.powerUpBonus > 0 && (
-                    <div className="flex justify-between text-purple-300">
-                      <span>Power-up</span>
-                      <span>+{roundRecord.seekerBreakdown.powerUpBonus}</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const s = roundRecord.seekerBreakdown;
+                    const quickTagBonus = 'quickTagBonus' in s ? (s.quickTagBonus as number) : 0;
+                    const powerUpBonus = 'powerUpBonus' in s ? (s.powerUpBonus as number) : 0;
+                    const base = typeof s.base === 'number' ? s.base : 0;
+                    const total = typeof s.total === 'number' ? s.total : base + quickTagBonus + powerUpBonus;
+                    return (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-neutral-400">Total</span>
+                          <span className="text-white">{total}</span>
+                        </div>
+                        {quickTagBonus ? (
+                          <div className="flex justify-between text-yellow-200">
+                            <span>Quick Tag Bonus</span>
+                            <span>+{quickTagBonus}</span>
+                          </div>
+                        ) : null}
+                        {powerUpBonus ? (
+                          <div className="flex justify-between text-purple-300">
+                            <span>Power-up</span>
+                            <span>+{powerUpBonus}</span>
+                          </div>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
